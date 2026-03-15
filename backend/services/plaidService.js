@@ -2,6 +2,39 @@ const { PlaidApi, Configuration, PlaidEnvironments } = require('plaid');
 const { db } = require('./database');
 const { encrypt, decrypt } = require('./encryption');
 
+// Structured Plaid logger - captures key identifiers for troubleshooting
+function logPlaid(level, action, details = {}) {
+  const entry = {
+    timestamp: new Date().toISOString(),
+    service: 'plaid',
+    action,
+    ...(details.item_id && { item_id: details.item_id }),
+    ...(details.request_id && { request_id: details.request_id }),
+    ...(details.account_id && { account_id: details.account_id }),
+    ...(details.link_session_id && { link_session_id: details.link_session_id }),
+    ...(details.institution_id && { institution_id: details.institution_id }),
+    ...(details.error_code && { error_code: details.error_code }),
+    ...(details.error_type && { error_type: details.error_type }),
+    ...(details.message && { message: details.message }),
+  };
+  if (level === 'error') {
+    console.error('[Plaid]', JSON.stringify(entry));
+  } else {
+    console.log('[Plaid]', JSON.stringify(entry));
+  }
+}
+
+// Extract identifiers from Plaid error responses
+function extractErrorDetails(error) {
+  const data = error.response?.data || {};
+  return {
+    request_id: data.request_id || null,
+    error_code: data.error_code || null,
+    error_type: data.error_type || null,
+    message: data.error_message || error.message,
+  };
+}
+
 class PlaidService {
   constructor() {
     const envMap = {
@@ -32,6 +65,8 @@ class PlaidService {
         products: ['transactions'],
         country_codes: ['US'],
         language: 'en',
+        redirect_uri: process.env.PLAID_REDIRECT_URI || 'http://localhost:3000/oauth-callback',
+        webhook: process.env.PLAID_WEBHOOK_URL || undefined,
       };
 
       if (process.env.PLAID_USER_PHONE) {
@@ -39,9 +74,13 @@ class PlaidService {
       }
 
       const response = await this.client.linkTokenCreate(request);
+      logPlaid('info', 'link_token_create', {
+        request_id: response.data.request_id,
+        message: `Link token created for user ${userId}`,
+      });
       return response.data.link_token;
     } catch (error) {
-      console.error('Error creating link token:', error.response?.data || error.message);
+      logPlaid('error', 'link_token_create', extractErrorDetails(error));
       throw new Error(`Failed to create link token: ${error.response?.data?.error_message || error.message}`);
     }
   }
@@ -56,8 +95,20 @@ class PlaidService {
       const accessToken = response.data.access_token;
       const itemId = response.data.item_id;
 
+      logPlaid('info', 'public_token_exchange', {
+        item_id: itemId,
+        request_id: response.data.request_id,
+        message: 'Token exchanged successfully',
+      });
+
       // Get institution info
       const itemResponse = await this.client.itemGet({ access_token: accessToken });
+      logPlaid('info', 'item_get', {
+        item_id: itemId,
+        request_id: itemResponse.data.request_id,
+        institution_id: itemResponse.data.item.institution_id,
+      });
+
       const institutionResponse = await this.client.institutionsGetById({
         institution_id: itemResponse.data.item.institution_id,
         country_codes: ['US'],
@@ -65,16 +116,46 @@ class PlaidService {
 
       const institutionName = institutionResponse.data.institution?.name || 'Unknown';
 
-      // Check if this item already exists
+      logPlaid('info', 'institution_get', {
+        item_id: itemId,
+        request_id: institutionResponse.data.request_id,
+        institution_id: itemResponse.data.item.institution_id,
+        message: `Institution: ${institutionName}`,
+      });
+
+      // Check if this exact item already exists
       const existing = await db.collection('plaid_items')
         .where('user_id', '==', userId)
         .where('item_id', '==', itemId)
         .limit(1)
         .get();
 
+      // Check if user already has an item from this institution
+      const duplicateInstitution = await db.collection('plaid_items')
+        .where('user_id', '==', userId)
+        .where('institution_id', '==', itemResponse.data.item.institution_id)
+        .limit(1)
+        .get();
+
+      if (!duplicateInstitution.empty && existing.empty) {
+        logPlaid('info', 'duplicate_item_detected', {
+          item_id: itemId,
+          institution_id: itemResponse.data.item.institution_id,
+          message: `Duplicate connection to ${institutionName} removed`,
+        });
+        // Remove the new duplicate item from Plaid
+        try {
+          await this.client.itemRemove({ access_token: accessToken });
+        } catch (err) {
+          logPlaid('error', 'duplicate_item_remove', { item_id: itemId, ...extractErrorDetails(err) });
+        }
+        throw new Error(`You already have a connection to ${institutionName}. Please remove it first if you want to reconnect.`);
+      }
+
       const data = {
         user_id: userId,
         item_id: itemId,
+        institution_id: itemResponse.data.item.institution_id,
         access_token: encrypt(accessToken),
         institution_name: institutionName,
         products: ['transactions'],
@@ -90,8 +171,10 @@ class PlaidService {
 
       return { accessToken, itemId, institutionName };
     } catch (error) {
-      console.error('Error exchanging public token:', error.response?.data || error.message);
-      throw new Error('Failed to exchange public token');
+      if (!error.message.includes('already have a connection')) {
+        logPlaid('error', 'public_token_exchange', extractErrorDetails(error));
+      }
+      throw error;
     }
   }
 
@@ -141,6 +224,13 @@ class PlaidService {
             start_date: startDate,
             end_date: endDate,
             options: { count: 500, offset },
+          });
+
+          logPlaid('info', 'transactions_get', {
+            item_id: item.item_id,
+            request_id: response.data.request_id,
+            institution_id: item.institution_id,
+            message: `Fetched ${response.data.transactions.length} transactions (offset ${offset}, total ${response.data.total_transactions})`,
           });
 
           allTransactions = allTransactions.concat(response.data.transactions);
@@ -206,6 +296,12 @@ class PlaidService {
           await batch.commit();
         }
 
+        logPlaid('info', 'transactions_sync', {
+          item_id: item.item_id,
+          institution_id: item.institution_id,
+          message: `Synced ${item.institution_name}: ${added} added, ${skipped} skipped`,
+        });
+
         results.push({
           institution: item.institution_name,
           total_fetched: allTransactions.length,
@@ -214,7 +310,11 @@ class PlaidService {
           success: true,
         });
       } catch (error) {
-        console.error(`Error syncing transactions for ${item.institution_name}:`, error.response?.data || error.message);
+        logPlaid('error', 'transactions_sync', {
+          item_id: item.item_id,
+          institution_id: item.institution_id,
+          ...extractErrorDetails(error),
+        });
         results.push({
           institution: item.institution_name,
           success: false,
@@ -242,9 +342,15 @@ class PlaidService {
 
     try {
       const accessToken = decrypt(item.access_token);
-      await this.client.itemRemove({ access_token: accessToken });
+      const response = await this.client.itemRemove({ access_token: accessToken });
+      logPlaid('info', 'item_remove', {
+        item_id: itemId,
+        request_id: response.data.request_id,
+        institution_id: item.institution_id,
+        message: `Removed ${item.institution_name}`,
+      });
     } catch (err) {
-      console.error('Error removing item from Plaid (continuing with local cleanup):', err.message);
+      logPlaid('error', 'item_remove', { item_id: itemId, ...extractErrorDetails(err) });
     }
 
     // Delete the plaid_items doc
@@ -257,6 +363,11 @@ class PlaidService {
   async getInvestmentHoldings(accessToken) {
     const response = await this.client.investmentsHoldingsGet({
       access_token: accessToken,
+    });
+
+    logPlaid('info', 'investments_holdings_get', {
+      request_id: response.data.request_id,
+      message: `Fetched ${response.data.holdings.length} holdings`,
     });
 
     return {

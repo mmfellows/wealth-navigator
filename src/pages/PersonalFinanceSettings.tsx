@@ -129,9 +129,18 @@ const PersonalFinanceSettings: React.FC = () => {
     }
   }, []);
 
+  const logLinkEvent = useCallback((eventName: string, metadata: any) => {
+    fetch('http://localhost:3001/api/plaid/link-event', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ event_name: eventName, metadata }),
+    }).catch(() => {}); // fire-and-forget
+  }, []);
+
   const { open: openPlaid, ready: plaidReady } = usePlaidLink({
     token: plaidLinkToken,
-    onSuccess: async (publicToken) => {
+    onSuccess: async (publicToken, metadata) => {
+      logLinkEvent('HANDOFF', metadata);
       setPlaidLoading(true);
       try {
         const res = await fetch('http://localhost:3001/api/plaid/exchange-public-token', {
@@ -139,7 +148,10 @@ const PersonalFinanceSettings: React.FC = () => {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ public_token: publicToken }),
         });
-        if (!res.ok) throw new Error('Failed to exchange token');
+        if (!res.ok) {
+          const data = await res.json();
+          throw new Error(data.error || 'Failed to exchange token');
+        }
         await fetchPlaidAccounts();
         await fetchSyncLogs();
       } catch (err: any) {
@@ -148,8 +160,12 @@ const PersonalFinanceSettings: React.FC = () => {
         setPlaidLoading(false);
       }
     },
-    onExit: (err) => {
+    onExit: (err, metadata) => {
+      logLinkEvent('EXIT', { ...metadata, error_type: err?.error_type, error_code: err?.error_code, error_message: err?.display_message });
       if (err) setPlaidError(err.display_message || 'Connection cancelled');
+    },
+    onEvent: (eventName, metadata) => {
+      logLinkEvent(eventName, metadata);
     },
   });
 

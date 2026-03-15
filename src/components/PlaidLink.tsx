@@ -24,6 +24,8 @@ const PlaidLink: React.FC<PlaidLinkProps> = ({ onSuccess }) => {
     try {
       const response = await axios.post<LinkTokenResponse>('http://localhost:3001/api/plaid/create-link-token');
       setLinkToken(response.data.link_token);
+      // Store for OAuth callback recovery
+      localStorage.setItem('plaid_link_token', response.data.link_token);
     } catch (error: unknown) {
       console.error('Failed to create link token:', error);
 

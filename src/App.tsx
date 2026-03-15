@@ -18,6 +18,7 @@ import Expenses from './pages/Expenses';
 import Accounts from './pages/Accounts';
 import Reports from './pages/Reports';
 import Carrots from './pages/Carrots';
+import OAuthCallback from './pages/OAuthCallback';
 
 // Create a query client
 const queryClient = new QueryClient({
@@ -48,6 +49,7 @@ function App() {
             <Route path="/accounts" element={<Accounts />} />
             <Route path="/reports" element={<Reports />} />
             <Route path="/carrots" element={<Carrots />} />
+            <Route path="/oauth-callback" element={<OAuthCallback />} />
             <Route path="/settings" element={<Settings />} />
             <Route path="/investing-settings" element={<InvestingSettings />} />
             <Route path="/personal-finance-settings" element={<PersonalFinanceSettings />} />

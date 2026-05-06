@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { CreditCard, Search, Filter, PlusCircle, Calendar, Tag, DollarSign, Info, Upload, Download, Eye, X, ArrowLeftRight, FileText, BarChart3 } from 'lucide-react';
+import { CreditCard, Search, PlusCircle, Tag, DollarSign, Info, Upload, Download, Eye, X, ArrowLeftRight, FileText, BarChart3 } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine, Cell } from 'recharts';
 import { fetchBudgetCategories } from '../constants/budgetCategories';
 
@@ -48,7 +48,7 @@ const Expenses: React.FC = () => {
   const [displayColumns, setDisplayColumns] = useState<string[]>(['amount', 'date', 'merchant', 'description', 'category', 'subcategory', 'statement']);
   const [currentPage, setCurrentPage] = useState(0);
   const [limit] = useState(200);
-  const [csvFile, setCsvFile] = useState<File | null>(null);
+  const [, setCsvFile] = useState<File | null>(null);
   const [csvData, setCsvData] = useState<any[]>([]);
   const [showCsvPreview, setShowCsvPreview] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
@@ -58,7 +58,7 @@ const Expenses: React.FC = () => {
   const [isPdfUploading, setIsPdfUploading] = useState(false);
   const [pdfImportStats, setPdfImportStats] = useState<any>(null);
   const [editingCell, setEditingCell] = useState<{ id: number; field: 'category' | 'subcategory' } | null>(null);
-  const [editingValue, setEditingValue] = useState('');
+  const [, setEditingValue] = useState('');
   const [searchFilter, setSearchFilter] = useState('');
   const [highlightedIndex, setHighlightedIndex] = useState(0);
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
@@ -332,7 +332,7 @@ const Expenses: React.FC = () => {
         const headers = parseCSVRow(rows[0]).map(h => h.toLowerCase().replace(/"/g, ''));
         console.log('CSV Headers found:', headers);
 
-        const data = rows.slice(1).map((row, index) => {
+        const data = rows.slice(1).map((row) => {
           const values = parseCSVRow(row);
           const item: any = {};
 
@@ -1613,15 +1613,15 @@ const Expenses: React.FC = () => {
                             className="cursor-pointer min-w-[80px] min-h-[24px]"
                             title={`Click to set ${field}`}
                           >
-                            {expense[column] ? (
+                            {(expense as any)[column] ? (
                               field === 'category' ? (
                                 <span className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${
-                                  categoryColors[expense[column]] || 'bg-gray-100 text-gray-800'
+                                  categoryColors[(expense as any)[column]] || 'bg-gray-100 text-gray-800'
                                 }`}>
-                                  {expense[column]}
+                                  {(expense as any)[column]}
                                 </span>
                               ) : (
-                                <span className="text-gray-900">{expense[column]}</span>
+                                <span className="text-gray-900">{(expense as any)[column]}</span>
                               )
                             ) : (
                               <span className="inline-flex px-2 py-1 text-xs font-medium rounded-full bg-gray-50 text-gray-400 border border-dashed border-gray-300 hover:border-blue-400 hover:text-blue-500">
@@ -1633,11 +1633,11 @@ const Expenses: React.FC = () => {
                       })() : column.toLowerCase() === 'merchant' && expense.is_transfer ? (
                         <div className="flex items-center gap-1 font-medium text-gray-600">
                           <ArrowLeftRight className="h-4 w-4" />
-                          {formatCellValue(expense[column], column)}
+                          {formatCellValue((expense as any)[column], column)}
                         </div>
                       ) : (
                         <div className={`${column.toLowerCase() === 'merchant' ? 'font-medium' : ''} ${expense.is_transfer ? 'text-gray-600' : ''}`}>
-                          {formatCellValue(expense[column], column)}
+                          {formatCellValue((expense as any)[column], column)}
                         </div>
                       )}
                     </td>

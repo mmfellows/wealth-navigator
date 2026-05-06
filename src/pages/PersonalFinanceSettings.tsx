@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Save, Trash2, Plus, Edit2, Tag, X, ChevronDown, ChevronRight, Upload, Download, Palette, GripVertical, Link as LinkIcon, RefreshCw, Loader2, Unlink } from 'lucide-react';
+import { Trash2, Plus, Edit2, Tag, X, ChevronDown, ChevronRight, Upload, Download, Palette, GripVertical, Link as LinkIcon, RefreshCw, Loader2, Unlink } from 'lucide-react';
 import { usePlaidLink } from 'react-plaid-link';
 
 interface SubCategory {

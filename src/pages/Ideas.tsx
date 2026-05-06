@@ -679,7 +679,7 @@ const Ideas: React.FC = () => {
                         </div>
                       </td>
                       <td className="px-2 py-3 whitespace-nowrap text-center">
-                        <div className={`inline-flex items-center justify-center w-8 h-8 rounded-full text-xs font-medium ${getCategoryColor(idea.category)}`} title={idea.category.replace('-', ' ').replace(/\b\w/g, l => l.toUpperCase())}>
+                        <div className={`inline-flex items-center justify-center w-8 h-8 rounded-full text-xs font-medium ${getCategoryColor(idea.category)}`} title={idea.category.replace('-', ' ').replace(/\b\w/g, (l: string) => l.toUpperCase())}>
                           <Icon className="h-4 w-4" />
                         </div>
                       </td>
@@ -690,7 +690,7 @@ const Ideas: React.FC = () => {
                       </td>
                       <td className="px-2 py-3 whitespace-nowrap text-center">
                         {checkHoldings(idea.ticker) ? (
-                          <CheckCircle className="h-4 w-4 text-green-500 mx-auto" title="Owned" />
+                          <span title="Owned"><CheckCircle className="h-4 w-4 text-green-500 mx-auto" /></span>
                         ) : (
                           <div className="w-4 h-4 rounded-full border-2 border-gray-300 mx-auto" title="Not Owned" />
                         )}

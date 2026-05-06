@@ -14,7 +14,6 @@ import {
   DollarSign,
   CreditCard,
   PiggyBank,
-  Calendar,
   PieChart,
   Wallet,
   Carrot,

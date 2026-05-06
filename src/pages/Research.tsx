@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Search, Plus, Star, TrendingUp, Loader2 } from 'lucide-react';
+import { Search, Plus, TrendingUp, Loader2 } from 'lucide-react';
 import axios from 'axios';
 
 const Research: React.FC = () => {
@@ -53,7 +53,7 @@ const Research: React.FC = () => {
 
   const handleAddToIdeas = async (ticker: string, category: string) => {
     try {
-      const response = await axios.post('/api/ideas', {
+      await axios.post('/api/ideas', {
         ticker: ticker.toUpperCase(),
         name: ticker.toUpperCase(),
         category: category.toLowerCase().replace(' ', '-'),

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Key, TestTube, CheckCircle, XCircle, AlertTriangle, Loader2, TrendingUp, TrendingDown, DollarSign, Building2, RefreshCw } from 'lucide-react';
+import { Key, XCircle, AlertTriangle, Loader2, TrendingUp, TrendingDown, DollarSign, Building2, RefreshCw } from 'lucide-react';
 
 const ApiTesting: React.FC = () => {
   const [etradeConfig, setEtradeConfig] = useState({
@@ -7,10 +7,10 @@ const ApiTesting: React.FC = () => {
     consumerSecret: '',
     sandboxMode: false
   });
-  const [testResults, setTestResults] = useState<any[]>([]);
+  const [, setTestResults] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [portfolioData, setPortfolioData] = useState<any[]>([]);
-  const [accountSummary, setAccountSummary] = useState<any>(null);
+  const [, setAccountSummary] = useState<any>(null);
   const [connectionStatus, setConnectionStatus] = useState<'connected' | 'disconnected' | 'loading' | 'auth-required'>('disconnected');
   const [authUrl, setAuthUrl] = useState<string | null>(null);
   const [showOAuthModal, setShowOAuthModal] = useState(false);
@@ -71,13 +71,6 @@ const ApiTesting: React.FC = () => {
     }
   };
 
-  const handleConfigChange = (field: string, value: string | boolean) => {
-    setEtradeConfig(prev => ({
-      ...prev,
-      [field]: value
-    }));
-  };
-
   const fetchPortfolioData = async () => {
     setConnectionStatus('loading');
     setIsLoading(true);
@@ -131,7 +124,7 @@ const ApiTesting: React.FC = () => {
         test: 'Portfolio Data',
         status: 'error',
         message: 'Failed to fetch portfolio data',
-        details: { error: error.message }
+        details: { error: error instanceof Error ? error.message : String(error) }
       }, ...prev]);
     } finally {
       setIsLoading(false);
@@ -171,7 +164,7 @@ const ApiTesting: React.FC = () => {
         test: 'OAuth Authentication',
         status: 'error',
         message: 'Failed to start OAuth flow',
-        details: { error: error.message }
+        details: { error: error instanceof Error ? error.message : String(error) }
       }, ...prev]);
     } finally {
       setIsLoading(false);
@@ -226,7 +219,7 @@ const ApiTesting: React.FC = () => {
         test: 'OAuth Authentication',
         status: 'error',
         message: 'Failed to complete OAuth flow',
-        details: { error: error.message }
+        details: { error: error instanceof Error ? error.message : String(error) }
       }, ...prev]);
     } finally {
       setIsLoading(false);
@@ -257,7 +250,7 @@ const ApiTesting: React.FC = () => {
       if (quotesData.success && quotesData.quotes) {
         // Update portfolio data with new prices
         const updatedPortfolio = portfolioData.map(position => {
-          const quote = quotesData.quotes.find(q => q.symbol === position.symbol);
+          const quote = quotesData.quotes.find((q: any) => q.symbol === position.symbol);
           if (quote && quote.lastPrice && !quote.error) {
             const newPrice = quote.lastPrice;
             const newMarketValue = newPrice * position.quantity;

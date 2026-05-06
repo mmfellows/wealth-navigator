@@ -66,7 +66,7 @@ const InvestingSettings: React.FC = () => {
         }
       } else if (remainingTotal < 0) {
         // If the new value would exceed 100%, cap it and zero out others
-        newAllocations[category] = 100;
+        newAllocations[category as keyof typeof newAllocations] = 100;
         categories.forEach(key => {
           newAllocations[key as keyof typeof newAllocations] = 0;
         });

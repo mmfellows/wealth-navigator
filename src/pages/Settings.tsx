@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Save, AlertCircle, RefreshCw, Trash2, CheckCircle, Clock, Plus, Minus, Key, Eye, EyeOff, Edit2, Tag, X, Upload, Download, RotateCcw } from 'lucide-react';
+import { Save, AlertCircle, RefreshCw, Trash2, CheckCircle, Clock, Plus, Minus, Key, Eye, EyeOff, Edit2, Tag, X, Upload, RotateCcw } from 'lucide-react';
 import { useLocation } from 'react-router-dom';
 import PlaidLink from '../components/PlaidLink';
 import axios from 'axios';
@@ -45,7 +45,7 @@ const Settings: React.FC = () => {
     setActiveSection(newActiveSection);
   }, [location.pathname, location.state]);
 
-  const [targetAllocations, setTargetAllocations] = useState({
+  const [targetAllocations, setTargetAllocations] = useState<Record<string, number>>({
     lowRisk: 30,
     growth: 60,
     speculative: 10
@@ -100,7 +100,11 @@ const Settings: React.FC = () => {
   };
 
   // Personal Finance Categories State
-  const [budgetCategories, setBudgetCategories] = useState(defaultBudgetCategories);
+  type BudgetCategoriesState = {
+    mainCategories: string[];
+    secondaryCategories: Record<string, string[]>;
+  };
+  const [budgetCategories, setBudgetCategories] = useState<BudgetCategoriesState>(defaultBudgetCategories);
 
   // Load budget categories from localStorage on mount
   useEffect(() => {
@@ -129,11 +133,6 @@ const Settings: React.FC = () => {
   const [hasChanges, setHasChanges] = useState(false);
   const [editingCategory, setEditingCategory] = useState<{type: 'main' | 'secondary', mainCategory?: string, oldName?: string} | null>(null);
   const [editingValue, setEditingValue] = useState('');
-
-  // CSV Upload state
-  const [csvFile, setCsvFile] = useState<File | null>(null);
-  const [csvProcessing, setCsvProcessing] = useState(false);
-  const [csvPreview, setCsvPreview] = useState<{mainCategory: string, subCategory?: string}[] | null>(null);
 
   // Confirmation modal state
   const [confirmModal, setConfirmModal] = useState<{
@@ -179,7 +178,7 @@ const Settings: React.FC = () => {
   } | null>(null);
 
   // Transaction import state
-  const [transactionBackup, setTransactionBackup] = useState<{
+  const [, setTransactionBackup] = useState<{
     transactions: any[];
     timestamp: string;
   } | null>(null);

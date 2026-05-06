@@ -196,7 +196,7 @@ const Budgets: React.FC = () => {
     itemName: '',
     mainCategory: Object.keys(BUDGET_CATEGORIES)[0] || '',
     secondaryCategory: (BUDGET_CATEGORIES[Object.keys(BUDGET_CATEGORIES)[0]] || [])[0] || '',
-    frequency: 'monthly' as const,
+    frequency: 'monthly' as 'monthly' | 'annual',
     amount: 0,
     startDate: new Date().toISOString().split('T')[0],
     endDate: '' as string,

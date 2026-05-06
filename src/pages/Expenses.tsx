@@ -1,12 +1,14 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { CreditCard, Search, Filter, PlusCircle, Calendar, Tag, DollarSign, Info, Upload, Download, Eye, X, ArrowLeftRight, FileText } from 'lucide-react';
+import { CreditCard, Search, Filter, PlusCircle, Calendar, Tag, DollarSign, Info, Upload, Download, Eye, X, ArrowLeftRight, FileText, BarChart3 } from 'lucide-react';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine, Cell } from 'recharts';
 import { fetchBudgetCategories } from '../constants/budgetCategories';
 
 interface Expense {
   id: number;
   date: string;
   merchant?: string;
+  description?: string;
   amount: number;
   statement?: string;
   category?: string;
@@ -43,7 +45,7 @@ const Expenses: React.FC = () => {
   const [uncategorizedOnly, setUncategorizedOnly] = useState(false);
   const [includeTransfers, setIncludeTransfers] = useState(false);
   const [availableColumns, setAvailableColumns] = useState<string[]>([]);
-  const [displayColumns, setDisplayColumns] = useState<string[]>(['date', 'merchant', 'category', 'subcategory', 'amount', 'statement']);
+  const [displayColumns, setDisplayColumns] = useState<string[]>(['amount', 'date', 'merchant', 'description', 'category', 'subcategory', 'statement']);
   const [currentPage, setCurrentPage] = useState(0);
   const [limit] = useState(200);
   const [csvFile, setCsvFile] = useState<File | null>(null);
@@ -107,7 +109,7 @@ const Expenses: React.FC = () => {
         }
       }
 
-      const response = await fetch(`http://localhost:3001/api/expenses/${expenseId}`, {
+      const response = await fetch(`/api/expenses/${expenseId}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(updates),
@@ -123,7 +125,7 @@ const Expenses: React.FC = () => {
     if (selectedIds.size === 0) return;
     const mainCategory = subToMain[subcategory] || null;
     try {
-      const response = await fetch('http://localhost:3001/api/expenses/bulk-update', {
+      const response = await fetch('/api/expenses/bulk-update', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -218,7 +220,7 @@ const Expenses: React.FC = () => {
     if (selectedCategory !== 'all') params.append('category', selectedCategory);
     if (selectedSubcategory !== 'all') params.append('subcategory', selectedSubcategory);
 
-    const response = await fetch(`http://localhost:3001/api/expenses?${params}`);
+    const response = await fetch(`/api/expenses?${params}`);
     if (!response.ok) {
       throw new Error('Failed to fetch expenses');
     }
@@ -229,7 +231,7 @@ const Expenses: React.FC = () => {
   const { data: filterOptions } = useQuery({
     queryKey: ['expenseFilters'],
     queryFn: async () => {
-      const response = await fetch('http://localhost:3001/api/expenses/filters');
+      const response = await fetch('/api/expenses/filters');
       if (!response.ok) throw new Error('Failed to fetch filter options');
       return response.json();
     },
@@ -253,6 +255,35 @@ const Expenses: React.FC = () => {
     if (uncategorizedOnly) return raw.filter(e => !e.category && !e.subcategory);
     return raw;
   }, [expensesData?.expenses, uncategorizedOnly]);
+
+  // Fetch all expenses (unpaginated) for the chart
+  const { data: allExpensesData } = useQuery({
+    queryKey: ['expenses-chart', searchTerm, selectedCategory, selectedSubcategory, dateRange, selectedMonth, selectedYear, includeTransfers],
+    queryFn: async (): Promise<ExpensesResponse> => {
+      const { startDate, endDate } = getDateRange(dateRange);
+      const params = new URLSearchParams({
+        limit: '10000',
+        offset: '0',
+        sortBy: 'date',
+        sortOrder: 'DESC',
+        startDate,
+        endDate,
+        includeTransfers: includeTransfers.toString(),
+      });
+      if (searchTerm) params.append('search', searchTerm);
+      if (selectedCategory !== 'all') params.append('category', selectedCategory);
+      if (selectedSubcategory !== 'all') params.append('subcategory', selectedSubcategory);
+      const response = await fetch(`/api/expenses?${params}`);
+      if (!response.ok) throw new Error('Failed to fetch expenses for chart');
+      return response.json();
+    },
+    staleTime: 30000,
+  });
+  const chartExpenses = useMemo(() => {
+    const raw = allExpensesData?.expenses || [];
+    if (uncategorizedOnly) return raw.filter(e => !e.category && !e.subcategory);
+    return raw;
+  }, [allExpensesData?.expenses, uncategorizedOnly]);
   const categories = ['all', ...(filterOptions?.categories || [])];
   const subcategories = ['all', ...(filterOptions?.subcategories || [])];
 
@@ -347,7 +378,7 @@ const Expenses: React.FC = () => {
     console.log('Starting CSV import with data:', csvData.slice(0, 2)); // Log first 2 items
     setIsUploading(true);
     try {
-      const response = await fetch('http://localhost:3001/api/expenses/bulk', {
+      const response = await fetch('/api/expenses/bulk', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -462,7 +493,7 @@ const Expenses: React.FC = () => {
       const formData = new FormData();
       Array.from(files).forEach(file => formData.append('files', file));
 
-      const response = await fetch('http://localhost:3001/api/expenses/preview-pdf', {
+      const response = await fetch('/api/expenses/preview-pdf', {
         method: 'POST',
         body: formData,
       });
@@ -497,7 +528,7 @@ const Expenses: React.FC = () => {
 
     setIsPdfUploading(true);
     try {
-      const response = await fetch('http://localhost:3001/api/expenses/bulk', {
+      const response = await fetch('/api/expenses/bulk', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -580,7 +611,10 @@ const Expenses: React.FC = () => {
 
     if (column.toLowerCase().includes('amount') || column.toLowerCase().includes('price')) {
       const num = parseFloat(value);
-      return isNaN(num) ? value : `$${num.toFixed(2)}`;
+      if (isNaN(num)) return value;
+      const abs = Math.abs(num);
+      const formatted = `$${abs.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+      return num < 0 ? `-${formatted}` : formatted;
     }
 
     if (column.toLowerCase().includes('date')) {
@@ -604,9 +638,104 @@ const Expenses: React.FC = () => {
     'Health & Fitness': 'bg-red-100 text-red-800',
   };
 
+  const [showChart, setShowChart] = useState(true);
+  const [selectedWeek, setSelectedWeek] = useState<string | null>(null);
+  const [sortColumn, setSortColumn] = useState<string | null>(null);
+  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
+
+  const handleColumnSort = (column: string) => {
+    if (sortColumn === column) {
+      setSortDirection(prev => prev === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortColumn(column);
+      // Default sort direction by data type
+      const isNumeric = column.toLowerCase().includes('amount') || column.toLowerCase().includes('price');
+      const isDate = column.toLowerCase() === 'date' || column.toLowerCase().includes('_at');
+      setSortDirection(isNumeric ? 'desc' : isDate ? 'desc' : 'asc');
+    }
+  };
+
   // Since filtering is handled by the API, we use the returned expenses directly
-  const filteredExpenses = expenses;
+  // If a week is selected from the chart, further filter to that week
+  const filteredExpenses = useMemo(() => {
+    let result = expenses;
+    if (selectedWeek) {
+      const weekStart = new Date(selectedWeek + 'T00:00:00');
+      const weekEnd = new Date(weekStart);
+      weekEnd.setDate(weekEnd.getDate() + 6);
+      const startStr = weekStart.toISOString().split('T')[0];
+      const endStr = weekEnd.toISOString().split('T')[0];
+      result = result.filter(e => e.date >= startStr && e.date <= endStr);
+    }
+    if (sortColumn) {
+      result = [...result].sort((a, b) => {
+        const va = (a as any)[sortColumn] ?? '';
+        const vb = (b as any)[sortColumn] ?? '';
+        const isNumeric = sortColumn.toLowerCase().includes('amount') || sortColumn.toLowerCase().includes('price');
+        let cmp: number;
+        if (isNumeric) {
+          cmp = (parseFloat(va) || 0) - (parseFloat(vb) || 0);
+        } else {
+          cmp = String(va).localeCompare(String(vb));
+        }
+        return sortDirection === 'asc' ? cmp : -cmp;
+      });
+    }
+    return result;
+  }, [expenses, selectedWeek, sortColumn, sortDirection]);
   const totalAmount = filteredExpenses.reduce((sum, expense) => sum + expense.amount, 0);
+
+  // Weekly spending data for chart (uses all expenses, not paginated)
+  const weeklyData = useMemo(() => {
+    if (chartExpenses.length === 0) return { weeks: [], weeklyAvg: 0, monthlyBudgetWeekly: 0 };
+
+    // Get Monday of a given date's week
+    const getMonday = (d: Date) => {
+      const day = d.getDay();
+      const diff = d.getDate() - day + (day === 0 ? -6 : 1);
+      return new Date(d.getFullYear(), d.getMonth(), diff);
+    };
+
+    // Group expenses by week
+    const weekMap = new Map<string, { total: number; start: Date; count: number }>();
+    for (const exp of chartExpenses) {
+      if (exp.is_transfer) continue;
+      const date = new Date(exp.date + 'T00:00:00');
+      const monday = getMonday(date);
+      const key = monday.toISOString().split('T')[0];
+      const existing = weekMap.get(key) || { total: 0, start: monday, count: 0 };
+      existing.total += exp.amount;
+      existing.count++;
+      weekMap.set(key, existing);
+    }
+
+    // Sort by date
+    const sorted = Array.from(weekMap.entries())
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([key, { total, start, count }]) => {
+        const end = new Date(start);
+        end.setDate(end.getDate() + 6);
+        const label = `${start.getMonth() + 1}/${start.getDate()}`;
+        return { key, label, total: Math.round(total * 100) / 100, count, start };
+      });
+
+    // Show last 8 weeks
+    const recent = sorted.slice(-8);
+
+    // Calculate rolling average (4-week)
+    const withAvg = recent.map((week, i) => {
+      const windowStart = Math.max(0, i - 3);
+      const window = recent.slice(windowStart, i + 1);
+      const avg = window.reduce((s, w) => s + w.total, 0) / window.length;
+      return { ...week, avg: Math.round(avg * 100) / 100 };
+    });
+
+    const weeklyAvg = recent.length > 0
+      ? Math.round(recent.reduce((s, w) => s + w.total, 0) / recent.length * 100) / 100
+      : 0;
+
+    return { weeks: withAvg, weeklyAvg };
+  }, [chartExpenses]);
 
   // Reset page and selection when filters change
   useEffect(() => {
@@ -1211,6 +1340,112 @@ const Expenses: React.FC = () => {
         </div>
       )}
 
+      {/* Weekly Spending Chart */}
+      {weeklyData.weeks.length > 1 && (
+        <div className="bg-white rounded-lg shadow-sm border">
+          <div className="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
+            <div className="flex items-center">
+              <BarChart3 className="h-5 w-5 text-blue-600 mr-2" />
+              <h2 className="text-lg font-semibold text-gray-900">Weekly Spending</h2>
+              <span className="ml-3 text-sm text-gray-500">
+                Avg: ${weeklyData.weeklyAvg.toLocaleString()}/week
+              </span>
+            </div>
+            <button
+              onClick={() => setShowChart(!showChart)}
+              className="text-sm text-gray-500 hover:text-gray-700"
+            >
+              {showChart ? 'Hide' : 'Show'}
+            </button>
+          </div>
+          {showChart && (
+            <div className="px-6 py-4">
+              <ResponsiveContainer width="100%" height={280}>
+                <BarChart
+                  data={weeklyData.weeks}
+                  margin={{ top: 5, right: 20, left: 10, bottom: 5 }}
+                  onClick={(state) => {
+                    if (state?.activePayload?.[0]) {
+                      const clickedKey = state.activePayload[0].payload.key;
+                      setSelectedWeek(selectedWeek === clickedKey ? null : clickedKey);
+                    }
+                  }}
+                  style={{ cursor: 'pointer' }}
+                >
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f0f0f0" />
+                  <XAxis
+                    dataKey="label"
+                    tick={{ fontSize: 12, fill: '#6b7280' }}
+                    tickLine={false}
+                    axisLine={{ stroke: '#e5e7eb' }}
+                  />
+                  <YAxis
+                    tick={{ fontSize: 12, fill: '#6b7280' }}
+                    tickLine={false}
+                    axisLine={false}
+                    tickFormatter={(v) => `$${v >= 1000 ? `${(v / 1000).toFixed(1)}k` : v}`}
+                  />
+                  <Tooltip
+                    formatter={(value: number) => [`$${value.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, '']}
+                    labelFormatter={(label) => `Week of ${label}`}
+                    contentStyle={{ borderRadius: '8px', border: '1px solid #e5e7eb', fontSize: '13px' }}
+                  />
+                  <ReferenceLine
+                    y={weeklyData.weeklyAvg}
+                    stroke="#9ca3af"
+                    strokeDasharray="4 4"
+                    label={{ value: 'Avg', position: 'right', fill: '#9ca3af', fontSize: 11 }}
+                  />
+                  <Bar dataKey="total" name="Spent" radius={[4, 4, 0, 0]} maxBarSize={40}>
+                    {weeklyData.weeks.map((week) => {
+                      const baseColor = week.total > weeklyData.weeklyAvg * 1.25 ? '#ef4444' : week.total > weeklyData.weeklyAvg ? '#f59e0b' : '#3b82f6';
+                      const isSelected = selectedWeek === week.key;
+                      return (
+                        <Cell
+                          key={week.key}
+                          fill={baseColor}
+                          opacity={selectedWeek && !isSelected ? 0.3 : 1}
+                          stroke={isSelected ? '#1e3a5f' : 'none'}
+                          strokeWidth={isSelected ? 2 : 0}
+                        />
+                      );
+                    })}
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+              <div className="flex items-center justify-center gap-6 mt-2 text-xs text-gray-500">
+                <span className="flex items-center"><span className="w-3 h-3 rounded-sm bg-blue-500 mr-1.5" />Under avg</span>
+                <span className="flex items-center"><span className="w-3 h-3 rounded-sm bg-amber-500 mr-1.5" />Above avg</span>
+                <span className="flex items-center"><span className="w-3 h-3 rounded-sm bg-red-500 mr-1.5" />25%+ over avg</span>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Week filter banner */}
+      {selectedWeek && (() => {
+        const weekStart = new Date(selectedWeek + 'T00:00:00');
+        const weekEnd = new Date(weekStart);
+        weekEnd.setDate(weekEnd.getDate() + 6);
+        const fmt = (d: Date) => d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+        return (
+          <div className="bg-blue-50 border border-blue-200 rounded-lg px-4 py-3 flex items-center justify-between">
+            <span className="text-sm text-blue-800">
+              Showing expenses for week of <strong>{fmt(weekStart)} - {fmt(weekEnd)}</strong>
+              <span className="ml-2 text-blue-600">({filteredExpenses.length} expenses, ${totalAmount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })})</span>
+            </span>
+            <button
+              onClick={() => setSelectedWeek(null)}
+              className="text-blue-600 hover:text-blue-800 text-sm flex items-center"
+            >
+              <X className="h-3.5 w-3.5 mr-1" />
+              Clear
+            </button>
+          </div>
+        );
+      })()}
+
       {/* Expenses List */}
       <div className="bg-white rounded-lg shadow-sm border">
         <div className="px-6 py-4 border-b border-gray-200">
@@ -1232,11 +1467,19 @@ const Expenses: React.FC = () => {
                 {displayColumns.filter(col => col !== 'id').map((column) => (
                   <th
                     key={column}
-                    className={`px-6 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider ${
+                    onClick={() => handleColumnSort(column)}
+                    className={`px-6 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:text-gray-700 select-none ${
                       column.toLowerCase().includes('amount') ? 'text-right' : 'text-left'
                     }`}
                   >
-                    {formatColumnName(column)}
+                    <span className="inline-flex items-center gap-1">
+                      {formatColumnName(column)}
+                      {sortColumn === column ? (
+                        <span className="text-blue-600">{sortDirection === 'asc' ? '\u25B2' : '\u25BC'}</span>
+                      ) : (
+                        <span className="text-gray-300">{'\u25BC'}</span>
+                      )}
+                    </span>
                   </th>
                 ))}
                 <th className="px-6 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider text-center">
@@ -1403,7 +1646,7 @@ const Expenses: React.FC = () => {
                     <button
                       onClick={async () => {
                         try {
-                          const response = await fetch(`http://localhost:3001/api/expenses/${expense.id}`, {
+                          const response = await fetch(`/api/expenses/${expense.id}`, {
                             method: 'PUT',
                             headers: { 'Content-Type': 'application/json' },
                             body: JSON.stringify({ is_transfer: !expense.is_transfer })

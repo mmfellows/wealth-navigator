@@ -8,6 +8,7 @@ import {
   FileText,
   Settings,
   TrendingUp,
+  Target,
   ClipboardList,
   TestTube,
   DollarSign,
@@ -42,7 +43,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
     }
 
     // Investing routes
-    if (path.startsWith('/research') || path.startsWith('/ideas') || path.startsWith('/portfolio') || path.startsWith('/trades') || path.startsWith('/ips') || path.startsWith('/api-testing') || path === '/investing-settings' || path === '/') {
+    if (path.startsWith('/research') || path.startsWith('/ideas') || path.startsWith('/portfolio') || path.startsWith('/bets') || path.startsWith('/trades') || path.startsWith('/ips') || path.startsWith('/api-testing') || path.startsWith('/account-snapshot') || path === '/investing-settings' || path === '/') {
       localStorage.setItem('lastActiveSection', 'investing');
       return 'investing';
     }
@@ -73,10 +74,12 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
   const investingNavItems = [
     { path: '/', icon: BarChart3, label: 'Dashboard' },
     { path: '/research', icon: Search, label: 'Research' },
-    { path: '/ideas', icon: Lightbulb, label: 'Ideas' },
+    { path: '/ideas', icon: Lightbulb, label: 'Watchlist' },
     { path: '/portfolio', icon: Briefcase, label: 'Portfolio' },
+    { path: '/bets', icon: Target, label: 'Bets' },
     { path: '/trades', icon: FileText, label: 'Trade Journal' },
     { path: '/ips', icon: ClipboardList, label: 'Investment Policy' },
+    { path: '/account-snapshot', icon: Wallet, label: 'Account Snapshot' },
     { path: '/api-testing', icon: TestTube, label: 'API Testing' },
     { path: '/investing-settings', icon: Settings, label: 'Settings' },
   ];

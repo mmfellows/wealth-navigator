@@ -18,7 +18,7 @@ const Research: React.FC = () => {
 
     setIsSearching(true);
     try {
-      const response = await axios.post('http://localhost:3001/api/research/query', {
+      const response = await axios.post('/api/research/query', {
         query: query
       });
       setSearchResult(response.data.response);
@@ -39,7 +39,7 @@ const Research: React.FC = () => {
     setIsAnalyzing(true);
     try {
       const analysisQuery = `Technical analysis for ${selectedTicker.toUpperCase()}`;
-      const response = await axios.post('http://localhost:3001/api/research/query', {
+      const response = await axios.post('/api/research/query', {
         query: analysisQuery
       });
       setStockAnalysis(response.data.response);
@@ -53,7 +53,7 @@ const Research: React.FC = () => {
 
   const handleAddToIdeas = async (ticker: string, category: string) => {
     try {
-      const response = await axios.post('http://localhost:3001/api/ideas', {
+      const response = await axios.post('/api/ideas', {
         ticker: ticker.toUpperCase(),
         name: ticker.toUpperCase(),
         category: category.toLowerCase().replace(' ', '-'),

@@ -1,0 +1,12 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Backend uses the Admin SDK (service account credentials), which bypasses
+    // these rules. This default-deny posture protects the project from any
+    // accidental client-side access until proper rules are written.
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

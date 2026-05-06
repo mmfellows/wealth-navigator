@@ -1,0 +1,7 @@
+backend/database.db
+backend/database.sqlite
+backend/wealth_navigator.db
+backend/uploads
+backend/serviceAccountKey.json
+backend/.env
+*.csv

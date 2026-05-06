@@ -22,7 +22,7 @@ const PlaidLink: React.FC<PlaidLinkProps> = ({ onSuccess }) => {
     setIsLoading(true);
     setError(null);
     try {
-      const response = await axios.post<LinkTokenResponse>('http://localhost:3001/api/plaid/create-link-token');
+      const response = await axios.post<LinkTokenResponse>('/api/plaid/create-link-token');
       setLinkToken(response.data.link_token);
       // Store for OAuth callback recovery
       localStorage.setItem('plaid_link_token', response.data.link_token);
@@ -61,7 +61,7 @@ Once configured, you'll be able to connect E*Trade, Schwab, Chase, and 12,000+ o
     setError(null);
     try {
       // Exchange public token
-      const exchangeResponse = await axios.post<ExchangeTokenResponse>('http://localhost:3001/api/plaid/exchange-public-token', {
+      const exchangeResponse = await axios.post<ExchangeTokenResponse>('/api/plaid/exchange-public-token', {
         public_token
       });
 
@@ -70,7 +70,7 @@ Once configured, you'll be able to connect E*Trade, Schwab, Chase, and 12,000+ o
       }
 
       // Trigger sync
-      await axios.post('http://localhost:3001/api/plaid/sync');
+      await axios.post('/api/plaid/sync');
 
       // Show success message
       const accountCount = metadata.accounts.length;

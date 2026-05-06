@@ -1,7 +1,7 @@
 // Fetch budget categories from the settings API.
 // Returns { mainCategory: subcategory[] } map.
 export async function fetchBudgetCategories(): Promise<Record<string, string[]>> {
-  const response = await fetch('http://localhost:3001/api/settings/categories');
+  const response = await fetch('/api/settings/categories');
   if (!response.ok) throw new Error('Failed to fetch categories');
   const data = await response.json();
 
@@ -16,7 +16,7 @@ export async function fetchBudgetCategories(): Promise<Record<string, string[]>>
 // Fetch category colors from the settings API.
 // Returns { mainCategory: tailwindColorClass } map.
 export async function fetchCategoryColors(): Promise<Record<string, string>> {
-  const response = await fetch('http://localhost:3001/api/settings/category-colors');
+  const response = await fetch('/api/settings/category-colors');
   if (!response.ok) throw new Error('Failed to fetch category colors');
   const data = await response.json();
   return data.colors;

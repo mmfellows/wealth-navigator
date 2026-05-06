@@ -13,7 +13,7 @@ interface CategoriesData {
   mainCategoryOrder: string[];
 }
 
-const API_BASE = 'http://localhost:3001/api/settings';
+const API_BASE = '/api/settings';
 
 const PersonalFinanceSettings: React.FC = () => {
   const [categories, setCategories] = useState<Record<string, SubCategory[]>>({});
@@ -92,7 +92,7 @@ const PersonalFinanceSettings: React.FC = () => {
 
   const fetchPlaidAccounts = async () => {
     try {
-      const res = await fetch('http://localhost:3001/api/plaid/accounts');
+      const res = await fetch('/api/plaid/accounts');
       if (res.ok) {
         const data = await res.json();
         setPlaidAccounts(data.institutions || []);
@@ -104,7 +104,7 @@ const PersonalFinanceSettings: React.FC = () => {
 
   const fetchSyncLogs = async () => {
     try {
-      const res = await fetch('http://localhost:3001/api/plaid/sync-history?limit=10');
+      const res = await fetch('/api/plaid/sync-history?limit=10');
       if (res.ok) {
         const data = await res.json();
         setSyncLogs(data.logs || []);
@@ -116,7 +116,7 @@ const PersonalFinanceSettings: React.FC = () => {
 
   const createPlaidLinkToken = useCallback(async () => {
     try {
-      const res = await fetch('http://localhost:3001/api/plaid/create-link-token', { method: 'POST' });
+      const res = await fetch('/api/plaid/create-link-token', { method: 'POST' });
       if (res.ok) {
         const data = await res.json();
         setPlaidLinkToken(data.link_token);
@@ -130,7 +130,7 @@ const PersonalFinanceSettings: React.FC = () => {
   }, []);
 
   const logLinkEvent = useCallback((eventName: string, metadata: any) => {
-    fetch('http://localhost:3001/api/plaid/link-event', {
+    fetch('/api/plaid/link-event', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ event_name: eventName, metadata }),
@@ -143,7 +143,7 @@ const PersonalFinanceSettings: React.FC = () => {
       logLinkEvent('HANDOFF', metadata);
       setPlaidLoading(true);
       try {
-        const res = await fetch('http://localhost:3001/api/plaid/exchange-public-token', {
+        const res = await fetch('/api/plaid/exchange-public-token', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ public_token: publicToken }),
@@ -174,7 +174,7 @@ const PersonalFinanceSettings: React.FC = () => {
     setPlaidSyncStatus('Syncing transactions...');
     setPlaidError(null);
     try {
-      const res = await fetch('http://localhost:3001/api/plaid/sync-transactions', {
+      const res = await fetch('/api/plaid/sync-transactions', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ startDate: syncStartDate, endDate: syncEndDate }),
@@ -197,7 +197,7 @@ const PersonalFinanceSettings: React.FC = () => {
   const handleRemovePlaidAccount = async (itemId: string) => {
     if (!confirm('Remove this connected account? This will not delete imported transactions.')) return;
     try {
-      const res = await fetch(`http://localhost:3001/api/plaid/accounts/${itemId}`, { method: 'DELETE' });
+      const res = await fetch(`/api/plaid/accounts/${itemId}`, { method: 'DELETE' });
       if (!res.ok) throw new Error('Failed to remove account');
       await fetchPlaidAccounts();
       await fetchSyncLogs();

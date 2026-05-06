@@ -6,13 +6,13 @@ let ENCRYPTION_KEY;
 
 if (process.env.ENCRYPTION_KEY) {
   ENCRYPTION_KEY = Buffer.from(process.env.ENCRYPTION_KEY, 'hex');
+} else if (process.env.NODE_ENV === 'production') {
+  // Without a stable ENCRYPTION_KEY, every cold start would generate a new key,
+  // making previously-stored Plaid access tokens unrecoverable. Refuse to boot.
+  throw new Error('ENCRYPTION_KEY must be set in production (32-byte hex string)');
 } else {
-  // Create a deterministic key based on system info for development
-  // In production, you should always set ENCRYPTION_KEY env var
-  const deterministic = process.env.NODE_ENV === 'production'
-    ? crypto.randomBytes(32)
-    : crypto.createHash('sha256').update('wealth-navigator-dev-key').digest();
-  ENCRYPTION_KEY = deterministic;
+  // Deterministic dev key — same value across restarts so encrypted tokens survive.
+  ENCRYPTION_KEY = crypto.createHash('sha256').update('wealth-navigator-dev-key').digest();
 }
 
 const IV_LENGTH = 16;

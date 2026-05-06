@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { Plus, Edit, Trash2, TrendingUp, Shield, Dice1, Loader2, ChevronDown, ChevronRight, CheckCircle, MoreHorizontal, ArrowUpDown, ArrowUp, ArrowDown, Building } from 'lucide-react';
+import { Plus, Edit, Trash2, TrendingUp, Shield, Dice1, Loader2, ChevronDown, ChevronRight, CheckCircle, MoreHorizontal, ArrowUpDown, ArrowUp, ArrowDown, Building, Target } from 'lucide-react';
 import { useIdeas, useAddIdea, useUpdateIdea, useDeleteIdea, useInvestments } from '../hooks/usePortfolio';
 import axios from 'axios';
 
@@ -13,7 +13,8 @@ const Ideas: React.FC = () => {
     category: 'growth',
     confidence: 'high',
     notes: '',
-    price_target: ''
+    price_target: '',
+    intended_bet_type: '',
   });
   const [companyNamePreview, setCompanyNamePreview] = useState('');
   const [isLoadingPreview, setIsLoadingPreview] = useState(false);
@@ -103,7 +104,7 @@ const Ideas: React.FC = () => {
 
     setIsLoadingPreview(true);
     try {
-      const response = await axios.get(`http://localhost:3001/api/ideas/company-name/${ticker}`);
+      const response = await axios.get(`/api/ideas/company-name/${ticker}`);
       setCompanyNamePreview(response.data.name);
     } catch (error) {
       console.error('Failed to fetch company name:', error);
@@ -153,7 +154,8 @@ const Ideas: React.FC = () => {
       category: idea.category,
       confidence: idea.confidence || 'medium',
       notes: idea.notes,
-      price_target: idea.price_target ? idea.price_target.toString() : ''
+      price_target: idea.price_target ? idea.price_target.toString() : '',
+      intended_bet_type: idea.intended_bet_type || '',
     });
     setCompanyNamePreview(idea.name);
     setShowAddForm(true);
@@ -161,10 +163,43 @@ const Ideas: React.FC = () => {
   };
 
   const resetForm = () => {
-    setFormData({ ticker: '', category: 'growth', confidence: 'high', notes: '', price_target: '' });
+    setFormData({ ticker: '', category: 'growth', confidence: 'high', notes: '', price_target: '', intended_bet_type: '' });
     setCompanyNamePreview('');
     setEditingIdea(null);
     setShowAddForm(false);
+  };
+
+  // Promote a watchlist item to an active bet. Asks the user to confirm
+  // bet type if the idea didn't already have one set.
+  const handlePromote = async (idea: any) => {
+    setOpenMenuId(null);
+    let betType = idea.intended_bet_type;
+    if (!betType) {
+      const choice = window.prompt(
+        `Promote ${idea.ticker} to a bet. Bet type? (Long, Mid, or Short)`,
+        'Long'
+      );
+      if (!choice) return;
+      const normalized = choice.trim().charAt(0).toUpperCase() + choice.trim().slice(1).toLowerCase();
+      if (!['Long', 'Mid', 'Short'].includes(normalized)) {
+        alert('Bet type must be Long, Mid, or Short.');
+        return;
+      }
+      betType = normalized;
+    }
+
+    if (!window.confirm(
+      `Promote ${idea.ticker} to a ${betType} bet? This will create a new bet, set buy_date to today, and remove the watchlist entry.`
+    )) return;
+
+    try {
+      await axios.post(`/api/ideas/${idea.id}/promote`, { bet_type: betType });
+      // Refetch — the easiest way without restructuring the hooks is a soft reload.
+      window.location.href = '/bets';
+    } catch (err: any) {
+      const msg = err.response?.data?.error || 'Failed to promote idea';
+      alert(msg);
+    }
   };
 
   const handleSubmitIdea = async (e: React.FormEvent) => {
@@ -176,6 +211,7 @@ const Ideas: React.FC = () => {
     }
 
     try {
+      const intendedBetType = formData.intended_bet_type || null;
       if (editingIdea) {
         // Update existing idea
         await updateIdeaMutation.mutateAsync({
@@ -185,8 +221,9 @@ const Ideas: React.FC = () => {
             category: formData.category as 'low-risk' | 'growth' | 'speculative',
             confidence: formData.confidence as 'high' | 'medium' | 'low',
             notes: formData.notes,
-            price_target: formData.price_target ? parseFloat(formData.price_target) : null
-          }
+            price_target: formData.price_target ? parseFloat(formData.price_target) : null,
+            intended_bet_type: intendedBetType,
+          } as any,
         });
       } else {
         // Add new idea
@@ -195,8 +232,9 @@ const Ideas: React.FC = () => {
           category: formData.category as 'low-risk' | 'growth' | 'speculative',
           confidence: formData.confidence as 'high' | 'medium' | 'low',
           notes: formData.notes,
-          price_target: formData.price_target ? parseFloat(formData.price_target) : null
-        });
+          price_target: formData.price_target ? parseFloat(formData.price_target) : null,
+          intended_bet_type: intendedBetType,
+        } as any);
       }
 
       resetForm();
@@ -326,13 +364,16 @@ const Ideas: React.FC = () => {
   return (
     <div className="space-y-8">
       <div className="flex justify-between items-center">
-        <h1 className="text-3xl font-bold text-gray-900">My Best 20 Ideas</h1>
+        <div>
+          <h1 className="text-3xl font-bold text-gray-900">Watchlist</h1>
+          <p className="text-gray-600 mt-1">Theses you're tracking. Promote one to a bet when you actually buy in.</p>
+        </div>
         <button
           onClick={() => setShowAddForm(true)}
           className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 flex items-center"
         >
           <Plus className="h-4 w-4 mr-2" />
-          Add Idea
+          Add to Watchlist
         </button>
       </div>
 
@@ -437,6 +478,20 @@ const Ideas: React.FC = () => {
                   />
                 </div>
                 <p className="mt-1 text-xs text-gray-500">The price you'd consider buying this stock</p>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Intended Bet Type</label>
+                <select
+                  value={formData.intended_bet_type}
+                  onChange={(e) => setFormData(prev => ({ ...prev, intended_bet_type: e.target.value }))}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                >
+                  <option value="">— not sure yet —</option>
+                  <option value="Long">Long Bet (multi-year)</option>
+                  <option value="Mid">Mid Bet (months to a couple years)</option>
+                  <option value="Short">Short / Speculative Bet</option>
+                </select>
+                <p className="mt-1 text-xs text-gray-500">Pre-decide so promote-to-bet is one click later</p>
               </div>
               <div className="md:col-span-2">
                 <label className="block text-sm font-medium text-gray-700 mb-2">Investment Rationale *</label>
@@ -655,7 +710,18 @@ const Ideas: React.FC = () => {
                             <MoreHorizontal className="h-4 w-4" />
                           </button>
                           {openMenuId === idea.id && (
-                            <div className="absolute right-0 top-8 w-32 bg-white rounded-md shadow-lg border border-gray-200 py-1 z-50">
+                            <div className="absolute right-0 top-8 w-40 bg-white rounded-md shadow-lg border border-gray-200 py-1 z-50">
+                              <button
+                                className="w-full px-3 py-2 text-left text-sm text-blue-700 hover:bg-blue-50 flex items-center"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handlePromote(idea);
+                                }}
+                                title="Promote to a bet"
+                              >
+                                <Target className="h-3 w-3 mr-2" />
+                                Promote to Bet
+                              </button>
                               <button
                                 className="w-full px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 flex items-center"
                                 onClick={(e) => {

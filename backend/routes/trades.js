@@ -26,6 +26,85 @@ router.get('/', optionalAuth, async (req, res) => {
   }
 });
 
+// Unified trade journal: manual entries + Plaid investment transactions
+// (auto-imported buys / sells / dividends / fees), joined with security
+// metadata so each row has a ticker even when the manual collection only
+// has a free-form symbol.
+router.get('/journal', optionalAuth, async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const days = Math.min(Math.max(parseInt(req.query.days, 10) || 365, 7), 1825);
+    const cutoff = new Date();
+    cutoff.setDate(cutoff.getDate() - days);
+    const cutoffDate = cutoff.toISOString().slice(0, 10);
+
+    const [manualSnap, plaidSnap, secSnap, acctSnap] = await Promise.all([
+      db.collection('trades').where('user_id', '==', userId).get(),
+      db.collection('plaid_investment_transactions').where('user_id', '==', userId).get(),
+      db.collection('plaid_securities').where('user_id', '==', userId).get(),
+      db.collection('plaid_accounts').where('user_id', '==', userId).get(),
+    ]);
+
+    const securitiesById = new Map(secSnap.docs.map(d => [d.data().security_id, d.data()]));
+    const accountsById = new Map(acctSnap.docs.map(d => [d.data().account_id, d.data()]));
+
+    const manual = manualSnap.docs
+      .map(docToObj)
+      .filter(t => !t.date || t.date >= cutoffDate)
+      .map(t => ({
+        source: 'manual',
+        id: t.id,
+        date: t.date,
+        ticker: (t.ticker || '').toUpperCase(),
+        name: t.ticker || '',
+        type: t.type, // buy | sell
+        subtype: t.strategy || '',
+        quantity: t.shares,
+        price: t.price,
+        amount: (t.shares || 0) * (t.price || 0) * (t.type === 'buy' ? -1 : 1),
+        fees: null,
+        account_name: t.platform || '',
+        institution_name: t.platform || '',
+        rationale: t.rationale || '',
+      }));
+
+    const plaid = plaidSnap.docs
+      .map(d => d.data())
+      .filter(t => !t.date || t.date >= cutoffDate)
+      .map(t => {
+        const sec = securitiesById.get(t.security_id);
+        const acct = accountsById.get(t.account_id);
+        return {
+          source: 'plaid',
+          id: t.investment_transaction_id,
+          date: t.date,
+          ticker: (sec?.ticker_symbol || '').toUpperCase(),
+          name: sec?.name || '',
+          type: t.type, // buy, sell, cash, dividend, fee, transfer (Plaid normalized)
+          subtype: t.subtype || '',
+          quantity: t.quantity,
+          price: t.price,
+          amount: t.amount,
+          fees: t.fees,
+          account_name: acct?.name || acct?.official_name || '',
+          institution_name: acct?.institution_name || '',
+          rationale: '',
+        };
+      });
+
+    const all = [...manual, ...plaid].sort((a, b) => (b.date || '').localeCompare(a.date || ''));
+
+    res.json({
+      entries: all,
+      manual_count: manual.length,
+      plaid_count: plaid.length,
+    });
+  } catch (error) {
+    console.error('Error building trade journal:', error);
+    res.status(500).json({ error: 'Failed to build trade journal' });
+  }
+});
+
 // Add trade
 router.post('/', optionalAuth, async (req, res) => {
   try {

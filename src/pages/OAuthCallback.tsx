@@ -13,7 +13,7 @@ const OAuthCallback: React.FC = () => {
 
   const onSuccess = useCallback(async (public_token: string) => {
     try {
-      await axios.post('http://localhost:3001/api/plaid/exchange-public-token', {
+      await axios.post('/api/plaid/exchange-public-token', {
         public_token,
       });
       localStorage.removeItem('plaid_link_token');

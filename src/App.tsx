@@ -19,6 +19,8 @@ import Accounts from './pages/Accounts';
 import Reports from './pages/Reports';
 import Carrots from './pages/Carrots';
 import OAuthCallback from './pages/OAuthCallback';
+import AccountSnapshot from './pages/AccountSnapshot';
+import Bets from './pages/Bets';
 
 // Create a query client
 const queryClient = new QueryClient({
@@ -41,9 +43,11 @@ function App() {
             <Route path="/research" element={<Research />} />
             <Route path="/ideas" element={<Ideas />} />
             <Route path="/portfolio" element={<Portfolio />} />
+            <Route path="/bets" element={<Bets />} />
             <Route path="/trades" element={<TradeJournal />} />
             <Route path="/ips" element={<IPS />} />
             <Route path="/api-testing" element={<ApiTesting />} />
+            <Route path="/account-snapshot" element={<AccountSnapshot />} />
             <Route path="/budgets" element={<Budgets />} />
             <Route path="/expenses" element={<Expenses />} />
             <Route path="/accounts" element={<Accounts />} />

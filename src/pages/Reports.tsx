@@ -105,7 +105,7 @@ const Reports: React.FC = () => {
     queryKey: ['expenseStats', startDate, endDate],
     queryFn: async () => {
       const params = new URLSearchParams({ startDate, endDate });
-      const res = await fetch(`http://localhost:3001/api/expenses/stats/summary?${params}`);
+      const res = await fetch(`/api/expenses/stats/summary?${params}`);
       if (!res.ok) throw new Error('Failed to fetch stats');
       return res.json();
     },
@@ -118,7 +118,7 @@ const Reports: React.FC = () => {
       const params = new URLSearchParams({
         startDate, endDate, limit: '5000', includeTransfers: 'false',
       });
-      const res = await fetch(`http://localhost:3001/api/expenses?${params}`);
+      const res = await fetch(`/api/expenses?${params}`);
       if (!res.ok) throw new Error('Failed to fetch expenses');
       return res.json();
     },
@@ -128,7 +128,7 @@ const Reports: React.FC = () => {
   const { data: budgetItems } = useQuery({
     queryKey: ['budgetItems'],
     queryFn: async () => {
-      const res = await fetch('http://localhost:3001/api/budgets');
+      const res = await fetch('/api/budgets');
       if (!res.ok) throw new Error('Failed to fetch budgets');
       return res.json() as Promise<BudgetItem[]>;
     },

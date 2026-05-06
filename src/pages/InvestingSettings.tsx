@@ -1,7 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { Save, AlertCircle, RefreshCw, Trash2, CheckCircle, Clock, Plus, Minus, Key, Eye, EyeOff } from 'lucide-react';
 import PlaidLink from '../components/PlaidLink';
+import PlaidUpdateLink from '../components/PlaidUpdateLink';
 import axios from 'axios';
+
+const REQUIRED_PRODUCTS = ['investments', 'liabilities'] as const;
+const missingProducts = (granted?: string[]) => {
+  const have = new Set(granted || []);
+  return REQUIRED_PRODUCTS.filter(p => !have.has(p));
+};
 
 const InvestingSettings: React.FC = () => {
   const [targetAllocations, setTargetAllocations] = useState({
@@ -77,7 +84,7 @@ const InvestingSettings: React.FC = () => {
 
   // Load target allocations, connected accounts, and sync history
   useEffect(() => {
-    axios.get('http://localhost:3001/api/settings')
+    axios.get('/api/settings')
       .then(res => {
         if (res.data.targetAllocations) {
           setTargetAllocations(res.data.targetAllocations);
@@ -91,7 +98,7 @@ const InvestingSettings: React.FC = () => {
 
   const loadConnectedAccounts = async () => {
     try {
-      const response = await axios.get('http://localhost:3001/api/plaid/accounts');
+      const response = await axios.get('/api/plaid/accounts');
       setConnectedAccounts(response.data.institutions);
     } catch (error) {
       console.error('Failed to load connected accounts:', error);
@@ -102,7 +109,7 @@ const InvestingSettings: React.FC = () => {
 
   const loadSyncHistory = async () => {
     try {
-      const response = await axios.get('http://localhost:3001/api/plaid/sync-history?limit=10');
+      const response = await axios.get('/api/plaid/sync-history?limit=10');
       setSyncHistory(response.data.logs);
     } catch (error) {
       console.error('Failed to load sync history:', error);
@@ -112,7 +119,7 @@ const InvestingSettings: React.FC = () => {
   const handleSync = async () => {
     setIsSyncing(true);
     try {
-      const response = await axios.post('http://localhost:3001/api/plaid/sync');
+      const response = await axios.post('/api/plaid/sync');
       alert(response.data.message);
       loadSyncHistory(); // Refresh history
       // Optionally refresh portfolio data
@@ -128,7 +135,7 @@ const InvestingSettings: React.FC = () => {
   const handleRemoveAccount = async (itemId: string, institutionName: string) => {
     if (window.confirm(`Are you sure you want to remove ${institutionName}? This will delete all associated portfolio data.`)) {
       try {
-        await axios.delete(`http://localhost:3001/api/plaid/accounts/${itemId}`);
+        await axios.delete(`/api/plaid/accounts/${itemId}`);
         alert('Account removed successfully');
         loadConnectedAccounts();
         loadSyncHistory();
@@ -141,7 +148,7 @@ const InvestingSettings: React.FC = () => {
 
   const handleSave = async () => {
     try {
-      await axios.put('http://localhost:3001/api/settings', { targetAllocations });
+      await axios.put('/api/settings', { targetAllocations });
       setHasChanges(false);
     } catch (error) {
       console.error('Failed to save target allocations:', error);
@@ -158,7 +165,7 @@ const InvestingSettings: React.FC = () => {
 
   const saveEtradeKeys = async () => {
     try {
-      const response = await axios.post('http://localhost:3001/api/settings/etrade-keys', etradeKeys);
+      const response = await axios.post('/api/settings/etrade-keys', etradeKeys);
       if (response.data.success) {
         setEtradeKeysSaved(true);
         setTimeout(() => setEtradeKeysSaved(false), 3000);
@@ -171,7 +178,7 @@ const InvestingSettings: React.FC = () => {
 
   const loadEtradeKeys = async () => {
     try {
-      const response = await axios.get('http://localhost:3001/api/settings/etrade-keys');
+      const response = await axios.get('/api/settings/etrade-keys');
       if (response.data.keys) {
         setEtradeKeys({
           consumerKey: response.data.keys.consumerKey || '',
@@ -357,26 +364,45 @@ const InvestingSettings: React.FC = () => {
                 </p>
               </div>
             ) : (
-              connectedAccounts.map((account) => (
-                <div key={account.item_id} className="flex items-center justify-between p-4 border border-gray-200 rounded-md">
-                  <div className="flex items-center space-x-3">
-                    <div className="w-3 h-3 rounded-full bg-green-500" />
-                    <div>
-                      <h3 className="text-sm font-medium text-gray-900">{account.institution_name}</h3>
-                      <p className="text-xs text-gray-500">
-                        Connected: {new Date(account.created_at).toLocaleDateString()}
-                      </p>
+              connectedAccounts.map((account) => {
+                const missing = missingProducts(account.products);
+                return (
+                  <div key={account.item_id} className="p-4 border border-gray-200 rounded-md">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center space-x-3">
+                        <div className="w-3 h-3 rounded-full bg-green-500" />
+                        <div>
+                          <h3 className="text-sm font-medium text-gray-900">{account.institution_name}</h3>
+                          <p className="text-xs text-gray-500">
+                            Connected: {new Date(account.created_at).toLocaleDateString()}
+                          </p>
+                        </div>
+                      </div>
+                      <div className="flex items-center space-x-2">
+                        {missing.length > 0 && (
+                          <PlaidUpdateLink
+                            itemId={account.item_id}
+                            institutionName={account.institution_name}
+                            onSuccess={() => { loadConnectedAccounts(); loadSyncHistory(); }}
+                          />
+                        )}
+                        <button
+                          onClick={() => handleRemoveAccount(account.item_id, account.institution_name)}
+                          className="px-3 py-1 rounded-md text-sm font-medium text-red-600 border border-red-300 hover:bg-red-50 flex items-center"
+                        >
+                          <Trash2 className="h-3 w-3 mr-1" />
+                          Remove
+                        </button>
+                      </div>
                     </div>
+                    {missing.length > 0 && (
+                      <div className="mt-3 px-3 py-2 bg-amber-50 border border-amber-200 rounded text-xs text-amber-800">
+                        Reconnect to enable: <strong>{missing.join(', ')}</strong>. Required for holdings, balances, and net-worth tracking.
+                      </div>
+                    )}
                   </div>
-                  <button
-                    onClick={() => handleRemoveAccount(account.item_id, account.institution_name)}
-                    className="px-3 py-1 rounded-md text-sm font-medium text-red-600 border border-red-300 hover:bg-red-50 flex items-center"
-                  >
-                    <Trash2 className="h-3 w-3 mr-1" />
-                    Remove
-                  </button>
-                </div>
-              ))
+                );
+              })
             )}
           </div>
         )}

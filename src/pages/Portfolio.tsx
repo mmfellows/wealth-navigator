@@ -1,524 +1,312 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { TrendingUp, TrendingDown, Shield, Dice1, ChevronDown, ChevronRight, Settings, Building } from 'lucide-react';
-import { useIdeas } from '../hooks/usePortfolio';
+import React, { useEffect, useState, useMemo } from 'react';
+import { Link } from 'react-router-dom';
+import axios from 'axios';
+import { TrendingUp, TrendingDown, ChevronDown, ChevronRight, Plus, RefreshCw, Target } from 'lucide-react';
+
+type BetType = 'Long' | 'Mid' | 'Short' | 'Core' | 'Unallocated';
+
+interface HoldingRow {
+  source: 'plaid' | 'manual';
+  holding_id: string;
+  ticker: string;
+  name: string;
+  type: string;
+  quantity: number;
+  cost_basis_per_share: number | null;
+  cost_basis_total: number | null;
+  current_price: number | null;
+  current_value: number | null;
+  account_name: string;
+  account_subtype: string;
+  institution_name: string;
+  is_retirement: boolean;
+}
+
+interface Bucket {
+  bet: {
+    id: string;
+    name: string;
+    type: BetType;
+    tickers: string[];
+    buy_date: string | null;
+    target_sell_date: string | null;
+    thesis: string;
+    status: string;
+    is_synthetic: boolean;
+  };
+  holdings: HoldingRow[];
+  cost_basis: number;
+  current_value: number;
+  pnl: number;
+  pnl_pct: number;
+}
+
+interface Totals {
+  cost_basis: number;
+  current_value: number;
+  pnl: number;
+  pnl_pct: number;
+}
+
+const TYPE_COLORS: Record<BetType, string> = {
+  Long: 'bg-blue-50 text-blue-700 border-blue-200',
+  Mid: 'bg-emerald-50 text-emerald-700 border-emerald-200',
+  Short: 'bg-amber-50 text-amber-700 border-amber-200',
+  Core: 'bg-gray-50 text-gray-700 border-gray-200',
+  Unallocated: 'bg-rose-50 text-rose-700 border-rose-200',
+};
+
+const fmtMoney = (n: number | null | undefined) => {
+  if (n == null || isNaN(n)) return '—';
+  return n.toLocaleString('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 });
+};
+const fmtMoneyPrecise = (n: number | null | undefined) => {
+  if (n == null || isNaN(n)) return '—';
+  return n.toLocaleString('en-US', { style: 'currency', currency: 'USD' });
+};
+const fmtPct = (n: number | null | undefined) => {
+  if (n == null || isNaN(n)) return '—';
+  const sign = n >= 0 ? '+' : '';
+  return `${sign}${n.toFixed(1)}%`;
+};
 
 const Portfolio: React.FC = () => {
-  const [selectedPlatform, setSelectedPlatform] = useState('all');
-  const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
-  const [showColumnToggle, setShowColumnToggle] = useState(false);
-  const [visibleColumns, setVisibleColumns] = useState(() => {
-    const saved = localStorage.getItem('portfolio_visible_columns');
-    if (saved) {
-      try { return JSON.parse(saved); } catch { /* fall through */ }
-    }
-    return {
-      platform: true,
-      shares: true,
-      currentPrice: true,
-      costBasis: true,
-      target: true,
-      marketCap: true,
-      maturity: true,
-      currentValue: true,
-      gainLoss: true,
-      category: true,
-      confidence: true
-    };
-  });
-  const { data: ideas = [] } = useIdeas();
-  const columnToggleRef = useRef<HTMLDivElement>(null);
+  const [buckets, setBuckets] = useState<Bucket[]>([]);
+  const [totals, setTotals] = useState<Totals | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [syncing, setSyncing] = useState(false);
+  const [expanded, setExpanded] = useState<Set<string>>(new Set());
 
-  const mockInvestments = [
-    {
-      id: '1',
-      ticker: 'AAPL',
-      name: 'Apple Inc.',
-      shares: 50,
-      currentPrice: 175.43,
-      purchasePrice: 162.50,
-      purchaseDate: '2023-11-15',
-      platform: 'etrade',
-      category: 'growth',
-      currentValue: 8771.50,
-      totalGainLoss: 646.50,
-      percentGainLoss: 7.95
-    },
-    {
-      id: '2',
-      ticker: 'MSFT',
-      name: 'Microsoft Corporation',
-      shares: 25,
-      currentPrice: 378.85,
-      purchasePrice: 365.20,
-      purchaseDate: '2023-12-01',
-      platform: 'schwab',
-      category: 'growth',
-      currentValue: 9471.25,
-      totalGainLoss: 341.25,
-      percentGainLoss: 3.74
-    },
-    {
-      id: '3',
-      ticker: 'JNJ',
-      name: 'Johnson & Johnson',
-      shares: 75,
-      currentPrice: 162.87,
-      purchasePrice: 168.40,
-      purchaseDate: '2023-10-20',
-      platform: 'chase',
-      category: 'low-risk',
-      currentValue: 12215.25,
-      totalGainLoss: -414.75,
-      percentGainLoss: -3.29
-    }
-  ];
-
-  const filteredInvestments = selectedPlatform === 'all'
-    ? mockInvestments
-    : mockInvestments.filter(investment => investment.platform === selectedPlatform);
-
-  const totalPortfolioValue = mockInvestments.reduce((sum, investment) => sum + investment.currentValue, 0);
-  const totalGainLoss = mockInvestments.reduce((sum, investment) => sum + investment.totalGainLoss, 0);
-  const totalPercentGainLoss = (totalGainLoss / (totalPortfolioValue - totalGainLoss)) * 100;
-
-  // Handle clicking outside to close column toggle
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (columnToggleRef.current && !columnToggleRef.current.contains(event.target as Node)) {
-        setShowColumnToggle(false);
+  const load = async () => {
+    setLoading(true);
+    try {
+      const res = await axios.get<{ buckets: Bucket[]; totals: Totals }>('/api/portfolio/by-bet');
+      setBuckets(res.data.buckets);
+      setTotals(res.data.totals);
+      // expand non-Core, non-empty buckets by default
+      const auto = new Set<string>();
+      for (const b of res.data.buckets) {
+        if (b.bet.type !== 'Core' && b.holdings.length > 0) auto.add(b.bet.id);
       }
-    };
+      setExpanded(auto);
+    } catch (err) {
+      console.error('Failed to load portfolio:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
 
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
-    };
-  }, []);
+  useEffect(() => { load(); }, []);
 
-  const toggleColumnVisibility = (column: string) => {
-    setVisibleColumns((prev: typeof visibleColumns) => {
-      const updated = { ...prev, [column]: !prev[column as keyof typeof prev] };
-      localStorage.setItem('portfolio_visible_columns', JSON.stringify(updated));
-      return updated;
+  const triggerSync = async () => {
+    setSyncing(true);
+    try {
+      await axios.post('/api/plaid/sync');
+      await load();
+    } catch (err) {
+      console.error('Sync failed:', err);
+      alert('Sync failed. Check Plaid connections in Settings.');
+    } finally {
+      setSyncing(false);
+    }
+  };
+
+  const toggle = (id: string) => {
+    setExpanded(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
     });
   };
 
-  const toggleRowExpansion = (investmentId: string) => {
-    const newExpandedRows = new Set(expandedRows);
-    if (newExpandedRows.has(investmentId)) {
-      newExpandedRows.delete(investmentId);
-    } else {
-      newExpandedRows.add(investmentId);
-    }
-    setExpandedRows(newExpandedRows);
-  };
+  const summaryColor = (totals?.pnl ?? 0) >= 0 ? 'text-green-600' : 'text-red-600';
 
-  const getIdeaForTicker = (ticker: string) => {
-    return ideas.find(idea => idea.ticker === ticker);
-  };
-
-  const getCategoryIcon = (category: string) => {
-    switch (category) {
-      case 'low-risk': return Shield;
-      case 'growth': return TrendingUp;
-      case 'speculative': return Dice1;
-      default: return TrendingUp;
-    }
-  };
-
-  const getCategoryColor = (category: string) => {
-    switch (category) {
-      case 'low-risk': return 'text-green-600 bg-green-100';
-      case 'growth': return 'text-blue-600 bg-blue-100';
-      case 'speculative': return 'text-red-600 bg-red-100';
-      default: return 'text-gray-600 bg-gray-100';
-    }
-  };
-
-  const getConfidenceColor = (confidence: string) => {
-    switch (confidence) {
-      case 'high': return 'text-green-700 bg-green-50 border-green-200';
-      case 'medium': return 'text-yellow-700 bg-yellow-50 border-yellow-200';
-      case 'low': return 'text-red-700 bg-red-50 border-red-200';
-      default: return 'text-gray-700 bg-gray-50 border-gray-200';
-    }
-  };
-
-  const formatMarketCap = (marketCap: number) => {
-    if (!marketCap) return '--';
-    if (marketCap >= 1000000000000) { // Trillions
-      return `$${(marketCap / 1000000000000).toFixed(1)}T`;
-    } else if (marketCap >= 1000000000) { // Billions
-      return `$${(marketCap / 1000000000).toFixed(1)}B`;
-    } else if (marketCap >= 1000000) { // Millions
-      return `$${(marketCap / 1000000).toFixed(1)}M`;
-    } else {
-      return `$${marketCap.toLocaleString()}`;
-    }
-  };
-
-  const getMarketCapCategoryColor = (category: string) => {
-    switch (category) {
-      case 'large': return 'text-purple-700 bg-purple-100 border-purple-200';
-      case 'mid': return 'text-blue-700 bg-blue-100 border-blue-200';
-      case 'small': return 'text-orange-700 bg-orange-100 border-orange-200';
-      default: return 'text-gray-700 bg-gray-100 border-gray-200';
-    }
-  };
-
-  const getMarketCapCategoryLabel = (category: string) => {
-    switch (category) {
-      case 'large': return 'Large Cap';
-      case 'mid': return 'Mid Cap';
-      case 'small': return 'Small Cap';
-      default: return 'Unknown';
-    }
-  };
+  // Group buckets in display order: user bets first (Long/Mid/Short), then Core, then Unallocated
+  const ordered = useMemo(() => {
+    const order: Record<string, number> = { Long: 0, Mid: 1, Short: 2, Core: 3, Unallocated: 4 };
+    return [...buckets].sort((a, b) => (order[a.bet.type] ?? 9) - (order[b.bet.type] ?? 9));
+  }, [buckets]);
 
   return (
-    <div className="space-y-8">
-      <div className="flex justify-between items-center">
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold text-gray-900">Portfolio</h1>
-          <div className="flex items-center space-x-6 mt-2">
-            <div className="text-sm text-gray-600">
-              Total Value: <span className="font-semibold text-gray-900">${totalPortfolioValue.toLocaleString()}</span>
-            </div>
-            <div className={`text-sm ${totalGainLoss >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-              Total Gain/Loss: <span className="font-semibold">
-                ${Math.abs(totalGainLoss).toLocaleString()} ({totalPercentGainLoss > 0 ? '+' : ''}{totalPercentGainLoss.toFixed(2)}%)
-              </span>
-            </div>
+          <p className="text-gray-600 mt-1">Holdings grouped by bet — your investment thesis layered on real positions.</p>
+        </div>
+        <div className="flex gap-2">
+          <button
+            onClick={triggerSync}
+            disabled={syncing}
+            className="inline-flex items-center px-4 py-2 bg-white border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50 disabled:opacity-50"
+          >
+            <RefreshCw className={`h-4 w-4 mr-2 ${syncing ? 'animate-spin' : ''}`} />
+            {syncing ? 'Syncing…' : 'Sync'}
+          </button>
+          <Link
+            to="/bets"
+            className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
+          >
+            <Target className="h-4 w-4 mr-2" /> Manage Bets
+          </Link>
+        </div>
+      </div>
+
+      {/* Top-line totals */}
+      {totals && (
+        <div className="bg-white rounded-lg border border-gray-200 p-6 grid grid-cols-2 md:grid-cols-4 gap-6">
+          <div>
+            <div className="text-xs text-gray-500 uppercase tracking-wide">Current Value</div>
+            <div className="text-2xl font-bold text-gray-900 mt-1">{fmtMoney(totals.current_value)}</div>
+          </div>
+          <div>
+            <div className="text-xs text-gray-500 uppercase tracking-wide">Cost Basis</div>
+            <div className="text-2xl font-bold text-gray-900 mt-1">{fmtMoney(totals.cost_basis)}</div>
+          </div>
+          <div>
+            <div className="text-xs text-gray-500 uppercase tracking-wide">P&amp;L</div>
+            <div className={`text-2xl font-bold mt-1 ${summaryColor}`}>{fmtMoney(totals.pnl)}</div>
+          </div>
+          <div>
+            <div className="text-xs text-gray-500 uppercase tracking-wide">Return</div>
+            <div className={`text-2xl font-bold mt-1 ${summaryColor}`}>{fmtPct(totals.pnl_pct)}</div>
           </div>
         </div>
-        <div className="relative" ref={columnToggleRef}>
-          <button
-            onClick={() => setShowColumnToggle(!showColumnToggle)}
-            className="flex items-center px-4 py-2 bg-gray-100 text-gray-700 rounded-md hover:bg-gray-200"
-          >
-            <Settings className="h-4 w-4 mr-2" />
-            Columns
-          </button>
-          {showColumnToggle && (
-            <div className="absolute right-0 top-12 w-64 bg-white rounded-md shadow-lg border border-gray-200 py-2 z-50">
-              <div className="px-4 py-2 text-sm font-medium text-gray-900 border-b border-gray-100">
-                Show/Hide Columns
-              </div>
-              {[
-                { key: 'platform', label: 'Platform' },
-                { key: 'shares', label: 'Shares' },
-                { key: 'currentPrice', label: 'Current Price' },
-                { key: 'costBasis', label: 'Cost Basis' },
-                { key: 'target', label: 'Target' },
-                { key: 'marketCap', label: 'Market Cap' },
-                { key: 'maturity', label: 'Maturity' },
-                { key: 'currentValue', label: 'Current Value' },
-                { key: 'gainLoss', label: 'Gain/Loss' },
-                { key: 'category', label: 'Category' },
-                { key: 'confidence', label: 'Confidence' }
-              ].map((column) => (
+      )}
+
+      {loading ? (
+        <div className="text-gray-500">Loading…</div>
+      ) : ordered.length === 0 ? (
+        <div className="bg-white rounded-lg border border-dashed border-gray-300 p-12 text-center">
+          <p className="text-gray-700 font-medium">No holdings yet.</p>
+          <p className="text-gray-500 mt-2 text-sm">
+            Connect a brokerage in <Link to="/investing-settings" className="text-blue-600 hover:underline">Settings</Link>,
+            then come back to see your positions grouped by bet.
+          </p>
+        </div>
+      ) : (
+        <div className="space-y-4">
+          {ordered.map(bucket => {
+            const isOpen = expanded.has(bucket.bet.id);
+            const pnlColor = bucket.pnl >= 0 ? 'text-green-600' : 'text-red-600';
+            const PnlIcon = bucket.pnl >= 0 ? TrendingUp : TrendingDown;
+
+            return (
+              <div key={bucket.bet.id} className="bg-white rounded-lg border border-gray-200 overflow-hidden">
                 <button
-                  key={column.key}
-                  onClick={() => toggleColumnVisibility(column.key)}
-                  className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 flex items-center justify-between"
+                  onClick={() => toggle(bucket.bet.id)}
+                  className="w-full flex items-center justify-between p-5 hover:bg-gray-50 text-left"
                 >
-                  <span>{column.label}</span>
-                  <div className={`relative inline-flex h-4 w-7 items-center rounded-full transition-colors ${
-                    visibleColumns[column.key as keyof typeof visibleColumns]
-                      ? 'bg-green-600'
-                      : 'bg-gray-200'
-                  }`}>
-                    <span className={`inline-block h-2.5 w-2.5 transform rounded-full bg-white transition-transform ${
-                      visibleColumns[column.key as keyof typeof visibleColumns]
-                        ? 'translate-x-3.5'
-                        : 'translate-x-0.5'
-                    }`} />
+                  <div className="flex items-center gap-3 flex-1">
+                    {isOpen ? <ChevronDown className="h-5 w-5 text-gray-400" /> : <ChevronRight className="h-5 w-5 text-gray-400" />}
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2">
+                        <h2 className="text-lg font-semibold text-gray-900">{bucket.bet.name}</h2>
+                        <span className={`text-xs px-2 py-0.5 rounded-full border ${TYPE_COLORS[bucket.bet.type]}`}>
+                          {bucket.bet.type}
+                        </span>
+                        {bucket.bet.is_synthetic && (
+                          <span className="text-xs px-2 py-0.5 rounded-full bg-purple-50 text-purple-700 border border-purple-200">
+                            Auto
+                          </span>
+                        )}
+                      </div>
+                      {bucket.bet.tickers.length > 0 && (
+                        <div className="flex flex-wrap gap-1 mt-1">
+                          {bucket.bet.tickers.map(t => (
+                            <span key={t} className="text-xs font-mono text-gray-500">{t}</span>
+                          ))}
+                        </div>
+                      )}
+                      <div className="text-xs text-gray-500 mt-1">
+                        {bucket.holdings.length} {bucket.holdings.length === 1 ? 'holding' : 'holdings'}
+                      </div>
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-3 gap-6 text-right">
+                    <div>
+                      <div className="text-xs text-gray-500">Value</div>
+                      <div className="font-semibold text-gray-900">{fmtMoney(bucket.current_value)}</div>
+                    </div>
+                    <div>
+                      <div className="text-xs text-gray-500">Cost</div>
+                      <div className="font-semibold text-gray-700">{fmtMoney(bucket.cost_basis)}</div>
+                    </div>
+                    <div>
+                      <div className="text-xs text-gray-500">P&amp;L</div>
+                      <div className={`font-semibold flex items-center justify-end ${pnlColor}`}>
+                        <PnlIcon className="h-3 w-3 mr-1" />
+                        {fmtMoney(bucket.pnl)} ({fmtPct(bucket.pnl_pct)})
+                      </div>
+                    </div>
                   </div>
                 </button>
-              ))}
-            </div>
-          )}
-        </div>
-      </div>
 
-      <div className="flex space-x-4">
-        {[
-          { key: 'all', label: 'All Platforms' },
-          { key: 'etrade', label: 'E*Trade' },
-          { key: 'schwab', label: 'Schwab' },
-          { key: 'chase', label: 'Chase' }
-        ].map((platform) => (
-          <button
-            key={platform.key}
-            onClick={() => setSelectedPlatform(platform.key)}
-            className={`px-4 py-2 rounded-md text-sm font-medium ${
-              selectedPlatform === platform.key
-                ? 'bg-blue-100 text-blue-700'
-                : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-            }`}
-          >
-            {platform.label}
-          </button>
-        ))}
-      </div>
-
-      <div className="bg-white rounded-lg shadow-sm border overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="min-w-full divide-y divide-gray-200">
-            <thead className="bg-gray-50">
-              <tr>
-                <th className="w-8 px-3 py-3"></th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Security
-                </th>
-                {visibleColumns.platform && (
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Platform
-                  </th>
-                )}
-                {visibleColumns.shares && (
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Shares
-                  </th>
-                )}
-                {visibleColumns.currentPrice && (
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Current Price
-                  </th>
-                )}
-                {visibleColumns.costBasis && (
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Cost Basis
-                  </th>
-                )}
-                {visibleColumns.target && (
-                  <th className="w-20 px-3 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Target
-                  </th>
-                )}
-                {visibleColumns.marketCap && (
-                  <th className="w-20 px-2 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Market Cap
-                  </th>
-                )}
-                {visibleColumns.maturity && (
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Maturity
-                  </th>
-                )}
-                {visibleColumns.currentValue && (
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Current Value
-                  </th>
-                )}
-                {visibleColumns.gainLoss && (
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Gain/Loss
-                  </th>
-                )}
-                {visibleColumns.category && (
-                  <th className="w-24 px-2 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Category
-                  </th>
-                )}
-                {visibleColumns.confidence && (
-                  <th className="w-20 px-2 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Conf.
-                  </th>
-                )}
-              </tr>
-            </thead>
-            <tbody className="bg-white divide-y divide-gray-200">
-              {filteredInvestments.map((investment) => {
-                const idea = getIdeaForTicker(investment.ticker);
-                const isExpanded = expandedRows.has(investment.id);
-                return (
-                  <React.Fragment key={investment.id}>
-                    <tr
-                      className="hover:bg-gray-50 cursor-pointer"
-                      onClick={() => toggleRowExpansion(investment.id)}
-                    >
-                      <td className="px-3 py-3 whitespace-nowrap">
-                        {idea ? (
-                          isExpanded ? (
-                            <ChevronDown className="h-4 w-4 text-gray-400" />
-                          ) : (
-                            <ChevronRight className="h-4 w-4 text-gray-400" />
-                          )
-                        ) : (
-                          <div className="w-4 h-4" />
-                        )}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div>
-                          <div className="text-sm font-medium text-gray-900">{investment.ticker}</div>
-                          <div className="text-sm text-gray-500">{investment.name}</div>
-                        </div>
-                      </td>
-                      {visibleColumns.platform && (
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <span className="px-2 py-1 text-xs font-medium bg-gray-100 text-gray-800 rounded-full capitalize">
-                            {investment.platform}
-                          </span>
-                        </td>
-                      )}
-                      {visibleColumns.shares && (
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                          {investment.shares}
-                        </td>
-                      )}
-                      {visibleColumns.currentPrice && (
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                          ${investment.currentPrice.toFixed(2)}
-                        </td>
-                      )}
-                      {visibleColumns.costBasis && (
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                          ${investment.purchasePrice.toFixed(2)}
-                        </td>
-                      )}
-                      {visibleColumns.target && (
-                        <td className="px-3 py-3 whitespace-nowrap text-right">
-                          <div className="text-sm font-semibold text-blue-600">
-                            {idea?.price_target ? `$${idea.price_target.toFixed(2)}` : '--'}
-                          </div>
-                        </td>
-                      )}
-                      {visibleColumns.marketCap && (
-                        <td className="px-2 py-3 whitespace-nowrap text-center">
-                          {idea ? (
-                            <div className={`inline-flex items-center justify-center px-2 py-1 rounded-full text-xs font-medium border ${getMarketCapCategoryColor(idea.market_cap_category || 'mid')}`} title={`${getMarketCapCategoryLabel(idea.market_cap_category || 'mid')} - ${formatMarketCap(idea.market_cap)}`}>
-                              <Building className="h-3 w-3 mr-1" />
-                              {idea.market_cap_category ? idea.market_cap_category.charAt(0).toUpperCase() : 'M'}
-                            </div>
-                          ) : (
-                            <div className="text-xs text-gray-400">--</div>
-                          )}
-                        </td>
-                      )}
-                      {visibleColumns.maturity && (
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          {(() => {
-                            const purchaseDate = new Date(investment.purchaseDate);
-                            const currentDate = new Date();
-                            const monthsDiff = (currentDate.getFullYear() - purchaseDate.getFullYear()) * 12 +
-                                              (currentDate.getMonth() - purchaseDate.getMonth());
-                            const maturityMonths = Math.min(monthsDiff, 12);
-                            const progressPercent = (maturityMonths / 12) * 100;
-                            const isFullyMature = monthsDiff >= 12;
-
+                {isOpen && (
+                  <div className="border-t border-gray-100">
+                    {bucket.holdings.length === 0 ? (
+                      <div className="p-6 text-center text-sm text-gray-500">
+                        No positions yet. {bucket.bet.status === 'planned' && 'This is a planned bet — buy in to start tracking.'}
+                      </div>
+                    ) : (
+                      <table className="w-full text-sm">
+                        <thead className="bg-gray-50 text-gray-500 text-xs uppercase">
+                          <tr>
+                            <th className="text-left px-5 py-2">Ticker</th>
+                            <th className="text-left px-5 py-2">Account</th>
+                            <th className="text-right px-5 py-2">Qty</th>
+                            <th className="text-right px-5 py-2">Price</th>
+                            <th className="text-right px-5 py-2">Value</th>
+                            <th className="text-right px-5 py-2">Cost</th>
+                            <th className="text-right px-5 py-2 pr-5">P&amp;L</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {bucket.holdings.map(h => {
+                            const pnl = (h.current_value ?? 0) - (h.cost_basis_total ?? 0);
+                            const pnlClass = pnl >= 0 ? 'text-green-600' : 'text-red-600';
                             return (
-                              <div className="w-full">
-                                <div className="flex items-center space-x-2">
-                                  <div className="flex-1 bg-gray-200 rounded-full h-2">
-                                    <div
-                                      className={`h-2 rounded-full transition-all ${
-                                        isFullyMature ? 'bg-green-500' : 'bg-blue-500'
-                                      }`}
-                                      style={{ width: `${progressPercent}%` }}
-                                    />
+                              <tr key={h.holding_id} className="border-t border-gray-100">
+                                <td className="px-5 py-3">
+                                  <div className="font-mono font-medium text-gray-900">{h.ticker || '—'}</div>
+                                  <div className="text-xs text-gray-500">{h.name}</div>
+                                </td>
+                                <td className="px-5 py-3">
+                                  <div className="text-gray-900">{h.institution_name || h.account_name}</div>
+                                  <div className="text-xs text-gray-500">
+                                    {h.account_name}{h.account_subtype && ` · ${h.account_subtype}`}
+                                    {h.source === 'manual' && ' · manual'}
                                   </div>
-                                  <span className={`text-xs font-medium ${
-                                    isFullyMature ? 'text-green-600' : 'text-gray-600'
-                                  }`}>
-                                    {monthsDiff >= 12 ? '12+' : monthsDiff}mo
-                                  </span>
-                                </div>
-                                <div className="text-xs text-gray-500 mt-1">
-                                  {isFullyMature ? 'Long-term gains' : 'Short-term gains'}
-                                </div>
-                              </div>
+                                </td>
+                                <td className="px-5 py-3 text-right tabular-nums">{h.quantity?.toLocaleString() ?? '—'}</td>
+                                <td className="px-5 py-3 text-right tabular-nums">{fmtMoneyPrecise(h.current_price)}</td>
+                                <td className="px-5 py-3 text-right tabular-nums font-medium">{fmtMoneyPrecise(h.current_value)}</td>
+                                <td className="px-5 py-3 text-right tabular-nums text-gray-500">{fmtMoneyPrecise(h.cost_basis_total)}</td>
+                                <td className={`px-5 py-3 text-right tabular-nums font-medium pr-5 ${pnlClass}`}>
+                                  {fmtMoneyPrecise(pnl)}
+                                </td>
+                              </tr>
                             );
-                          })()}
-                        </td>
-                      )}
-                      {visibleColumns.currentValue && (
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                          ${investment.currentValue.toLocaleString()}
-                        </td>
-                      )}
-                      {visibleColumns.gainLoss && (
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <div className={`flex items-center ${investment.totalGainLoss >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                            {investment.totalGainLoss >= 0 ? (
-                              <TrendingUp className="h-4 w-4 mr-1" />
-                            ) : (
-                              <TrendingDown className="h-4 w-4 mr-1" />
-                            )}
-                            <div className="text-sm">
-                              <div className="font-medium">
-                                ${Math.abs(investment.totalGainLoss).toLocaleString()}
-                              </div>
-                              <div className="text-xs">
-                                ({investment.percentGainLoss > 0 ? '+' : ''}{investment.percentGainLoss.toFixed(2)}%)
-                              </div>
-                            </div>
-                          </div>
-                        </td>
-                      )}
-                      {visibleColumns.category && (
-                        <td className="px-2 py-3 whitespace-nowrap text-center">
-                          {idea ? (
-                            <div className={`inline-flex items-center justify-center w-8 h-8 rounded-full text-xs font-medium ${getCategoryColor(idea.category)}`} title={idea.category.replace('-', ' ').replace(/\b\w/g, l => l.toUpperCase())}>
-                              {(() => {
-                                const Icon = getCategoryIcon(idea.category);
-                                return <Icon className="h-4 w-4" />;
-                              })()}
-                            </div>
-                          ) : (
-                            <div className="text-xs text-gray-400">--</div>
-                          )}
-                        </td>
-                      )}
-                      {visibleColumns.confidence && (
-                        <td className="px-2 py-3 whitespace-nowrap text-center">
-                          {idea ? (
-                            <div className={`inline-flex items-center justify-center w-6 h-6 rounded text-xs font-bold ${getConfidenceColor(idea.confidence || 'medium')}`} title={`${idea.confidence || 'medium'} confidence`.replace(/\b\w/g, l => l.toUpperCase())}>
-                              {(idea.confidence || 'medium').charAt(0).toUpperCase()}
-                            </div>
-                          ) : (
-                            <div className="text-xs text-gray-400">--</div>
-                          )}
-                        </td>
-                      )}
-                    </tr>
-                    {isExpanded && idea && (
-                      <tr>
-                        <td colSpan={Object.values(visibleColumns).filter(Boolean).length + 2} className="px-6 py-4 bg-gray-50">
-                          <div className="text-sm text-gray-700">
-                            <h4 className="font-medium text-gray-900 mb-2">Investment Rationale:</h4>
-                            <p className="whitespace-pre-wrap">{idea.notes}</p>
-                          </div>
-                        </td>
-                      </tr>
+                          })}
+                        </tbody>
+                      </table>
                     )}
-                  </React.Fragment>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
-      </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <div className="bg-white rounded-lg p-6 shadow-sm border">
-          <h3 className="text-lg font-semibold text-gray-900 mb-2">Best Performer</h3>
-          <div className="text-2xl font-bold text-green-600">AAPL</div>
-          <div className="text-sm text-gray-600">+7.95% gain</div>
+                    {bucket.bet.type === 'Unallocated' && bucket.holdings.length > 0 && (
+                      <div className="px-5 py-3 bg-rose-50 border-t border-rose-100 text-sm text-rose-800 flex items-center justify-between">
+                        <span>These holdings aren't part of any bet yet.</span>
+                        <Link to="/bets" className="font-medium hover:underline inline-flex items-center">
+                          <Plus className="h-3 w-3 mr-1" /> Create a bet
+                        </Link>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            );
+          })}
         </div>
-
-        <div className="bg-white rounded-lg p-6 shadow-sm border">
-          <h3 className="text-lg font-semibold text-gray-900 mb-2">Worst Performer</h3>
-          <div className="text-2xl font-bold text-red-600">JNJ</div>
-          <div className="text-sm text-gray-600">-3.29% loss</div>
-        </div>
-
-        <div className="bg-white rounded-lg p-6 shadow-sm border">
-          <h3 className="text-lg font-semibold text-gray-900 mb-2">Largest Position</h3>
-          <div className="text-2xl font-bold text-gray-900">JNJ</div>
-          <div className="text-sm text-gray-600">${mockInvestments.find(i => i.ticker === 'JNJ')?.currentValue.toLocaleString()}</div>
-        </div>
-      </div>
+      )}
     </div>
   );
 };

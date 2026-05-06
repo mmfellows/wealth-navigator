@@ -134,31 +134,16 @@ class StockService {
     );
   }
 
-  async updatePriceInDB(ticker, price) {
-    try {
-      await db.run(
-        `INSERT OR REPLACE INTO stock_prices (ticker, price, updated_at)
-         VALUES (?, ?, CURRENT_TIMESTAMP)`,
-        [ticker, price]
-      );
-    } catch (error) {
-      console.error('Error updating price in DB:', error);
-    }
-  }
+  // No-op: SQLite price cache was removed during the Firestore migration.
+  // The in-memory `this.cache` Map (5-min TTL) covers what this used to do.
+  async updatePriceInDB(_ticker, _price) {}
+  async getPriceFromDB(_ticker) { return null; }
 
-  async getPriceFromDB(ticker) {
-    try {
-      const row = await db.get(
-        `SELECT price FROM stock_prices WHERE ticker = ?
-         AND datetime(updated_at) > datetime('now', '-1 hour')`,
-        [ticker]
-      );
-      return row ? row.price : null;
-    } catch (error) {
-      console.error('Error getting price from DB:', error);
-      return null;
-    }
-  }
+  // Yahoo's free endpoint is rate-limit/auth flaky; if it fails we used to
+  // fall back to a hand-curated table that was never re-implemented after the
+  // migration. Returning null lets the route store ideas without a market cap
+  // rather than 500ing the request.
+  async getVerifiedMarketCap(_ticker) { return null; }
 
   async getMultiplePrices(tickers) {
     const promises = tickers.map(ticker => this.getStockPrice(ticker));

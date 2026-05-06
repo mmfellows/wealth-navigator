@@ -80,11 +80,19 @@ router.get('/', optionalAuth, async (req, res) => {
   }
 });
 
-// Add idea
+// Add idea (a.k.a. watchlist item — a thesis you haven't pulled the trigger on yet)
 router.post('/', optionalAuth, async (req, res) => {
   try {
     const userId = req.user.id;
-    const { ticker, category, confidence = 'medium', notes, price_target } = req.body;
+    const {
+      ticker,
+      category,
+      confidence = 'medium',
+      notes,
+      price_target,
+      intended_bet_type,
+      target_buy_price,
+    } = req.body;
 
     if (!ticker || !category || !notes) {
       return res.status(400).json({ error: 'Ticker, category, and notes are required' });
@@ -96,6 +104,10 @@ router.post('/', optionalAuth, async (req, res) => {
 
     if (!['high', 'medium', 'low'].includes(confidence)) {
       return res.status(400).json({ error: 'Confidence must be high, medium, or low' });
+    }
+
+    if (intended_bet_type && !['Long', 'Mid', 'Short'].includes(intended_bet_type)) {
+      return res.status(400).json({ error: 'intended_bet_type must be Long, Mid, or Short' });
     }
 
     const currentPrice = await stockService.getStockPrice(ticker);
@@ -113,6 +125,8 @@ router.post('/', optionalAuth, async (req, res) => {
       current_price: currentPrice,
       notes,
       price_target: price_target || null,
+      intended_bet_type: intended_bet_type || null,
+      target_buy_price: target_buy_price ?? null,
       market_cap: marketCap,
       market_cap_category: marketCapCategory,
       date_added: new Date().toISOString().split('T')[0],
@@ -140,7 +154,7 @@ router.put('/:id', optionalAuth, async (req, res) => {
       return res.status(404).json({ error: 'Investment idea not found' });
     }
 
-    const allowedFields = ['ticker', 'name', 'category', 'confidence', 'notes', 'price_target'];
+    const allowedFields = ['ticker', 'name', 'category', 'confidence', 'notes', 'price_target', 'intended_bet_type', 'target_buy_price'];
     const updateData = {};
 
     Object.keys(updates).forEach(key => {
@@ -160,6 +174,72 @@ router.put('/:id', optionalAuth, async (req, res) => {
   } catch (error) {
     console.error('Error updating idea:', error);
     res.status(500).json({ error: 'Failed to update investment idea' });
+  }
+});
+
+// Promote an idea to a bet — the user has actually bought, so the watchlist
+// item graduates into a real bet that gets matched against holdings. The
+// idea is deleted on success so it doesn't show up in both surfaces.
+router.post('/:id/promote', optionalAuth, async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const { id } = req.params;
+    const { bet_type, name, buy_date, target_sell_date, status = 'active' } = req.body || {};
+
+    const doc = await db.collection('ideas').doc(id).get();
+    if (!doc.exists || doc.data().user_id !== userId) {
+      return res.status(404).json({ error: 'Investment idea not found' });
+    }
+    const idea = doc.data();
+
+    const type = bet_type || idea.intended_bet_type;
+    if (!type || !['Long', 'Mid', 'Short'].includes(type)) {
+      return res.status(400).json({ error: 'bet_type (Long/Mid/Short) is required to promote' });
+    }
+
+    // Reuse the same collision check as POST /api/bets — this guarantees a
+    // promoted idea can't end up overlapping an active bet, which would
+    // silently break ticker-based bucketing in the portfolio view.
+    const ticker = (idea.ticker || '').toUpperCase();
+    if (ticker) {
+      const others = await db.collection('bets')
+        .where('user_id', '==', userId)
+        .where('status', 'in', ['planned', 'active'])
+        .get();
+      for (const d of others.docs) {
+        const b = d.data();
+        if (b.type === 'Core') continue;
+        if ((b.tickers || []).includes(ticker)) {
+          return res.status(409).json({
+            error: `${ticker} is already in active bet "${b.name}". Close that bet first or rename this one.`,
+          });
+        }
+      }
+    }
+
+    const now = new Date().toISOString();
+    const betDoc = {
+      user_id: userId,
+      name: name || `${ticker} ${type}`,
+      type,
+      tickers: ticker ? [ticker] : [],
+      buy_date: buy_date || (status === 'active' ? now.slice(0, 10) : null),
+      target_sell_date: target_sell_date || null,
+      actual_sell_date: null,
+      thesis: idea.notes || '',
+      status,
+      is_synthetic: false,
+      created_at: now,
+      updated_at: now,
+    };
+
+    const ref = await db.collection('bets').add(betDoc);
+    await doc.ref.delete();
+
+    res.status(201).json({ id: ref.id, ...betDoc });
+  } catch (error) {
+    console.error('Error promoting idea to bet:', error);
+    res.status(500).json({ error: error.message || 'Failed to promote idea to bet' });
   }
 });
 

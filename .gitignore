@@ -6,3 +6,5 @@ serviceAccountKey.json
 *.db
 uploads/
 .claude/
+.DS_Store
+

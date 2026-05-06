@@ -1,100 +1,111 @@
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Edit, Filter, Calendar, Plus, Loader2 } from 'lucide-react';
+import { Plus, Loader2, Zap, PencilLine, RefreshCw } from 'lucide-react';
 import axios from 'axios';
 import NewTradeModal, { TradeFormData } from '../components/NewTradeModal';
 
-const API_BASE = 'http://localhost:3001/api';
+const API_BASE = '/api';
 
-interface Trade {
+interface JournalEntry {
+  source: 'manual' | 'plaid';
   id: string;
-  ticker: string;
-  type: 'buy' | 'sell';
-  shares: number;
-  price: number;
   date: string;
-  platform: string;
+  ticker: string;
+  name: string;
+  type: string;
+  subtype: string;
+  quantity: number | null;
+  price: number | null;
+  amount: number | null;
+  fees: number | null;
+  account_name: string;
+  institution_name: string;
   rationale: string;
-  strategy: string;
 }
 
-// API functions
-const fetchTrades = async (): Promise<Trade[]> => {
-  const { data } = await axios.get(`${API_BASE}/trades`);
-  return data;
+interface JournalResponse {
+  entries: JournalEntry[];
+  manual_count: number;
+  plaid_count: number;
+}
+
+type SourceFilter = 'all' | 'manual' | 'plaid';
+type TypeFilter = 'all' | 'buy' | 'sell' | 'dividend' | 'fee' | 'other';
+
+const fmt = (n: number | null | undefined) => {
+  if (n == null || isNaN(n)) return '—';
+  return n.toLocaleString('en-US', { style: 'currency', currency: 'USD' });
+};
+const fmtQty = (n: number | null | undefined) => {
+  if (n == null || isNaN(n)) return '—';
+  return n.toLocaleString('en-US', { maximumFractionDigits: 4 });
 };
 
-const createTrade = async (trade: TradeFormData): Promise<Trade> => {
-  const { data } = await axios.post(`${API_BASE}/trades`, trade);
-  return data;
+const TYPE_BUCKETS: Record<TypeFilter, (t: string) => boolean> = {
+  all: () => true,
+  buy: (t) => /buy/i.test(t),
+  sell: (t) => /sell/i.test(t),
+  dividend: (t) => /dividend|interest|cash/i.test(t),
+  fee: (t) => /fee|tax/i.test(t),
+  other: (t) => !/buy|sell|dividend|interest|cash|fee|tax/i.test(t),
 };
 
-const updateTradeRationale = async ({ id, rationale }: { id: string; rationale: string }): Promise<Trade> => {
-  const { data } = await axios.patch(`${API_BASE}/trades/${id}`, { rationale });
-  return data;
+const typeStyle = (type: string) => {
+  if (/buy/i.test(type)) return 'bg-blue-100 text-blue-800';
+  if (/sell/i.test(type)) return 'bg-amber-100 text-amber-800';
+  if (/dividend|interest/i.test(type)) return 'bg-emerald-100 text-emerald-800';
+  if (/fee|tax/i.test(type)) return 'bg-rose-100 text-rose-800';
+  return 'bg-gray-100 text-gray-700';
 };
 
 const TradeJournal: React.FC = () => {
-  const [showAddRationale, setShowAddRationale] = useState<string | null>(null);
-  const [rationaleText, setRationaleText] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [sourceFilter, setSourceFilter] = useState<SourceFilter>('all');
+  const [typeFilter, setTypeFilter] = useState<TypeFilter>('all');
+  const [days, setDays] = useState(365);
+  const [syncing, setSyncing] = useState(false);
 
   const queryClient = useQueryClient();
 
-  // Fetch trades
-  const { data: trades = [], isLoading, error } = useQuery({
-    queryKey: ['trades'],
-    queryFn: fetchTrades,
+  const { data, isLoading, error } = useQuery<JournalResponse>({
+    queryKey: ['trade-journal', days],
+    queryFn: async () => {
+      const { data } = await axios.get<JournalResponse>(`${API_BASE}/trades/journal?days=${days}`);
+      return data;
+    },
   });
 
-  // Create trade mutation
   const createMutation = useMutation({
-    mutationFn: createTrade,
+    mutationFn: async (trade: TradeFormData) => {
+      const { data } = await axios.post(`${API_BASE}/trades`, trade);
+      return data;
+    },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['trades'] });
+      queryClient.invalidateQueries({ queryKey: ['trade-journal'] });
       setIsModalOpen(false);
     },
   });
 
-  // Update rationale mutation
-  const updateRationaleMutation = useMutation({
-    mutationFn: updateTradeRationale,
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['trades'] });
-      setShowAddRationale(null);
-      setRationaleText('');
-    },
-  });
-
-  const handleSaveRationale = (tradeId: string) => {
-    updateRationaleMutation.mutate({ id: tradeId, rationale: rationaleText });
-  };
-
-  const handleEditRationale = (tradeId: string, currentRationale: string) => {
-    setShowAddRationale(tradeId);
-    setRationaleText(currentRationale);
-  };
-
-  const handleNewTrade = (tradeData: TradeFormData) => {
-    createMutation.mutate(tradeData);
-  };
-
-  const getStrategyColor = (strategy: string) => {
-    switch (strategy) {
-      case 'Trade':
-        return 'bg-purple-100 text-purple-800';
-      case 'Swing':
-        return 'bg-orange-100 text-orange-800';
-      case '1 Year':
-        return 'bg-blue-100 text-blue-800';
-      case '5 Years':
-        return 'bg-teal-100 text-teal-800';
-      case 'Long':
-        return 'bg-green-100 text-green-800';
-      default:
-        return 'bg-gray-100 text-gray-800';
+  const triggerSync = async () => {
+    setSyncing(true);
+    try {
+      await axios.post('/api/plaid/sync');
+      queryClient.invalidateQueries({ queryKey: ['trade-journal'] });
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setSyncing(false);
     }
   };
+
+  const filtered = useMemo(() => {
+    if (!data) return [];
+    return data.entries.filter(e => {
+      if (sourceFilter !== 'all' && e.source !== sourceFilter) return false;
+      if (!TYPE_BUCKETS[typeFilter](e.type || '')) return false;
+      return true;
+    });
+  }, [data, sourceFilter, typeFilter]);
 
   if (isLoading) {
     return (
@@ -105,218 +116,139 @@ const TradeJournal: React.FC = () => {
   }
 
   if (error) {
-    return (
-      <div className="text-center py-12">
-        <p className="text-red-600">Failed to load trades. Please try again.</p>
-      </div>
-    );
+    return <div className="text-center py-12 text-red-600">Failed to load trades.</div>;
   }
 
   return (
-    <div className="space-y-8">
-      <div className="flex justify-between items-center">
-        <h1 className="text-3xl font-bold text-gray-900">Trade Journal</h1>
-        <div className="flex space-x-3">
-          <button className="flex items-center px-4 py-2 border border-gray-300 rounded-md text-gray-600 hover:bg-gray-50">
-            <Filter className="h-4 w-4 mr-2" />
-            Filter
-          </button>
-          <button className="flex items-center px-4 py-2 border border-gray-300 rounded-md text-gray-600 hover:bg-gray-50">
-            <Calendar className="h-4 w-4 mr-2" />
-            Date Range
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-3xl font-bold text-gray-900">Trade Journal</h1>
+          <p className="text-gray-600 mt-1">
+            {data?.plaid_count ?? 0} auto-imported · {data?.manual_count ?? 0} manual · {filtered.length} shown
+          </p>
+        </div>
+        <div className="flex gap-2">
+          <button
+            onClick={triggerSync}
+            disabled={syncing}
+            className="inline-flex items-center px-4 py-2 bg-white border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50 disabled:opacity-50"
+          >
+            <RefreshCw className={`h-4 w-4 mr-2 ${syncing ? 'animate-spin' : ''}`} />
+            {syncing ? 'Syncing…' : 'Sync'}
           </button>
           <button
             onClick={() => setIsModalOpen(true)}
-            className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
+            className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
           >
-            <Plus className="h-4 w-4 mr-2" />
-            New Trade
+            <Plus className="h-4 w-4 mr-2" /> Manual Entry
           </button>
         </div>
       </div>
 
-      <div className="bg-white rounded-lg shadow-sm border overflow-hidden">
-        <div className="overflow-x-auto">
+      {/* Filters */}
+      <div className="flex flex-wrap items-center gap-2">
+        <span className="text-xs uppercase tracking-wide text-gray-500 mr-1">Source</span>
+        {(['all', 'plaid', 'manual'] as const).map(s => (
+          <button
+            key={s}
+            onClick={() => setSourceFilter(s)}
+            className={`px-3 py-1 rounded-md text-xs font-medium capitalize ${
+              sourceFilter === s ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+            }`}
+          >
+            {s}
+          </button>
+        ))}
+        <span className="text-xs uppercase tracking-wide text-gray-500 ml-4 mr-1">Type</span>
+        {(['all', 'buy', 'sell', 'dividend', 'fee', 'other'] as const).map(t => (
+          <button
+            key={t}
+            onClick={() => setTypeFilter(t)}
+            className={`px-3 py-1 rounded-md text-xs font-medium capitalize ${
+              typeFilter === t ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+            }`}
+          >
+            {t}
+          </button>
+        ))}
+        <span className="text-xs uppercase tracking-wide text-gray-500 ml-4 mr-1">Window</span>
+        {[30, 90, 365, 1825].map(d => (
+          <button
+            key={d}
+            onClick={() => setDays(d)}
+            className={`px-3 py-1 rounded-md text-xs font-medium ${
+              days === d ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+            }`}
+          >
+            {d === 30 ? '30D' : d === 90 ? '90D' : d === 365 ? '1Y' : '5Y'}
+          </button>
+        ))}
+      </div>
+
+      {filtered.length === 0 ? (
+        <div className="bg-white rounded-lg border border-dashed border-gray-300 p-12 text-center text-gray-500">
+          No trades match these filters.
+        </div>
+      ) : (
+        <div className="bg-white rounded-lg shadow-sm border overflow-hidden">
           <table className="min-w-full divide-y divide-gray-200">
             <thead className="bg-gray-50">
-              <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Date
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Security
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Action
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Shares
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Price
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Total
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Platform
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Strategy
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Rationale
-                </th>
+              <tr className="text-xs text-gray-500 uppercase tracking-wide">
+                <th className="px-4 py-3 text-left">Date</th>
+                <th className="px-4 py-3 text-left">Ticker</th>
+                <th className="px-4 py-3 text-left">Type</th>
+                <th className="px-4 py-3 text-right">Qty</th>
+                <th className="px-4 py-3 text-right">Price</th>
+                <th className="px-4 py-3 text-right">Amount</th>
+                <th className="px-4 py-3 text-left">Account</th>
+                <th className="px-4 py-3 text-center">Source</th>
               </tr>
             </thead>
-            <tbody className="bg-white divide-y divide-gray-200">
-              {trades.length === 0 ? (
-                <tr>
-                  <td colSpan={9} className="px-6 py-12 text-center text-gray-500">
-                    No trades yet. Click "New Trade" to add your first trade.
+            <tbody className="divide-y divide-gray-100">
+              {filtered.map(e => (
+                <tr key={`${e.source}-${e.id}`} className="hover:bg-gray-50">
+                  <td className="px-4 py-3 text-sm text-gray-700 whitespace-nowrap">{e.date || '—'}</td>
+                  <td className="px-4 py-3">
+                    <div className="font-mono font-medium text-gray-900">{e.ticker || '—'}</div>
+                    {e.name && <div className="text-xs text-gray-500 truncate max-w-xs" title={e.name}>{e.name}</div>}
+                  </td>
+                  <td className="px-4 py-3">
+                    <span className={`inline-block text-xs px-2 py-0.5 rounded-full font-medium capitalize ${typeStyle(e.type)}`}>
+                      {e.type || '—'}
+                    </span>
+                    {e.subtype && <div className="text-xs text-gray-500 mt-0.5">{e.subtype}</div>}
+                  </td>
+                  <td className="px-4 py-3 text-sm text-right tabular-nums">{fmtQty(e.quantity)}</td>
+                  <td className="px-4 py-3 text-sm text-right tabular-nums">{fmt(e.price)}</td>
+                  <td className="px-4 py-3 text-sm text-right tabular-nums font-medium">{fmt(e.amount)}</td>
+                  <td className="px-4 py-3 text-sm">
+                    <div className="text-gray-900">{e.institution_name || '—'}</div>
+                    {e.account_name && <div className="text-xs text-gray-500">{e.account_name}</div>}
+                  </td>
+                  <td className="px-4 py-3 text-center">
+                    {e.source === 'plaid' ? (
+                      <span className="inline-flex items-center text-xs text-blue-700 bg-blue-50 px-2 py-0.5 rounded-full">
+                        <Zap className="h-3 w-3 mr-1" /> Plaid
+                      </span>
+                    ) : (
+                      <span className="inline-flex items-center text-xs text-gray-700 bg-gray-100 px-2 py-0.5 rounded-full">
+                        <PencilLine className="h-3 w-3 mr-1" /> Manual
+                      </span>
+                    )}
                   </td>
                 </tr>
-              ) : (
-                trades.map((trade) => (
-                  <React.Fragment key={trade.id}>
-                    <tr className="hover:bg-gray-50">
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                        {new Date(trade.date).toLocaleDateString()}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                        {trade.ticker}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <span className={`px-2 py-1 text-xs font-medium rounded-full ${
-                          trade.type === 'buy'
-                            ? 'bg-green-100 text-green-800'
-                            : 'bg-red-100 text-red-800'
-                        }`}>
-                          {trade.type.toUpperCase()}
-                        </span>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                        {trade.shares}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                        ${trade.price.toFixed(2)}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                        ${(trade.shares * trade.price).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <span className="px-2 py-1 text-xs font-medium bg-gray-100 text-gray-800 rounded-full capitalize">
-                          {trade.platform}
-                        </span>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <span className={`px-2 py-1 text-xs font-medium rounded-full ${getStrategyColor(trade.strategy)}`}>
-                          {trade.strategy || 'Long'}
-                        </span>
-                      </td>
-                      <td className="px-6 py-4">
-                        {trade.rationale ? (
-                          <div className="flex items-start space-x-2">
-                            <p className="text-sm text-gray-600 max-w-xs truncate">{trade.rationale}</p>
-                            <button
-                              onClick={() => handleEditRationale(trade.id, trade.rationale)}
-                              className="text-blue-600 hover:text-blue-900"
-                            >
-                              <Edit className="h-4 w-4" />
-                            </button>
-                          </div>
-                        ) : (
-                          <button
-                            onClick={() => setShowAddRationale(trade.id)}
-                            className="text-red-600 hover:text-red-800 text-sm font-medium"
-                          >
-                            Add Rationale Required
-                          </button>
-                        )}
-                      </td>
-                    </tr>
-
-                    {showAddRationale === trade.id && (
-                      <tr>
-                        <td colSpan={9} className="px-6 py-4 bg-blue-50">
-                          <div className="space-y-3">
-                            <label className="block text-sm font-medium text-gray-700">
-                              Trade Rationale for {trade.ticker} {trade.type}
-                            </label>
-                            <textarea
-                              value={rationaleText}
-                              onChange={(e) => setRationaleText(e.target.value)}
-                              placeholder="Explain why you made this trade, your strategy, and expectations..."
-                              rows={3}
-                              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                            />
-                            <div className="flex justify-end space-x-3">
-                              <button
-                                onClick={() => {
-                                  setShowAddRationale(null);
-                                  setRationaleText('');
-                                }}
-                                className="px-4 py-2 text-gray-600 border border-gray-300 rounded-md hover:bg-gray-50"
-                              >
-                                Cancel
-                              </button>
-                              <button
-                                onClick={() => handleSaveRationale(trade.id)}
-                                disabled={updateRationaleMutation.isPending}
-                                className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50"
-                              >
-                                {updateRationaleMutation.isPending ? 'Saving...' : 'Save Rationale'}
-                              </button>
-                            </div>
-                          </div>
-                        </td>
-                      </tr>
-                    )}
-                  </React.Fragment>
-                ))
-              )}
+              ))}
             </tbody>
           </table>
         </div>
-      </div>
+      )}
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <div className="bg-white rounded-lg p-6 shadow-sm border">
-          <h3 className="text-lg font-semibold text-gray-900 mb-2">Recent Activity</h3>
-          <div className="text-2xl font-bold text-blue-600">{trades.length}</div>
-          <div className="text-sm text-gray-600">trades this month</div>
-        </div>
-
-        <div className="bg-white rounded-lg p-6 shadow-sm border">
-          <h3 className="text-lg font-semibold text-gray-900 mb-2">Missing Rationales</h3>
-          <div className="text-2xl font-bold text-red-600">
-            {trades.filter(trade => !trade.rationale).length}
-          </div>
-          <div className="text-sm text-gray-600">trades need rationale</div>
-        </div>
-
-        <div className="bg-white rounded-lg p-6 shadow-sm border">
-          <h3 className="text-lg font-semibold text-gray-900 mb-2">Total Volume</h3>
-          <div className="text-2xl font-bold text-green-600">
-            ${trades.reduce((sum, trade) => sum + (trade.shares * trade.price), 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-          </div>
-          <div className="text-sm text-gray-600">traded this month</div>
-        </div>
-      </div>
-
-      {/* New Trade Modal */}
       <NewTradeModal
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
-        onSubmit={handleNewTrade}
+        onSubmit={(t) => createMutation.mutate(t)}
       />
-
-      {/* Show error toast for failed mutations */}
-      {createMutation.isError && (
-        <div className="fixed bottom-4 right-4 bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded">
-          Failed to create trade. Please try again.
-        </div>
-      )}
     </div>
   );
 };

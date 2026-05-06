@@ -689,7 +689,7 @@ const Settings: React.FC = () => {
 
   const loadConnectedAccounts = async () => {
     try {
-      const response = await axios.get('http://localhost:3001/api/plaid/accounts');
+      const response = await axios.get('/api/plaid/accounts');
       setConnectedAccounts(response.data.institutions);
     } catch (error) {
       console.error('Failed to load connected accounts:', error);
@@ -700,7 +700,7 @@ const Settings: React.FC = () => {
 
   const loadSyncHistory = async () => {
     try {
-      const response = await axios.get('http://localhost:3001/api/plaid/sync-history?limit=10');
+      const response = await axios.get('/api/plaid/sync-history?limit=10');
       setSyncHistory(response.data.logs);
     } catch (error) {
       console.error('Failed to load sync history:', error);
@@ -710,7 +710,7 @@ const Settings: React.FC = () => {
   const handleSync = async () => {
     setIsSyncing(true);
     try {
-      const response = await axios.post('http://localhost:3001/api/plaid/sync');
+      const response = await axios.post('/api/plaid/sync');
       alert(response.data.message);
       loadSyncHistory(); // Refresh history
       // Optionally refresh portfolio data
@@ -726,7 +726,7 @@ const Settings: React.FC = () => {
   const handleRemoveAccount = async (itemId: string, institutionName: string) => {
     if (window.confirm(`Are you sure you want to remove ${institutionName}? This will delete all associated portfolio data.`)) {
       try {
-        await axios.delete(`http://localhost:3001/api/plaid/accounts/${itemId}`);
+        await axios.delete(`/api/plaid/accounts/${itemId}`);
         alert('Account removed successfully');
         loadConnectedAccounts();
         loadSyncHistory();
@@ -762,7 +762,7 @@ const Settings: React.FC = () => {
 
   const saveEtradeKeys = async () => {
     try {
-      const response = await axios.post('http://localhost:3001/api/settings/etrade-keys', etradeKeys);
+      const response = await axios.post('/api/settings/etrade-keys', etradeKeys);
       if (response.data.success) {
         setEtradeKeysSaved(true);
         setTimeout(() => setEtradeKeysSaved(false), 3000);
@@ -775,7 +775,7 @@ const Settings: React.FC = () => {
 
   const loadEtradeKeys = async () => {
     try {
-      const response = await axios.get('http://localhost:3001/api/settings/etrade-keys');
+      const response = await axios.get('/api/settings/etrade-keys');
       if (response.data.keys) {
         setEtradeKeys({
           consumerKey: response.data.keys.consumerKey || '',

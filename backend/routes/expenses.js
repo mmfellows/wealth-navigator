@@ -104,8 +104,17 @@ router.post('/bulk', async (req, res) => {
   }
 });
 
+// PDF imports rely on the `pdftotext` system binary, which isn't available on Vercel.
+// Plaid is the production data source; PDF import is dev-only for one-off backfills.
+function pdfDisabledInProd(req, res, next) {
+  if (process.env.NODE_ENV === 'production') {
+    return res.status(501).json({ error: 'PDF import is not available in this environment. Use Plaid sync or CSV import.' });
+  }
+  next();
+}
+
 // Upload and parse Chase PDF statements
-router.post('/upload-pdf', upload.array('files', 20), async (req, res) => {
+router.post('/upload-pdf', pdfDisabledInProd, upload.array('files', 20), async (req, res) => {
   const uploadedFiles = req.files || [];
   const results = [];
 
@@ -185,7 +194,7 @@ router.post('/upload-pdf', upload.array('files', 20), async (req, res) => {
 });
 
 // Preview parsed transactions from Chase PDF (without importing)
-router.post('/preview-pdf', upload.array('files', 20), async (req, res) => {
+router.post('/preview-pdf', pdfDisabledInProd, upload.array('files', 20), async (req, res) => {
   const uploadedFiles = req.files || [];
   const allTransactions = [];
 
@@ -394,6 +403,7 @@ router.get('/', async (req, res) => {
       const term = search.toLowerCase();
       expenses = expenses.filter(e =>
         (e.merchant && e.merchant.toLowerCase().includes(term)) ||
+        (e.description && e.description.toLowerCase().includes(term)) ||
         (e.statement && e.statement.toLowerCase().includes(term)) ||
         (e.category && e.category.toLowerCase().includes(term))
       );

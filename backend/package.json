@@ -22,7 +22,7 @@
     "morgan": "^1.10.0",
     "multer": "^2.1.1",
     "oauth-1.0a": "^2.2.6",
-    "plaid": "^38.1.0",
+    "plaid": "^42.2.0",
     "uuid": "^13.0.0"
   },
   "devDependencies": {

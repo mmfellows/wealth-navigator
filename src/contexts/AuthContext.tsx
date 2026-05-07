@@ -73,38 +73,33 @@ function clearStorage() {
   localStorage.removeItem(STORAGE_KEY);
 }
 
+// Hydrate auth synchronously at module load — runs once when the bundle is
+// imported, before any React render. We also seed axios.defaults here so the
+// very first child component to fire a request (Dashboard's react-query
+// fetch) already has Authorization attached. Doing this in a useEffect would
+// race because child effects run before the parent's on first mount.
+const initialAuth = loadFromStorage();
+if (initialAuth) {
+  axios.defaults.headers.common['Authorization'] = `Bearer ${initialAuth.token}`;
+}
+
 // --- Provider ----------------------------------------------------------------
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [user, setUser] = useState<AuthUser | null>(null);
-  const [token, setToken] = useState<string | null>(null);
-  const [ready, setReady] = useState(false);
+  const [user, setUser] = useState<AuthUser | null>(initialAuth?.user ?? null);
+  const [token, setToken] = useState<string | null>(initialAuth?.token ?? null);
+  // Hydration is now synchronous (see initialAuth above), so consumers like
+  // RequireAuth never see an "in-between" state. `ready` is kept on the
+  // context for API stability but is always true.
+  const ready = true;
 
-  // Hydrate from storage on mount.
+  // Keep axios.defaults in sync with the live token (login / logout / refresh).
   useEffect(() => {
-    const stored = loadFromStorage();
-    if (stored) {
-      setUser(stored.user);
-      setToken(stored.token);
+    if (token) {
+      axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+    } else {
+      delete axios.defaults.headers.common['Authorization'];
     }
-    setReady(true);
-  }, []);
-
-  // Wire global axios so every request — including the Plaid components that
-  // import axios directly rather than going through services/api.ts — sends
-  // the Authorization header.
-  useEffect(() => {
-    const id = axios.interceptors.request.use((config) => {
-      if (token) {
-        config.headers = config.headers || {};
-        // axios v1 typing: headers is AxiosHeaders | undefined; assignment works either way.
-        (config.headers as Record<string, string>).Authorization = `Bearer ${token}`;
-      }
-      return config;
-    });
-    return () => {
-      axios.interceptors.request.eject(id);
-    };
   }, [token]);
 
   const setSession = useCallback((u: AuthUser, t: string) => {

@@ -8,3 +8,6 @@ uploads/
 .claude/
 .DS_Store
 
+# TeX/PDF build noise from compiling security/*.md to PDF
+security/*.log
+

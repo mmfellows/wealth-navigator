@@ -6,9 +6,17 @@ const fs = require('fs');
 const { db, docToObj } = require('../services/database');
 const { detectAndParse, extractPdfText } = require('../services/chasePdfParser');
 
-// Configure multer for PDF uploads
+// Configure multer for PDF uploads.
+// In production we use memoryStorage so multer doesn't try to mkdir on
+// Vercel's read-only filesystem; PDF upload routes are 501-gated in prod
+// anyway (see pdfDisabledInProd below), so the buffer is never read.
 const upload = multer({
-  dest: path.join(__dirname, '..', 'uploads'),
+  storage: process.env.NODE_ENV === 'production'
+    ? multer.memoryStorage()
+    : multer.diskStorage({
+        destination: path.join(__dirname, '..', 'uploads'),
+        filename: (req, file, cb) => cb(null, `${Date.now()}-${file.originalname}`),
+      }),
   limits: { fileSize: 20 * 1024 * 1024 },
   fileFilter: (req, file, cb) => {
     if (file.mimetype === 'application/pdf') {

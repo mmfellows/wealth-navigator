@@ -28,8 +28,15 @@ app.use(cors({
 }));
 
 app.use(morgan('combined'));
-// Increase body size limit to handle large CSV imports (50MB)
-app.use(express.json({ limit: '50mb' }));
+// Increase body size limit to handle large CSV imports (50MB).
+// `verify` stashes the raw request body on req.rawBody so signed-webhook
+// handlers (e.g. Plaid) can compute a SHA-256 of the exact bytes that were
+// signed. Without this, JSON.stringify(req.body) would not match because of
+// key ordering and whitespace differences.
+app.use(express.json({
+  limit: '50mb',
+  verify: (req, _res, buf) => { req.rawBody = buf; },
+}));
 app.use(express.urlencoded({ limit: '50mb', extended: true }));
 
 // Rate limiting - increased for development

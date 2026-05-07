@@ -173,10 +173,15 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
           </div>
         </nav>
 
-        <main className="flex-1 overflow-auto">
-          <div className="p-8">
+        <main className="flex-1 overflow-auto flex flex-col">
+          <div className="p-8 flex-1">
             {children}
           </div>
+          <footer className="px-8 py-4 text-xs text-gray-400 border-t border-gray-200 bg-white">
+            <Link to="/privacy" className="hover:text-gray-600">Privacy Policy</Link>
+            <span className="mx-2" aria-hidden="true">·</span>
+            <Link to="/security" className="hover:text-gray-600">Security &amp; passkeys</Link>
+          </footer>
         </main>
       </div>
     </div>

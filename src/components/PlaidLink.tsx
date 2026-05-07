@@ -1,7 +1,9 @@
 import React, { useState, useCallback, useEffect } from 'react';
+import { Link } from 'react-router-dom';
 import { usePlaidLink, PlaidLinkOnSuccessMetadata, PlaidLinkOnExitMetadata, PlaidLinkError } from 'react-plaid-link';
 import { Loader2, Link as LinkIcon } from 'lucide-react';
 import axios from 'axios';
+import { CONSENT_TEXT, logPlaidLinkConsent } from '../lib/consent';
 import type {
   PlaidApiError,
   LinkTokenResponse,
@@ -16,12 +18,21 @@ const PlaidLink: React.FC<PlaidLinkProps> = ({ onSuccess }) => {
   const [linkToken, setLinkToken] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [acknowledged, setAcknowledged] = useState(false);
 
-  // Create link token
-  const createLinkToken = useCallback(async () => {
+  // Create link token. We do NOT auto-fetch on mount; we only fetch after the
+  // user has affirmatively acknowledged the consent statement and clicked
+  // "Connect Bank Account". This keeps the affirmative-action layer real
+  // (no consent = no link token = no Plaid Link).
+  const createLinkTokenAndOpen = useCallback(async () => {
     setIsLoading(true);
     setError(null);
     try {
+      // Log the consent event before any Plaid API call. If the consent log
+      // fails, refuse to proceed — we don't want to start data collection
+      // without an audit row.
+      await logPlaidLinkConsent();
+
       const response = await axios.post<LinkTokenResponse>('/api/plaid/create-link-token');
       setLinkToken(response.data.link_token);
       // Store for OAuth callback recovery
@@ -31,7 +42,6 @@ const PlaidLink: React.FC<PlaidLinkProps> = ({ onSuccess }) => {
 
       const axiosError = error as PlaidApiError;
       if (axiosError.response?.data?.demo_mode) {
-        // Show detailed setup instructions
         const instructions = axiosError.response.data.instructions;
         setError(`🔗 Plaid Setup Required
 
@@ -50,11 +60,6 @@ Once configured, you'll be able to connect E*Trade, Schwab, Chase, and 12,000+ o
       setIsLoading(false);
     }
   }, []);
-
-  // Automatically create link token when component mounts
-  useEffect(() => {
-    createLinkToken();
-  }, [createLinkToken]);
 
   const onPlaidSuccess = useCallback(async (public_token: string, metadata: PlaidLinkOnSuccessMetadata) => {
     setIsLoading(true);
@@ -95,7 +100,6 @@ You can now view your holdings in the Portfolio section.`);
     if (err) {
       console.error('Plaid Link error:', err);
 
-      // Handle specific error types
       if (err.error_code === 'INVALID_CREDENTIALS') {
         setError('Invalid credentials. Please check your account information and try again.');
       } else if (err.error_code === 'INSTITUTION_DOWN') {
@@ -116,35 +120,12 @@ You can now view your holdings in the Portfolio section.`);
     onExit: onPlaidExit,
   });
 
-  // If no link token, show button to create one
-  if (!linkToken) {
-    return (
-      <div className="space-y-3">
-        {error && (
-          <div className="p-4 bg-red-50 border border-red-200 rounded-md">
-            <div className="text-red-800 text-sm whitespace-pre-line">{error}</div>
-          </div>
-        )}
-        <button
-          onClick={createLinkToken}
-          disabled={isLoading}
-          className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center"
-        >
-          {isLoading ? (
-            <>
-              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-              Initializing...
-            </>
-          ) : (
-            <>
-              <LinkIcon className="h-4 w-4 mr-2" />
-              Connect Brokerage Account
-            </>
-          )}
-        </button>
-      </div>
-    );
-  }
+  // Once a link token is fetched, open Plaid Link automatically.
+  useEffect(() => {
+    if (linkToken && ready) {
+      open();
+    }
+  }, [linkToken, ready, open]);
 
   return (
     <div className="space-y-3">
@@ -153,20 +134,41 @@ You can now view your holdings in the Portfolio section.`);
           <div className="text-red-800 text-sm whitespace-pre-line">{error}</div>
         </div>
       )}
+
+      {/* Consent block — must be acknowledged before Connect is enabled. */}
+      <div className="p-4 bg-blue-50 border border-blue-200 rounded-md text-sm text-gray-800">
+        <p className="mb-3">{CONSENT_TEXT}</p>
+        <label className="flex items-start gap-2 cursor-pointer select-none">
+          <input
+            type="checkbox"
+            checked={acknowledged}
+            onChange={(e) => setAcknowledged(e.target.checked)}
+            className="mt-1"
+          />
+          <span>
+            I have read and agree to the{' '}
+            <Link to="/privacy" className="text-blue-600 hover:underline" target="_blank" rel="noopener noreferrer">
+              Privacy Policy
+            </Link>
+            .
+          </span>
+        </label>
+      </div>
+
       <button
-        onClick={() => open()}
-        disabled={!ready || isLoading}
+        onClick={createLinkTokenAndOpen}
+        disabled={!acknowledged || isLoading}
         className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center"
       >
-        {!ready || isLoading ? (
+        {isLoading ? (
           <>
             <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-            {isLoading ? 'Connecting...' : 'Loading...'}
+            Connecting…
           </>
         ) : (
           <>
             <LinkIcon className="h-4 w-4 mr-2" />
-            Connect Brokerage Account
+            Connect Bank Account
           </>
         )}
       </button>

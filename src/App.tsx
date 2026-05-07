@@ -1,5 +1,7 @@
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { AuthProvider } from './contexts/AuthContext';
+import RequireAuth from './components/RequireAuth';
 import Layout from './components/Layout';
 import Dashboard from './pages/Dashboard';
 import Research from './pages/Research';
@@ -20,6 +22,9 @@ import Carrots from './pages/Carrots';
 import OAuthCallback from './pages/OAuthCallback';
 import AccountSnapshot from './pages/AccountSnapshot';
 import Bets from './pages/Bets';
+import Login from './pages/Login';
+import Security from './pages/Security';
+import Privacy from './pages/Privacy';
 
 // Create a query client
 const queryClient = new QueryClient({
@@ -34,31 +39,48 @@ const queryClient = new QueryClient({
 function App() {
   return (
     <QueryClientProvider client={queryClient}>
-      <Router>
-        <Layout>
+      <AuthProvider>
+        <Router>
           <Routes>
-            <Route path="/" element={<Dashboard />} />
-            <Route path="/test" element={<TestPage />} />
-            <Route path="/research" element={<Research />} />
-            <Route path="/ideas" element={<Ideas />} />
-            <Route path="/portfolio" element={<Portfolio />} />
-            <Route path="/bets" element={<Bets />} />
-            <Route path="/trades" element={<TradeJournal />} />
-            <Route path="/ips" element={<IPS />} />
-            <Route path="/api-testing" element={<ApiTesting />} />
-            <Route path="/account-snapshot" element={<AccountSnapshot />} />
-            <Route path="/budgets" element={<Budgets />} />
-            <Route path="/expenses" element={<Expenses />} />
-            <Route path="/accounts" element={<Accounts />} />
-            <Route path="/reports" element={<Reports />} />
-            <Route path="/carrots" element={<Carrots />} />
-            <Route path="/oauth-callback" element={<OAuthCallback />} />
-            <Route path="/settings" element={<Settings />} />
-            <Route path="/investing-settings" element={<InvestingSettings />} />
-            <Route path="/personal-finance-settings" element={<PersonalFinanceSettings />} />
+            {/* Public routes. Everything else requires auth. */}
+            <Route path="/login" element={<Login />} />
+            <Route path="/privacy" element={<Privacy />} />
+
+            {/* Protected routes */}
+            <Route
+              path="*"
+              element={
+                <RequireAuth>
+                  <Layout>
+                    <Routes>
+                      <Route path="/" element={<Dashboard />} />
+                      <Route path="/test" element={<TestPage />} />
+                      <Route path="/research" element={<Research />} />
+                      <Route path="/ideas" element={<Ideas />} />
+                      <Route path="/portfolio" element={<Portfolio />} />
+                      <Route path="/bets" element={<Bets />} />
+                      <Route path="/trades" element={<TradeJournal />} />
+                      <Route path="/ips" element={<IPS />} />
+                      <Route path="/api-testing" element={<ApiTesting />} />
+                      <Route path="/account-snapshot" element={<AccountSnapshot />} />
+                      <Route path="/budgets" element={<Budgets />} />
+                      <Route path="/expenses" element={<Expenses />} />
+                      <Route path="/accounts" element={<Accounts />} />
+                      <Route path="/reports" element={<Reports />} />
+                      <Route path="/carrots" element={<Carrots />} />
+                      <Route path="/oauth-callback" element={<OAuthCallback />} />
+                      <Route path="/settings" element={<Settings />} />
+                      <Route path="/security" element={<Security />} />
+                      <Route path="/investing-settings" element={<InvestingSettings />} />
+                      <Route path="/personal-finance-settings" element={<PersonalFinanceSettings />} />
+                    </Routes>
+                  </Layout>
+                </RequireAuth>
+              }
+            />
           </Routes>
-        </Layout>
-      </Router>
+        </Router>
+      </AuthProvider>
     </QueryClientProvider>
   );
 }

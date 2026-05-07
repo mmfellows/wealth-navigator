@@ -1,6 +1,8 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import { Link } from 'react-router-dom';
 import { Trash2, Plus, Edit2, Tag, X, ChevronDown, ChevronRight, Upload, Download, Palette, GripVertical, Link as LinkIcon, RefreshCw, Loader2, Unlink } from 'lucide-react';
 import { usePlaidLink } from 'react-plaid-link';
+import { CONSENT_TEXT, logPlaidLinkConsent } from '../lib/consent';
 
 interface SubCategory {
   id: number;
@@ -81,6 +83,10 @@ const PersonalFinanceSettings: React.FC = () => {
   const [plaidLinkToken, setPlaidLinkToken] = useState<string | null>(null);
   const [plaidLoading, setPlaidLoading] = useState(false);
   const [plaidError, setPlaidError] = useState<string | null>(null);
+  // Consent acknowledgement gate for Plaid Link (Q10).
+  // The Connect button is disabled until the user checks the acknowledgement
+  // box; on click we POST /api/plaid/consent before opening Plaid Link.
+  const [plaidConsentAcknowledged, setPlaidConsentAcknowledged] = useState(false);
   const [plaidSyncStatus, setPlaidSyncStatus] = useState<string | null>(null);
   const [syncLogs, setSyncLogs] = useState<any[]>([]);
   const [syncStartDate, setSyncStartDate] = useState(() => {
@@ -822,9 +828,21 @@ const PersonalFinanceSettings: React.FC = () => {
               </span>
             </div>
             <button
-              onClick={() => openPlaid()}
-              disabled={!plaidReady || plaidLoading}
-              className="px-3 py-1.5 text-sm font-medium text-white bg-green-600 rounded-md hover:bg-green-700 disabled:opacity-50 flex items-center"
+              onClick={async () => {
+                if (!plaidConsentAcknowledged) return;
+                setPlaidError(null);
+                try {
+                  await logPlaidLinkConsent();
+                  openPlaid();
+                } catch (err) {
+                  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                  const message = (err as any)?.response?.data?.error || (err as any)?.message || 'Failed to log consent';
+                  setPlaidError(`Consent log failed: ${message}. Connection aborted.`);
+                }
+              }}
+              disabled={!plaidReady || plaidLoading || !plaidConsentAcknowledged}
+              className="px-3 py-1.5 text-sm font-medium text-white bg-green-600 rounded-md hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center"
+              title={plaidConsentAcknowledged ? undefined : 'Read and acknowledge the consent statement below first'}
             >
               {plaidLoading ? (
                 <><Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />Connecting...</>
@@ -833,6 +851,28 @@ const PersonalFinanceSettings: React.FC = () => {
               )}
             </button>
           </div>
+        </div>
+
+        {/* Consent gate (Q10): user must read + acknowledge before the
+            Connect button is enabled. Click logs an audit row server-side
+            via /api/plaid/consent before Plaid Link opens. */}
+        <div className="px-6 py-4 bg-blue-50 border-b border-blue-100 text-sm text-gray-800">
+          <p className="mb-3">{CONSENT_TEXT}</p>
+          <label className="flex items-start gap-2 cursor-pointer select-none">
+            <input
+              type="checkbox"
+              checked={plaidConsentAcknowledged}
+              onChange={(e) => setPlaidConsentAcknowledged(e.target.checked)}
+              className="mt-1"
+            />
+            <span>
+              I have read and agree to the{' '}
+              <Link to="/privacy" className="text-blue-600 hover:underline" target="_blank" rel="noopener noreferrer">
+                Privacy Policy
+              </Link>
+              .
+            </span>
+          </label>
         </div>
 
         {plaidError && (

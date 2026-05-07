@@ -1,0 +1,50 @@
+# Dependabot configuration for wealth-navigator.
+# See security/VULN_MGMT.md for the broader vulnerability management policy
+# (scanning, SLA, EOL tracking).
+#
+# https://docs.github.com/en/code-security/dependabot/dependabot-version-updates/configuration-options-for-the-dependabot.yml-file
+
+version: 2
+updates:
+  # Frontend + serverless API root deps (the package.json that Vercel installs).
+  - package-ecosystem: "npm"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "09:00"
+      timezone: "America/Vancouver"
+    open-pull-requests-limit: 5
+    labels:
+      - "dependencies"
+      - "security"
+    commit-message:
+      prefix: "deps"
+      include: "scope"
+
+  # Backend devtime deps (the package.json used for local `npm run backend:dev`).
+  - package-ecosystem: "npm"
+    directory: "/backend"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "09:00"
+      timezone: "America/Vancouver"
+    open-pull-requests-limit: 5
+    labels:
+      - "dependencies"
+      - "security"
+      - "backend"
+    commit-message:
+      prefix: "deps(backend)"
+      include: "scope"
+
+  # GitHub Actions workflows (none at time of writing, but if/when added,
+  # Dependabot will keep their pinned action versions current).
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    labels:
+      - "dependencies"
+      - "ci"

@@ -3,6 +3,7 @@ const plaidService = require('../services/plaidService');
 const { optionalAuth } = require('../middleware/auth');
 const { db } = require('../services/database');
 const { writeBalanceSnapshot } = require('../services/snapshotService');
+const { verifyPlaidWebhook } = require('../services/plaidWebhookVerifier');
 
 const router = express.Router();
 
@@ -16,6 +17,36 @@ async function addSyncLog(userId, syncType, status, message) {
     created_at: new Date().toISOString(),
   });
 }
+
+// Record a Plaid Link consent event. The frontend calls this immediately
+// before opening Plaid Link, after the user has acknowledged the consent
+// statement. See security/CONSENT.md for the full schema.
+const crypto = require('crypto');
+router.post('/consent', optionalAuth, async (req, res) => {
+  try {
+    const { privacy_policy_version, consent_text, app_version } = req.body || {};
+    if (!privacy_policy_version || !consent_text) {
+      return res.status(400).json({ error: 'privacy_policy_version and consent_text are required' });
+    }
+    const consentTextSha256 = crypto
+      .createHash('sha256')
+      .update(String(consent_text))
+      .digest('hex');
+    await db.collection('consents').add({
+      user_id: req.user.id,
+      type: 'plaid_link_initiated',
+      privacy_policy_version: String(privacy_policy_version),
+      consent_text_sha256: consentTextSha256,
+      consented_at: new Date().toISOString(),
+      user_agent: req.headers['user-agent'] || null,
+      app_version: app_version || null,
+    });
+    res.json({ logged: true });
+  } catch (error) {
+    console.error('Error logging consent:', error);
+    res.status(500).json({ error: 'Failed to log consent' });
+  }
+});
 
 // Create link token for Plaid Link
 router.post('/create-link-token', optionalAuth, async (req, res) => {
@@ -337,10 +368,31 @@ router.post('/link-event', optionalAuth, async (req, res) => {
   }
 });
 
-// Webhook receiver
+// Webhook receiver.
+// Verifies Plaid's ES256 signature (Plaid-Verification header) against the
+// raw request body before doing any work. Unverified requests are rejected
+// with 401 so they never reach the data layer. See:
+// security/ACCESS_CONTROL.md and backend/services/plaidWebhookVerifier.js.
 router.post('/webhook', async (req, res) => {
+  const jwtHeader = req.get('Plaid-Verification');
+  try {
+    await verifyPlaidWebhook(jwtHeader, req.rawBody);
+  } catch (verifyErr) {
+    console.warn(`Plaid webhook signature verification failed: ${verifyErr.message}`);
+    try {
+      await db.collection('sync_logs').add({
+        sync_type: 'webhook',
+        status: 'rejected_unverified',
+        message: verifyErr.message,
+        item_id: (req.body && req.body.item_id) || null,
+        created_at: new Date().toISOString(),
+      });
+    } catch {}
+    return res.status(401).json({ error: 'Unauthorized' });
+  }
+
   const { webhook_type, webhook_code, item_id, removed_transactions } = req.body;
-  console.log(`Plaid webhook received: ${webhook_type} / ${webhook_code} for item ${item_id}`);
+  console.log(`Plaid webhook verified: ${webhook_type} / ${webhook_code} for item ${item_id}`);
 
   // Acknowledge fast — Plaid retries if we don't respond within ~10s. Do the work after.
   res.json({ received: true });

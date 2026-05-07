@@ -4,10 +4,8 @@ const { optionalAuth } = require('../middleware/auth');
 
 const router = express.Router();
 
-const { v4: uuidv4 } = require('uuid');
-const generateId = () => {
-  return require('crypto').randomUUID ? require('crypto').randomUUID() : uuidv4();
-};
+const { randomUUID } = require('crypto');
+const generateId = () => randomUUID();
 
 // Get all trades
 router.get('/', optionalAuth, async (req, res) => {

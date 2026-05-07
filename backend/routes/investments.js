@@ -1,14 +1,12 @@
 const express = require('express');
-const { v4: uuidv4 } = require('uuid');
+const { randomUUID } = require('crypto');
 const { db, docToObj } = require('../services/database');
 const stockService = require('../services/stockService');
 const { optionalAuth } = require('../middleware/auth');
 
 const router = express.Router();
 
-const generateId = () => {
-  return require('crypto').randomUUID ? require('crypto').randomUUID() : uuidv4();
-};
+const generateId = () => randomUUID();
 
 // Get all investments
 router.get('/', optionalAuth, async (req, res) => {

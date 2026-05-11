@@ -173,7 +173,11 @@ router.get('/by-bet', optionalAuth, async (req, res) => {
       const ticker = (sec?.ticker_symbol || '').toUpperCase();
       const price = h.institution_price ?? sec?.close_price ?? null;
       const value = h.institution_value ?? (price != null && h.quantity != null ? price * h.quantity : null);
-      const costBasis = h.cost_basis != null && h.quantity != null ? h.cost_basis * h.quantity : null;
+      // Plaid returns `cost_basis` as the position's total cost basis (not
+      // per-share) for the brokerages we support (Schwab, E*TRADE). Treat it
+      // as total and derive per-share from quantity.
+      const costBasis = h.cost_basis ?? null;
+      const costBasisPerShare = costBasis != null && h.quantity ? costBasis / h.quantity : null;
 
       const holdingRow = {
         source: 'plaid',
@@ -182,7 +186,7 @@ router.get('/by-bet', optionalAuth, async (req, res) => {
         name: sec?.name || ticker || 'Unknown',
         type: sec?.type || '',
         quantity: h.quantity,
-        cost_basis_per_share: h.cost_basis,
+        cost_basis_per_share: costBasisPerShare,
         cost_basis_total: costBasis,
         current_price: price,
         current_value: value,

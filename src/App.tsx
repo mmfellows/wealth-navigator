@@ -7,6 +7,7 @@ import Dashboard from './pages/Dashboard';
 import Research from './pages/Research';
 import Ideas from './pages/Ideas';
 import Portfolio from './pages/Portfolio';
+import Holdings from './pages/Holdings';
 import TradeJournal from './pages/TradeJournal';
 import Settings from './pages/Settings';
 import InvestingSettings from './pages/InvestingSettings';
@@ -58,6 +59,7 @@ function App() {
                       <Route path="/research" element={<Research />} />
                       <Route path="/ideas" element={<Ideas />} />
                       <Route path="/portfolio" element={<Portfolio />} />
+                      <Route path="/holdings" element={<Holdings />} />
                       <Route path="/bets" element={<Bets />} />
                       <Route path="/trades" element={<TradeJournal />} />
                       <Route path="/ips" element={<IPS />} />

@@ -11,6 +11,7 @@ import {
   Target,
   ClipboardList,
   TestTube,
+  List,
   DollarSign,
   CreditCard,
   PiggyBank,
@@ -42,7 +43,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
     }
 
     // Investing routes
-    if (path.startsWith('/research') || path.startsWith('/ideas') || path.startsWith('/portfolio') || path.startsWith('/bets') || path.startsWith('/trades') || path.startsWith('/ips') || path.startsWith('/api-testing') || path.startsWith('/account-snapshot') || path === '/investing-settings' || path === '/') {
+    if (path.startsWith('/research') || path.startsWith('/ideas') || path.startsWith('/portfolio') || path.startsWith('/holdings') || path.startsWith('/bets') || path.startsWith('/trades') || path.startsWith('/ips') || path.startsWith('/api-testing') || path.startsWith('/account-snapshot') || path === '/investing-settings' || path === '/') {
       localStorage.setItem('lastActiveSection', 'investing');
       return 'investing';
     }
@@ -75,6 +76,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
     { path: '/research', icon: Search, label: 'Research' },
     { path: '/ideas', icon: Lightbulb, label: 'Watchlist' },
     { path: '/portfolio', icon: Briefcase, label: 'Portfolio' },
+    { path: '/holdings', icon: List, label: 'Holdings' },
     { path: '/bets', icon: Target, label: 'Bets' },
     { path: '/trades', icon: FileText, label: 'Trade Journal' },
     { path: '/ips', icon: ClipboardList, label: 'Investment Policy' },

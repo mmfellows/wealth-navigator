@@ -26,6 +26,7 @@ import Bets from './pages/Bets';
 import Login from './pages/Login';
 import Security from './pages/Security';
 import Privacy from './pages/Privacy';
+import MobileNetWorth from './pages/MobileNetWorth';
 
 // Create a query client
 const queryClient = new QueryClient({
@@ -46,6 +47,17 @@ function App() {
             {/* Public routes. Everything else requires auth. */}
             <Route path="/login" element={<Login />} />
             <Route path="/privacy" element={<Privacy />} />
+
+            {/* Standalone mobile net-worth page — protected, but no desktop
+                chrome (sidebar/top nav) so it reads well on a phone. */}
+            <Route
+              path="/networth"
+              element={
+                <RequireAuth>
+                  <MobileNetWorth />
+                </RequireAuth>
+              }
+            />
 
             {/* Protected routes */}
             <Route

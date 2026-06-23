@@ -2,7 +2,7 @@
   "name": "Wealth Navigator",
   "short_name": "Wealth Nav",
   "description": "Navigate your finances and grow your wealth.",
-  "start_url": "/",
+  "start_url": "/networth",
   "scope": "/",
   "display": "standalone",
   "orientation": "portrait",

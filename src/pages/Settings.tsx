@@ -1101,7 +1101,7 @@ const Settings: React.FC = () => {
             <div className="flex items-center">
               <CheckCircle className="h-4 w-4 text-green-500 mr-2" />
               <span className="text-sm text-green-800">
-                API keys configured. Visit the API Testing page to verify your connection.
+                API keys configured.
               </span>
             </div>
           </div>

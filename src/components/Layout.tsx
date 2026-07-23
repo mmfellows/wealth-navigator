@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import {
   BarChart3,
@@ -10,8 +10,8 @@ import {
   TrendingUp,
   Target,
   ClipboardList,
-  TestTube,
   List,
+  Layers,
   DollarSign,
   CreditCard,
   PiggyBank,
@@ -19,7 +19,9 @@ import {
   Wallet,
   Carrot,
   PanelLeftClose,
-  PanelLeftOpen
+  PanelLeftOpen,
+  ChevronDown,
+  Check
 } from 'lucide-react';
 
 interface LayoutProps {
@@ -43,7 +45,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
     }
 
     // Investing routes
-    if (path.startsWith('/research') || path.startsWith('/ideas') || path.startsWith('/portfolio') || path.startsWith('/holdings') || path.startsWith('/bets') || path.startsWith('/trades') || path.startsWith('/ips') || path.startsWith('/api-testing') || path.startsWith('/account-snapshot') || path === '/investing-settings' || path === '/') {
+    if (path.startsWith('/research') || path.startsWith('/ideas') || path.startsWith('/portfolio') || path.startsWith('/holdings') || path.startsWith('/bets') || path.startsWith('/options') || path.startsWith('/trades') || path.startsWith('/ips') || path.startsWith('/account-snapshot') || path === '/investing-settings' || path === '/') {
       localStorage.setItem('lastActiveSection', 'investing');
       return 'investing';
     }
@@ -58,6 +60,41 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
 
   const [activeSection, setActiveSection] = useState<Section>(getActiveSection());
   const [collapsed, setCollapsed] = useState(() => localStorage.getItem('navCollapsed') === 'true');
+  const [sectionMenuOpen, setSectionMenuOpen] = useState(false);
+  const sectionMenuRef = useRef<HTMLDivElement>(null);
+
+  // Close the section dropdown on outside click or Escape
+  useEffect(() => {
+    if (!sectionMenuOpen) return;
+    const onClick = (e: MouseEvent) => {
+      if (sectionMenuRef.current && !sectionMenuRef.current.contains(e.target as Node)) {
+        setSectionMenuOpen(false);
+      }
+    };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setSectionMenuOpen(false);
+    };
+    document.addEventListener('mousedown', onClick);
+    document.addEventListener('keydown', onKey);
+    return () => {
+      document.removeEventListener('mousedown', onClick);
+      document.removeEventListener('keydown', onKey);
+    };
+  }, [sectionMenuOpen]);
+
+  const SECTIONS: Array<{ id: Section; label: string; icon: typeof Briefcase; home: string }> = [
+    { id: 'investing', label: 'Investing', icon: Briefcase, home: '/' },
+    { id: 'personal-finance', label: 'Personal Finance', icon: Wallet, home: '/reports' },
+  ];
+  const currentSection = SECTIONS.find(s => s.id === activeSection) ?? SECTIONS[0];
+
+  const selectSection = (s: (typeof SECTIONS)[number]) => {
+    setSectionMenuOpen(false);
+    if (s.id !== activeSection) {
+      setActiveSection(s.id);
+      navigate(s.home);
+    }
+  };
 
   const toggleCollapsed = () => {
     setCollapsed(prev => {
@@ -78,10 +115,10 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
     { path: '/portfolio', icon: Briefcase, label: 'Portfolio' },
     { path: '/holdings', icon: List, label: 'Holdings' },
     { path: '/bets', icon: Target, label: 'Bets' },
+    { path: '/options', icon: Layers, label: 'Options' },
     { path: '/trades', icon: FileText, label: 'Trade Journal' },
     { path: '/ips', icon: ClipboardList, label: 'Investment Policy' },
     { path: '/account-snapshot', icon: Wallet, label: 'Account Snapshot' },
-    { path: '/api-testing', icon: TestTube, label: 'API Testing' },
     { path: '/investing-settings', icon: Settings, label: 'Settings' },
   ];
 
@@ -100,35 +137,51 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
     <div className="flex flex-col h-screen bg-gray-100">
       {/* Top Navigation */}
       <div className="bg-white shadow-sm border-b">
-        <div className="flex items-center justify-between px-6 py-4">
+        <div className="px-6 py-3">
           <div className="flex items-center space-x-2">
             <TrendingUp className="h-8 w-8 text-blue-600" />
             <h1 className="text-xl font-bold text-gray-900">Wealth Navigator</h1>
           </div>
 
-          <div className="flex bg-gray-100 rounded-lg p-1">
+          {/* Section selector */}
+          <div className="relative mt-1 ml-10 inline-block" ref={sectionMenuRef}>
             <button
-              onClick={() => { setActiveSection('investing'); navigate('/'); }}
-              className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
-                activeSection === 'investing'
-                  ? 'bg-white text-blue-600 shadow-sm'
-                  : 'text-gray-600 hover:text-gray-900'
-              }`}
+              onClick={() => setSectionMenuOpen(open => !open)}
+              aria-haspopup="listbox"
+              aria-expanded={sectionMenuOpen}
+              className="inline-flex items-center gap-1.5 text-sm font-medium text-gray-600 hover:text-gray-900 transition-colors"
             >
-              <Briefcase className="h-4 w-4 mr-2 inline" />
-              Investing
+              <currentSection.icon className="h-4 w-4 text-blue-600" />
+              {currentSection.label}
+              <ChevronDown className={`h-4 w-4 text-gray-400 transition-transform ${sectionMenuOpen ? 'rotate-180' : ''}`} />
             </button>
-            <button
-              onClick={() => { setActiveSection('personal-finance'); navigate('/reports'); }}
-              className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
-                activeSection === 'personal-finance'
-                  ? 'bg-white text-blue-600 shadow-sm'
-                  : 'text-gray-600 hover:text-gray-900'
-              }`}
-            >
-              <Wallet className="h-4 w-4 mr-2 inline" />
-              Personal Finance
-            </button>
+
+            {sectionMenuOpen && (
+              <div
+                role="listbox"
+                className="absolute left-0 top-full mt-1 w-52 bg-white border border-gray-200 rounded-lg shadow-lg py-1 z-50"
+              >
+                {SECTIONS.map(s => {
+                  const Icon = s.icon;
+                  const isActive = s.id === activeSection;
+                  return (
+                    <button
+                      key={s.id}
+                      role="option"
+                      aria-selected={isActive}
+                      onClick={() => selectSection(s)}
+                      className={`w-full flex items-center gap-2 px-3 py-2 text-sm text-left transition-colors ${
+                        isActive ? 'text-blue-600 bg-blue-50' : 'text-gray-700 hover:bg-gray-50'
+                      }`}
+                    >
+                      <Icon className="h-4 w-4" />
+                      <span className="flex-1">{s.label}</span>
+                      {isActive && <Check className="h-4 w-4" />}
+                    </button>
+                  );
+                })}
+              </div>
+            )}
           </div>
         </div>
       </div>

@@ -14,7 +14,6 @@ import InvestingSettings from './pages/InvestingSettings';
 import PersonalFinanceSettings from './pages/PersonalFinanceSettings';
 import TestPage from './pages/TestPage';
 import IPS from './pages/IPS';
-import ApiTesting from './pages/ApiTesting';
 import Budgets from './pages/Budgets';
 import Expenses from './pages/Expenses';
 import Accounts from './pages/Accounts';
@@ -23,6 +22,7 @@ import Carrots from './pages/Carrots';
 import OAuthCallback from './pages/OAuthCallback';
 import AccountSnapshot from './pages/AccountSnapshot';
 import Bets from './pages/Bets';
+import Options from './pages/Options';
 import Login from './pages/Login';
 import Security from './pages/Security';
 import Privacy from './pages/Privacy';
@@ -61,9 +61,9 @@ function App() {
                       <Route path="/portfolio" element={<Portfolio />} />
                       <Route path="/holdings" element={<Holdings />} />
                       <Route path="/bets" element={<Bets />} />
+                      <Route path="/options" element={<Options />} />
                       <Route path="/trades" element={<TradeJournal />} />
                       <Route path="/ips" element={<IPS />} />
-                      <Route path="/api-testing" element={<ApiTesting />} />
                       <Route path="/account-snapshot" element={<AccountSnapshot />} />
                       <Route path="/budgets" element={<Budgets />} />
                       <Route path="/expenses" element={<Expenses />} />

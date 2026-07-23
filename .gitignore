@@ -11,3 +11,6 @@ uploads/
 # TeX/PDF build noise from compiling security/*.md to PDF
 security/*.log
 
+.vercel
+.env*.local
+backend/backups/

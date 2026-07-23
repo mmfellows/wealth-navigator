@@ -21,17 +21,16 @@ const authenticateToken = async (req, res, next) => {
     req.user = { id: userDoc.id, ...userDoc.data() };
     next();
   } catch (error) {
-    return res.status(403).json({ error: 'Invalid or expired token' });
+    return res.status(401).json({ error: 'Invalid or expired token' });
   }
 };
 
 // Optional auth.
 //
-// In development: silently falls back to a demo user when no/invalid token,
-//   so local development works without a login flow.
-// In production: requires a valid token. Missing or invalid tokens get 401.
-//   This closes the silent-demo-fallback hole that previously left every
-//   data route effectively unauthenticated.
+// A missing token only falls back to the demo user when ALLOW_DEMO_USER=true
+// is set explicitly (never in production). An invalid or expired token is
+// always a 401 — falling back to demo there made an expired session render a
+// convincing-but-empty dashboard instead of prompting re-login.
 //
 // See security/ACCESS_CONTROL.md for the broader auth posture.
 const optionalAuth = async (req, res, next) => {
@@ -39,30 +38,25 @@ const optionalAuth = async (req, res, next) => {
   const token = authHeader && authHeader.split(' ')[1];
 
   const isProd = process.env.NODE_ENV === 'production';
+  const allowDemo = !isProd && process.env.ALLOW_DEMO_USER === 'true';
 
   if (!token) {
-    if (isProd) {
-      return res.status(401).json({ error: 'Authentication required' });
+    if (allowDemo) {
+      req.user = { id: 'demo', email: 'demo@example.com' };
+      return next();
     }
-    req.user = { id: 'demo', email: 'demo@example.com' };
-    return next();
+    return res.status(401).json({ error: 'Authentication required' });
   }
 
   try {
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
     const userDoc = await db.collection('users').doc(decoded.userId).get();
-    if (userDoc.exists) {
-      req.user = { id: userDoc.id, ...userDoc.data() };
-    } else if (isProd) {
+    if (!userDoc.exists) {
       return res.status(401).json({ error: 'Invalid token' });
-    } else {
-      req.user = { id: 'demo', email: 'demo@example.com' };
     }
+    req.user = { id: userDoc.id, ...userDoc.data() };
   } catch (error) {
-    if (isProd) {
-      return res.status(401).json({ error: 'Invalid or expired token' });
-    }
-    req.user = { id: 'demo', email: 'demo@example.com' };
+    return res.status(401).json({ error: 'Invalid or expired token' });
   }
 
   next();

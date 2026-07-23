@@ -1,5 +1,6 @@
 import axios from 'axios';
 import { Investment, Trade, InvestmentIdea, PortfolioMetrics, InvestmentPolicyStatement } from '../types';
+import { installAuthRedirect } from './authRedirect';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || '/api';
 
@@ -7,6 +8,8 @@ const api = axios.create({
   baseURL: API_BASE_URL,
   timeout: 10000,
 });
+
+installAuthRedirect(api);
 
 export const portfolioService = {
   async getPortfolioMetrics(): Promise<PortfolioMetrics> {

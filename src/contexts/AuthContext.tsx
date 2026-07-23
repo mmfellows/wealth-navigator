@@ -1,10 +1,11 @@
-import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
+import { createContext, useCallback, useContext, useMemo, useState } from 'react';
 import type { ReactNode } from 'react';
 import axios from 'axios';
 import {
   startAuthentication,
   startRegistration,
 } from '@simplewebauthn/browser';
+import { installAuthRedirect } from '../services/authRedirect';
 
 // --- Types -------------------------------------------------------------------
 
@@ -83,6 +84,10 @@ if (initialAuth) {
   axios.defaults.headers.common['Authorization'] = `Bearer ${initialAuth.token}`;
 }
 
+// Pages that call the global axios directly (rather than the shared `api`
+// instance) get the same 401 → /login behavior.
+installAuthRedirect(axios);
+
 // --- Provider ----------------------------------------------------------------
 
 export function AuthProvider({ children }: { children: ReactNode }) {
@@ -93,22 +98,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   // context for API stability but is always true.
   const ready = true;
 
-  // Keep axios.defaults in sync with the live token (login / logout / refresh).
-  useEffect(() => {
-    if (token) {
-      axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
-    } else {
-      delete axios.defaults.headers.common['Authorization'];
-    }
-  }, [token]);
-
+  // axios.defaults must be updated synchronously, BEFORE the state change
+  // triggers a re-render. Pages mounted by that render (Dashboard) fire
+  // requests from their own effects, which run before any parent effect —
+  // a useEffect here would attach the header one render too late, the first
+  // requests would 401, and the auth redirect would bounce the user straight
+  // back to /login after a successful sign-in.
   const setSession = useCallback((u: AuthUser, t: string) => {
+    axios.defaults.headers.common['Authorization'] = `Bearer ${t}`;
     setUser(u);
     setToken(t);
     saveToStorage(u, t);
   }, []);
 
   const logout = useCallback(() => {
+    delete axios.defaults.headers.common['Authorization'];
     setUser(null);
     setToken(null);
     clearStorage();

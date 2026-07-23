@@ -373,16 +373,27 @@ class PlaidService {
       offset = allTransactions.length;
     }
 
+    // Dedup against every Plaid row for this institution, not just this
+    // item's rows. Plaid mints fresh transaction_ids when an institution is
+    // relinked as a new item, so a per-item transaction_id check re-imports
+    // the entire overlapping history as duplicates. The fuzzy
+    // date|amount|name key (a multiset, so N legitimate identical
+    // transactions survive as long as N were already stored) catches those
+    // cross-item copies.
     const existingSnapshot = await db.collection('expenses')
-      .where('plaid_item_id', '==', item.item_id)
+      .where('statement', '==', `Plaid - ${item.institution_name}`)
       .get();
 
-    const existingKeys = new Set(
-      existingSnapshot.docs.map(doc => {
-        const d = doc.data();
-        return `${d.date}|${d.plaid_transaction_id}`;
-      })
-    );
+    const existingKeys = new Set();
+    const fuzzyCounts = new Map();
+    const fuzzyKey = (date, amount, name) =>
+      `${date}|${Number(amount).toFixed(2)}|${(name || '').toUpperCase().replace(/\s+/g, ' ').trim()}`;
+    existingSnapshot.docs.forEach(doc => {
+      const d = doc.data();
+      existingKeys.add(`${d.date}|${d.plaid_transaction_id}`);
+      const fk = fuzzyKey(d.date, d.amount, d.description || d.merchant);
+      fuzzyCounts.set(fk, (fuzzyCounts.get(fk) || 0) + 1);
+    });
 
     let added = 0;
     let skipped = 0;
@@ -392,7 +403,20 @@ class PlaidService {
       if (txn.pending) { skipped++; continue; }
 
       const txnKey = `${txn.date}|${txn.transaction_id}`;
-      if (existingKeys.has(txnKey)) { skipped++; continue; }
+      const fk = fuzzyKey(txn.date, txn.amount, txn.name || txn.merchant_name);
+      const fuzzyRemaining = fuzzyCounts.get(fk) || 0;
+      if (existingKeys.has(txnKey)) {
+        // Consume this txn's own fuzzy slot so an identical-but-new
+        // transaction later in the batch isn't mistaken for a duplicate.
+        if (fuzzyRemaining > 0) fuzzyCounts.set(fk, fuzzyRemaining - 1);
+        skipped++;
+        continue;
+      }
+      if (fuzzyRemaining > 0) {
+        fuzzyCounts.set(fk, fuzzyRemaining - 1);
+        skipped++;
+        continue;
+      }
 
       const amount = txn.amount;
       const isIncome = txn.amount < 0;

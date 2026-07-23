@@ -299,8 +299,9 @@ router.get('/stats/summary', async (req, res) => {
       max_amount: amounts.length > 0 ? Math.max(...amounts) : 0,
     };
 
-    // Income stats
-    const incomeAmounts = incomeItems.map(e => e.amount);
+    // Income stats. Plaid stores inflows as negative amounts; flip the sign
+    // here so income is positive everywhere downstream (tiles, savings calc).
+    const incomeAmounts = incomeItems.map(e => -e.amount);
     const incomeStats = {
       total_count: incomeAmounts.length,
       total_amount: incomeAmounts.reduce((s, a) => s + a, 0),
@@ -332,7 +333,7 @@ router.get('/stats/summary', async (req, res) => {
       monthMap[month].count++;
       monthMap[month].total += e.amount;
       if (e.category === 'Income') {
-        monthMap[month].income += e.amount;
+        monthMap[month].income += -e.amount;
       } else {
         monthMap[month].expenses += e.amount;
       }
@@ -348,7 +349,7 @@ router.get('/stats/summary', async (req, res) => {
       const sub = e.subcategory || 'Other Income';
       if (!incomeBySubcat[sub]) incomeBySubcat[sub] = { count: 0, total: 0 };
       incomeBySubcat[sub].count++;
-      incomeBySubcat[sub].total += e.amount;
+      incomeBySubcat[sub].total += -e.amount;
     });
 
     res.json({

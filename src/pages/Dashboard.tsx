@@ -13,6 +13,12 @@ interface Snapshot {
   assets: { cash: number; investments: number; manual_investments: number; total: number };
   liabilities: { credit: number; student: number; mortgage: number; total: number };
   allocation: Record<'Long' | 'Mid' | 'Short' | 'Core' | 'Unallocated' | 'Cash', number>;
+  top_holdings?: Array<{
+    ticker: string;
+    name: string;
+    value: number;
+    pct_invested: number;
+  }>;
   accounts: Array<{
     id: string;
     institution_name: string;
@@ -297,7 +303,12 @@ const Dashboard: React.FC = () => {
           ) : (
             <div className="space-y-2">
               {[...snapshot.accounts]
-                .sort((a, b) => (b.balance || 0) - (a.balance || 0))
+                .map(a => {
+                  const isLiability = a.type === 'credit' || a.type === 'loan';
+                  const signed = isLiability ? -Math.abs(a.balance || 0) : (a.balance || 0);
+                  return { ...a, isLiability, signed };
+                })
+                .sort((a, b) => b.signed - a.signed)
                 .slice(0, 8)
                 .map(a => (
                   <div key={a.id} className="flex items-center justify-between text-sm py-1">
@@ -307,7 +318,9 @@ const Dashboard: React.FC = () => {
                         {a.name}{a.mask && ` ···${a.mask}`} · <span className="capitalize">{a.subtype || a.type}</span>
                       </div>
                     </div>
-                    <div className="font-medium text-gray-900 tabular-nums ml-3">{fmt(a.balance)}</div>
+                    <div className={`font-medium tabular-nums ml-3 ${a.isLiability ? 'text-red-600' : 'text-gray-900'}`}>
+                      {fmt(a.signed)}
+                    </div>
                   </div>
                 ))}
               {snapshot.accounts.length > 8 && (
@@ -319,6 +332,36 @@ const Dashboard: React.FC = () => {
           )}
         </div>
       </div>
+
+      {/* Top holdings concentration */}
+      {(snapshot.top_holdings?.length ?? 0) > 0 && (
+        <div className="bg-white rounded-lg p-6 shadow-sm border">
+          <div className="flex items-center justify-between mb-1">
+            <h2 className="text-lg font-semibold text-gray-900">Top Holdings</h2>
+            <Link to="/holdings" className="text-sm text-blue-600 hover:underline">All holdings</Link>
+          </div>
+          <p className="text-xs text-gray-500 mb-4">Share of invested dollars, across every account.</p>
+          <div className="space-y-2.5">
+            {snapshot.top_holdings!.map(h => (
+              <div key={h.ticker} className="flex items-center gap-3 text-sm">
+                <div className="w-20 flex-shrink-0 font-mono font-medium text-gray-900 truncate" title={h.name}>
+                  {h.ticker}
+                </div>
+                <div className="flex-1 h-4 bg-gray-100 rounded-sm overflow-hidden">
+                  <div
+                    className="h-full bg-blue-600 rounded-sm"
+                    style={{ width: `${Math.min(h.pct_invested, 100)}%` }}
+                  />
+                </div>
+                <div className="w-14 text-right tabular-nums font-medium text-gray-900">
+                  {h.pct_invested.toFixed(1)}%
+                </div>
+                <div className="w-24 text-right tabular-nums text-gray-500">{fmt(h.value)}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 };

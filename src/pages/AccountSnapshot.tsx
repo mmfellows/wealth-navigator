@@ -119,8 +119,12 @@ const AccountSnapshot: React.FC = () => {
 
   const sortedAccounts = useMemo(() => {
     const dir = sortDir === 'asc' ? 1 : -1;
+    const signedBalance = (a: Account) => {
+      const isLiability = a.type === 'credit' || a.type === 'loan';
+      return isLiability ? -Math.abs(a.balance_current || 0) : (a.balance_current || 0);
+    };
     return [...accounts].sort((a, b) => {
-      if (sortKey === 'balance') return ((a.balance_current || 0) - (b.balance_current || 0)) * dir;
+      if (sortKey === 'balance') return (signedBalance(a) - signedBalance(b)) * dir;
       const av = String(a[sortKey] || '');
       const bv = String(b[sortKey] || '');
       return av.localeCompare(bv) * dir;
@@ -202,19 +206,23 @@ const AccountSnapshot: React.FC = () => {
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
-                {sortedAccounts.map(a => (
-                  <tr key={a.id} className="hover:bg-gray-50">
-                    <td className="px-6 py-3 text-sm font-medium text-gray-900">{a.institution_name}</td>
-                    <td className="px-6 py-3 text-sm text-gray-700">
-                      {a.name}{a.mask && <span className="text-gray-400 ml-1">···{a.mask}</span>}
-                    </td>
-                    <td className="px-6 py-3 text-sm text-gray-500">
-                      <span className="capitalize">{a.type}</span>
-                      {a.subtype && <span className="text-gray-400"> · {a.subtype}</span>}
-                    </td>
-                    <td className="px-6 py-3 text-sm text-right tabular-nums font-medium text-gray-900">{fmt(a.balance_current)}</td>
-                  </tr>
-                ))}
+                {sortedAccounts.map(a => {
+                  const isLiability = a.type === 'credit' || a.type === 'loan';
+                  const signed = isLiability ? -Math.abs(a.balance_current || 0) : (a.balance_current || 0);
+                  return (
+                    <tr key={a.id} className="hover:bg-gray-50">
+                      <td className="px-6 py-3 text-sm font-medium text-gray-900">{a.institution_name}</td>
+                      <td className="px-6 py-3 text-sm text-gray-700">
+                        {a.name}{a.mask && <span className="text-gray-400 ml-1">···{a.mask}</span>}
+                      </td>
+                      <td className="px-6 py-3 text-sm text-gray-500">
+                        <span className="capitalize">{a.type}</span>
+                        {a.subtype && <span className="text-gray-400"> · {a.subtype}</span>}
+                      </td>
+                      <td className={`px-6 py-3 text-sm text-right tabular-nums font-medium ${isLiability ? 'text-red-600' : 'text-gray-900'}`}>{fmt(signed)}</td>
+                    </tr>
+                  );
+                })}
                 <tr className="bg-gray-50 font-semibold">
                   <td className="px-6 py-3 text-sm text-gray-900" colSpan={3}>Total</td>
                   <td className="px-6 py-3 text-sm text-right tabular-nums text-gray-900">{fmt(totals.totalAssets)}</td>

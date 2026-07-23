@@ -150,14 +150,23 @@ router.get('/by-bet', optionalAuth, async (req, res) => {
       is_synthetic: true,
     });
 
-    // Refresh stock prices in the background for non-Plaid manual investments.
-    // We rely on stockService having already populated investments.current_price;
-    // this re-computation is best-effort.
+    // Refresh stock prices. Manual investments always use best-effort live
+    // prices. Plaid holdings use the institution's stored price unless the
+    // caller asks for live with ?live=true, in which case we pull fresh
+    // quotes for every distinct ticker.
+    const useLive = String(req.query.live || '').toLowerCase() === 'true';
     const tickersToPrice = new Set();
     manualSnap.docs.forEach(d => {
       const inv = d.data();
       if (inv.ticker) tickersToPrice.add(inv.ticker.toUpperCase());
     });
+    if (useLive) {
+      for (const doc of holdingsSnap.docs) {
+        const sec = securitiesById.get(doc.data().security_id);
+        const t = (sec?.ticker_symbol || '').toUpperCase();
+        if (t && !t.startsWith('CUR:')) tickersToPrice.add(t);
+      }
+    }
     let livePrices = {};
     try {
       livePrices = await stockService.getMultiplePrices(Array.from(tickersToPrice));
@@ -171,8 +180,11 @@ router.get('/by-bet', optionalAuth, async (req, res) => {
       const sec = securitiesById.get(h.security_id);
       const acct = accountsById.get(h.account_id);
       const ticker = (sec?.ticker_symbol || '').toUpperCase();
-      const price = h.institution_price ?? sec?.close_price ?? null;
-      const value = h.institution_value ?? (price != null && h.quantity != null ? price * h.quantity : null);
+      const livePrice = useLive ? livePrices[ticker] : null;
+      const price = livePrice ?? h.institution_price ?? sec?.close_price ?? null;
+      const value = livePrice != null && h.quantity != null
+        ? livePrice * h.quantity
+        : (h.institution_value ?? (price != null && h.quantity != null ? price * h.quantity : null));
       // Plaid returns `cost_basis` as the position's total cost basis (not
       // per-share) for the brokerages we support (Schwab, E*TRADE). Treat it
       // as total and derive per-share from quantity.

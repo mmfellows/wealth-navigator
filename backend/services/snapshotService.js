@@ -58,15 +58,36 @@ async function computeSnapshot(userId) {
     investmentsManual += (inv.shares || 0) * price;
   }
 
-  // Liabilities by kind
-  const liabilities = { credit: 0, student: 0, mortgage: 0, total: 0 };
+  // Liabilities by kind. Primary source is plaid_accounts (credit/loan
+  // balances are always present there even when the item doesn't have the
+  // Liabilities product enabled). plaid_liabilities rows only fill in
+  // accounts we haven't already counted, so the two sources never double up.
+  const liabilities = { credit: 0, student: 0, mortgage: 0, other: 0, total: 0 };
+  const countedAccountIds = new Set();
+  const addLiability = (kind, bal) => {
+    const key = ['credit', 'student', 'mortgage'].includes(kind) ? kind : 'other';
+    liabilities[key] += bal;
+    liabilities.total += bal;
+  };
+  for (const doc of accountsSnap.docs) {
+    const a = doc.data();
+    if (a.type !== 'credit' && a.type !== 'loan') continue;
+    const bal = Math.abs(a.balance_current || 0);
+    if (bal === 0) continue;
+    countedAccountIds.add(a.account_id);
+    const subtype = (a.subtype || '').toLowerCase();
+    const kind = a.type === 'credit' ? 'credit'
+      : subtype.includes('student') ? 'student'
+      : subtype.includes('mortgage') ? 'mortgage'
+      : 'other';
+    addLiability(kind, bal);
+  }
   for (const doc of liabilitiesSnap.docs) {
     const l = doc.data();
+    if (countedAccountIds.has(l.account_id)) continue;
     const bal = Math.abs(l.balance || 0);
-    if (l.kind === 'credit') liabilities.credit += bal;
-    else if (l.kind === 'student') liabilities.student += bal;
-    else if (l.kind === 'mortgage') liabilities.mortgage += bal;
-    liabilities.total += bal;
+    if (bal === 0) continue;
+    addLiability(l.kind, bal);
   }
 
   // Allocation by bet type (mirrors /portfolio/by-bet bucketing)
@@ -109,6 +130,50 @@ async function computeSnapshot(userId) {
     allocation[type] = (allocation[type] || 0) + value;
   }
 
+  // Per-ticker concentration across all accounts (Plaid + manual, cash
+  // positions excluded). pct_invested is share of total invested dollars —
+  // the "how exposed am I to X" number the dashboard surfaces.
+  // The denominator is non-cash invested dollars (idle brokerage cash and
+  // CUR: pseudo-tickers excluded) so the percentages line up with the
+  // Holdings page's "Investments" section.
+  const byTicker = new Map();
+  let nonCashInvested = 0;
+  const addExposure = (ticker, name, value) => {
+    if (!value) return;
+    nonCashInvested += value;
+    if (!ticker) return;
+    let row = byTicker.get(ticker);
+    if (!row) {
+      row = { ticker, name: name || ticker, value: 0 };
+      byTicker.set(ticker, row);
+    }
+    row.value += value;
+  };
+  for (const doc of holdingsSnap.docs) {
+    const h = doc.data();
+    const sec = securitiesById.get(h.security_id);
+    const ticker = (sec?.ticker_symbol || '').toUpperCase();
+    if ((sec?.type || '').toLowerCase() === 'cash' || ticker.startsWith('CUR:')) continue;
+    const value = h.institution_value
+      ?? (h.institution_price != null && h.quantity != null ? h.institution_price * h.quantity : 0);
+    addExposure(ticker, sec?.name, value);
+  }
+  for (const doc of manualSnap.docs) {
+    const inv = doc.data();
+    const ticker = (inv.ticker || '').toUpperCase();
+    const price = livePrices[ticker] ?? inv.current_price ?? inv.purchase_price ?? 0;
+    addExposure(ticker, inv.name, (inv.shares || 0) * price);
+  }
+  const topHoldings = Array.from(byTicker.values())
+    .sort((a, b) => b.value - a.value)
+    .slice(0, 10)
+    .map(r => ({
+      ticker: r.ticker,
+      name: r.name,
+      value: r.value,
+      pct_invested: nonCashInvested > 0 ? (r.value / nonCashInvested) * 100 : 0,
+    }));
+
   const totalAssets = cash + investmentsPlaid + investmentsManual;
   const netWorth = totalAssets - liabilities.total;
 
@@ -130,6 +195,7 @@ async function computeSnapshot(userId) {
     assets: { cash, investments: investmentsPlaid, manual_investments: investmentsManual, total: totalAssets },
     liabilities,
     allocation,
+    top_holdings: topHoldings,
     accounts,
     generated_at: new Date().toISOString(),
   };

@@ -1,6 +1,6 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import axios from 'axios';
-import { ChevronDown, ChevronRight } from 'lucide-react';
+import { ChevronDown, ChevronRight, RefreshCw } from 'lucide-react';
 
 interface HoldingRow {
   source: 'plaid' | 'manual';
@@ -31,6 +31,7 @@ interface TickerGroup {
   quantity: number;
   current_value: number;
   cost_basis_total: number;
+  cost_basis_per_share: number | null;
   current_price: number | null;
   accounts: HoldingRow[];
 }
@@ -58,37 +59,44 @@ const cashCurrency = (h: HoldingRow): string => {
   return 'USD';
 };
 
-type SortKey = 'ticker' | 'account' | 'quantity' | 'current_price' | 'current_value' | 'cost_basis_total' | 'pnl';
+type SortKey = 'ticker' | 'account' | 'quantity' | 'current_price' | 'cost_basis_per_share' | 'current_value' | 'exposure' | 'cost_basis_total' | 'pnl';
 
 const Holdings: React.FC = () => {
   const [rows, setRows] = useState<HoldingRow[]>([]);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [livePricesAt, setLivePricesAt] = useState<Date | null>(null);
   const [grouped, setGrouped] = useState(true);
   const [sortKey, setSortKey] = useState<SortKey>('current_value');
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc');
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
 
-  useEffect(() => {
-    (async () => {
-      try {
-        const res = await axios.get<{ buckets: Bucket[] }>('/api/portfolio/by-bet');
-        const seen = new Set<string>();
-        const flat: HoldingRow[] = [];
-        for (const b of res.data.buckets) {
-          for (const h of b.holdings) {
-            if (seen.has(h.holding_id)) continue;
-            seen.add(h.holding_id);
-            flat.push(h);
-          }
+  const load = useCallback(async (live: boolean) => {
+    if (live) setRefreshing(true); else setLoading(true);
+    try {
+      const res = await axios.get<{ buckets: Bucket[] }>(
+        `/api/portfolio/by-bet${live ? '?live=true' : ''}`
+      );
+      const seen = new Set<string>();
+      const flat: HoldingRow[] = [];
+      for (const b of res.data.buckets) {
+        for (const h of b.holdings) {
+          if (seen.has(h.holding_id)) continue;
+          seen.add(h.holding_id);
+          flat.push(h);
         }
-        setRows(flat);
-      } catch (err) {
-        console.error('Failed to load holdings:', err);
-      } finally {
-        setLoading(false);
       }
-    })();
+      setRows(flat);
+      if (live) setLivePricesAt(new Date());
+    } catch (err) {
+      console.error('Failed to load holdings:', err);
+    } finally {
+      setRefreshing(false);
+      setLoading(false);
+    }
   }, []);
+
+  useEffect(() => { load(false); }, [load]);
 
   const { investments, cash } = useMemo(() => {
     const investments: HoldingRow[] = [];
@@ -110,6 +118,7 @@ const Holdings: React.FC = () => {
           quantity: 0,
           current_value: 0,
           cost_basis_total: 0,
+          cost_basis_per_share: null,
           current_price: null,
           accounts: [],
         };
@@ -122,6 +131,7 @@ const Holdings: React.FC = () => {
     }
     for (const g of map.values()) {
       g.current_price = g.quantity > 0 ? g.current_value / g.quantity : null;
+      g.cost_basis_per_share = g.quantity > 0 && g.cost_basis_total > 0 ? g.cost_basis_total / g.quantity : null;
     }
     return Array.from(map.values());
   }, [investments]);
@@ -134,7 +144,9 @@ const Holdings: React.FC = () => {
         case 'account': return h.institution_name || h.account_name || '';
         case 'quantity': return h.quantity ?? 0;
         case 'current_price': return h.current_price ?? 0;
+        case 'cost_basis_per_share': return h.cost_basis_per_share ?? 0;
         case 'current_value': return h.current_value ?? 0;
+        case 'exposure': return h.current_value ?? 0;
         case 'cost_basis_total': return h.cost_basis_total ?? 0;
         case 'pnl': return (h.current_value ?? 0) - (h.cost_basis_total ?? 0);
       }
@@ -154,7 +166,9 @@ const Holdings: React.FC = () => {
         case 'account': return g.accounts.length;
         case 'quantity': return g.quantity;
         case 'current_price': return g.current_price ?? 0;
+        case 'cost_basis_per_share': return g.cost_basis_per_share ?? 0;
         case 'current_value': return g.current_value;
+        case 'exposure': return g.current_value;
         case 'cost_basis_total': return g.cost_basis_total;
         case 'pnl': return g.current_value - g.cost_basis_total;
       }
@@ -208,6 +222,12 @@ const Holdings: React.FC = () => {
     });
   };
 
+  const pctOfInvested = (value: number | null | undefined) => {
+    if (value == null || totals.invValue <= 0) return null;
+    return (value / totals.invValue) * 100;
+  };
+  const fmtShare = (n: number | null) => (n == null ? '—' : `${n.toFixed(1)}%`);
+
   const renderFlatRow = (h: HoldingRow) => {
     const pnl = (h.current_value ?? 0) - (h.cost_basis_total ?? 0);
     const pnlClass = pnl >= 0 ? 'text-green-600' : 'text-red-600';
@@ -227,7 +247,9 @@ const Holdings: React.FC = () => {
         </td>
         <td className="px-5 py-3 text-right tabular-nums">{fmtQty(h.quantity)}</td>
         <td className="px-5 py-3 text-right tabular-nums">{fmtMoney(h.current_price)}</td>
+        <td className="px-5 py-3 text-right tabular-nums text-gray-500">{fmtMoney(h.cost_basis_per_share)}</td>
         <td className="px-5 py-3 text-right tabular-nums font-medium">{fmtMoney(h.current_value)}</td>
+        <td className="px-5 py-3 text-right tabular-nums text-gray-700">{fmtShare(pctOfInvested(h.current_value))}</td>
         <td className="px-5 py-3 text-right tabular-nums text-gray-500">{fmtMoney(h.cost_basis_total)}</td>
         <td className={`px-5 py-3 text-right tabular-nums font-medium pr-5 ${pnlClass}`}>
           {fmtMoney(pnl)}
@@ -243,16 +265,31 @@ const Holdings: React.FC = () => {
         <div>
           <h1 className="text-3xl font-bold text-gray-900">Holdings</h1>
           <p className="text-gray-600 mt-1">Every position across every account.</p>
+          {livePricesAt && (
+            <p className="text-xs text-gray-500 mt-1">
+              Live prices · {livePricesAt.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}
+            </p>
+          )}
         </div>
-        <label className="inline-flex items-center text-sm text-gray-700 select-none">
-          <input
-            type="checkbox"
-            className="h-4 w-4 mr-2 rounded border-gray-300"
-            checked={grouped}
-            onChange={(e) => setGrouped(e.target.checked)}
-          />
-          Group by ticker
-        </label>
+        <div className="flex items-center gap-3">
+          <label className="inline-flex items-center text-sm text-gray-700 select-none">
+            <input
+              type="checkbox"
+              className="h-4 w-4 mr-2 rounded border-gray-300"
+              checked={grouped}
+              onChange={(e) => setGrouped(e.target.checked)}
+            />
+            Group by ticker
+          </label>
+          <button
+            onClick={() => load(true)}
+            disabled={refreshing || loading}
+            className="inline-flex items-center px-3 py-2 text-sm bg-white border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50 disabled:opacity-50"
+          >
+            <RefreshCw className={`h-4 w-4 mr-2 ${refreshing ? 'animate-spin' : ''}`} />
+            {refreshing ? 'Fetching…' : 'Refresh prices'}
+          </button>
+        </div>
       </div>
 
       {loading ? (
@@ -277,7 +314,9 @@ const Holdings: React.FC = () => {
                       </th>
                       <th className="text-right px-5 py-2 cursor-pointer select-none" onClick={() => onSort('quantity')}>Shares{arrow('quantity')}</th>
                       <th className="text-right px-5 py-2 cursor-pointer select-none" onClick={() => onSort('current_price')}>Price{arrow('current_price')}</th>
+                      <th className="text-right px-5 py-2 cursor-pointer select-none" onClick={() => onSort('cost_basis_per_share')}>Avg Cost{arrow('cost_basis_per_share')}</th>
                       <th className="text-right px-5 py-2 cursor-pointer select-none" onClick={() => onSort('current_value')}>Value{arrow('current_value')}</th>
+                      <th className="text-right px-5 py-2 cursor-pointer select-none" onClick={() => onSort('exposure')} title="Share of total invested dollars">% Inv{arrow('exposure')}</th>
                       <th className="text-right px-5 py-2 cursor-pointer select-none" onClick={() => onSort('cost_basis_total')}>Cost{arrow('cost_basis_total')}</th>
                       <th className="text-right px-5 py-2 pr-5 cursor-pointer select-none" onClick={() => onSort('pnl')}>P&amp;L{arrow('pnl')}</th>
                     </tr>
@@ -326,7 +365,9 @@ const Holdings: React.FC = () => {
                                 </td>
                                 <td className="px-5 py-3 text-right tabular-nums">{fmtQty(g.quantity)}</td>
                                 <td className="px-5 py-3 text-right tabular-nums">{fmtMoney(g.current_price)}</td>
+                                <td className="px-5 py-3 text-right tabular-nums text-gray-500">{fmtMoney(g.cost_basis_per_share)}</td>
                                 <td className="px-5 py-3 text-right tabular-nums font-medium">{fmtMoney(g.current_value)}</td>
+                                <td className="px-5 py-3 text-right tabular-nums text-gray-700">{fmtShare(pctOfInvested(g.current_value))}</td>
                                 <td className="px-5 py-3 text-right tabular-nums text-gray-500">{fmtMoney(g.cost_basis_total)}</td>
                                 <td className={`px-5 py-3 text-right tabular-nums font-medium pr-5 ${pnlClass}`}>
                                   {fmtMoney(pnl)}
@@ -348,7 +389,9 @@ const Holdings: React.FC = () => {
                                     </td>
                                     <td className="px-5 py-2 text-right tabular-nums text-sm">{fmtQty(h.quantity)}</td>
                                     <td className="px-5 py-2 text-right tabular-nums text-sm">{fmtMoney(h.current_price)}</td>
+                                    <td className="px-5 py-2 text-right tabular-nums text-sm text-gray-500">{fmtMoney(h.cost_basis_per_share)}</td>
                                     <td className="px-5 py-2 text-right tabular-nums text-sm">{fmtMoney(h.current_value)}</td>
+                                    <td className="px-5 py-2 text-right tabular-nums text-sm text-gray-500">{fmtShare(pctOfInvested(h.current_value))}</td>
                                     <td className="px-5 py-2 text-right tabular-nums text-sm text-gray-500">{fmtMoney(h.cost_basis_total)}</td>
                                     <td className={`px-5 py-2 text-right tabular-nums text-sm pr-5 ${hPnlClass}`}>{fmtMoney(hPnl)}</td>
                                   </tr>
@@ -361,8 +404,9 @@ const Holdings: React.FC = () => {
                   </tbody>
                   <tfoot className="bg-gray-50 text-sm">
                     <tr className="border-t border-gray-200">
-                      <td className="px-5 py-3 font-semibold text-gray-900" colSpan={4}>Investments total</td>
+                      <td className="px-5 py-3 font-semibold text-gray-900" colSpan={5}>Investments total</td>
                       <td className="px-5 py-3 text-right tabular-nums font-semibold text-gray-900">{fmtMoney(totals.invValue)}</td>
+                      <td className="px-5 py-3 text-right tabular-nums text-gray-700">100%</td>
                       <td className="px-5 py-3 text-right tabular-nums text-gray-700">{fmtMoney(totals.invCost)}</td>
                       <td className={`px-5 py-3 text-right tabular-nums font-semibold pr-5 ${totals.invPnl >= 0 ? 'text-green-600' : 'text-red-600'}`}>
                         {fmtMoney(totals.invPnl)}

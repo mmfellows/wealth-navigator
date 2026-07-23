@@ -106,6 +106,18 @@ class PlaidService {
 
     const accessToken = decrypt(snapshot.docs[0].data().access_token);
 
+    // Only ask consent for products the institution actually supports and
+    // hasn't granted yet. Hardcoding ['investments','liabilities'] made
+    // Plaid reject the link token for institutions that can't support one
+    // of them (e.g. liabilities at a pure brokerage).
+    const itemResponse = await this.client.itemGet({ access_token: accessToken });
+    const granted = new Set(this.extractGrantedProducts(itemResponse.data.item));
+    const available = new Set(itemResponse.data.item.available_products || []);
+    const additional = ['investments', 'liabilities'].filter(p => !granted.has(p) && available.has(p));
+    if (additional.length === 0) {
+      throw new Error('This institution already has every product it supports enabled — no reconnect needed.');
+    }
+
     try {
       const response = await this.client.linkTokenCreate({
         user: { client_user_id: userId.toString() },
@@ -113,7 +125,7 @@ class PlaidService {
         country_codes: ['US'],
         language: 'en',
         access_token: accessToken,
-        additional_consented_products: ['investments', 'liabilities'],
+        additional_consented_products: additional,
         redirect_uri: process.env.PLAID_REDIRECT_URI || undefined,
         webhook: process.env.PLAID_WEBHOOK_URL || undefined,
       });
@@ -207,6 +219,10 @@ class PlaidService {
         access_token: encrypt(accessToken),
         institution_name: institutionName,
         products: grantedProducts,
+        // Products the institution supports but that aren't active yet. The
+        // UI only nags about missing products that are actually available —
+        // a brokerage with no liabilities support should never warn.
+        available_products: itemResponse.data.item.available_products || [],
         updated_at: new Date().toISOString(),
       };
 
@@ -264,6 +280,7 @@ class PlaidService {
 
     await snapshot.docs[0].ref.update({
       products: grantedProducts,
+      available_products: itemResponse.data.item.available_products || [],
       updated_at: new Date().toISOString(),
     });
 
@@ -288,6 +305,7 @@ class PlaidService {
         item_id: d.item_id,
         institution_name: d.institution_name,
         products: d.products || [],
+        available_products: d.available_products || [],
         created_at: d.created_at,
       };
     });

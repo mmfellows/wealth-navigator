@@ -5,9 +5,13 @@ import PlaidUpdateLink from '../components/PlaidUpdateLink';
 import axios from 'axios';
 
 const REQUIRED_PRODUCTS = ['investments', 'liabilities'] as const;
-const missingProducts = (granted?: string[]) => {
+// A product only counts as missing if the institution actually supports it
+// (Plaid's available_products). A brokerage with no liabilities support
+// should never show a reconnect warning it can't satisfy.
+const missingProducts = (granted?: string[], available?: string[]) => {
   const have = new Set(granted || []);
-  return REQUIRED_PRODUCTS.filter(p => !have.has(p));
+  const supportable = new Set(available || []);
+  return REQUIRED_PRODUCTS.filter(p => !have.has(p) && supportable.has(p));
 };
 
 type Tab = 'allocations' | 'accounts' | 'api';
@@ -364,7 +368,7 @@ const InvestingSettings: React.FC = () => {
         ) : (
           <div className="space-y-3">
             {connectedAccounts.map((account) => {
-              const missing = missingProducts(account.products);
+              const missing = missingProducts(account.products, account.available_products);
               return (
                 <div key={account.item_id} className="p-4 border border-gray-200 rounded-md">
                   <div className="flex items-center justify-between gap-4">

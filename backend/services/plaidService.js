@@ -430,13 +430,15 @@ class PlaidService {
         || /\b(PAYMENT|AUTOPAY|THANK YOU)\b/.test(txnName);
       const isCreditCardPayment = plaidDetailed.includes('CREDIT_CARD_PAYMENT')
         || /\b(PAYMENT\s*THANK YOU|AUTOPAY|AUTOMATIC PAYMENT)\b/.test(txnName);
+      const isTaxPayment = plaidDetailed.includes('TAX_PAYMENT')
+        || /\b(IRS|INTERNAL REVENUE|FRANCHISE TAX)\b/.test(txnName);
 
       batchOps.push({
         date: txn.date,
         merchant: txn.merchant_name || txn.name || 'Unknown',
         description: txn.name || '',
         amount,
-        category: isIncome ? 'Income' : isCreditCardPayment ? 'Credit Card Payment' : '',
+        category: isIncome ? 'Income' : isTaxPayment ? 'Taxes' : isCreditCardPayment ? 'Credit Card Payment' : '',
         subcategory: '',
         account: item.institution_name,
         statement: `Plaid - ${item.institution_name}`,

@@ -285,9 +285,12 @@ router.get('/stats/summary', async (req, res) => {
     const snapshot = await query.get();
     const allItems = snapshot.docs.map(doc => doc.data()).filter(e => !e.is_transfer);
 
-    // Separate income from expenses
+    // Separate income and taxes from expenses. Taxes are a function of
+    // income, not lifestyle, and arrive in quarterly lumps — keeping them out
+    // of "spent" keeps burn trends readable. They're reported separately.
     const incomeItems = allItems.filter(e => e.category === 'Income');
-    const expenses = allItems.filter(e => e.category !== 'Income');
+    const taxItems = allItems.filter(e => e.category === 'Taxes');
+    const expenses = allItems.filter(e => e.category !== 'Income' && e.category !== 'Taxes');
 
     // Calculate stats (expenses only)
     const amounts = expenses.map(e => e.amount);
@@ -305,6 +308,11 @@ router.get('/stats/summary', async (req, res) => {
     const incomeStats = {
       total_count: incomeAmounts.length,
       total_amount: incomeAmounts.reduce((s, a) => s + a, 0),
+    };
+
+    const taxStats = {
+      total_count: taxItems.length,
+      total_amount: taxItems.reduce((s, e) => s + e.amount, 0),
     };
 
     // By category (expenses only)
@@ -334,12 +342,14 @@ router.get('/stats/summary', async (req, res) => {
       monthMap[month].total += e.amount;
       if (e.category === 'Income') {
         monthMap[month].income += -e.amount;
+      } else if (e.category === 'Taxes') {
+        monthMap[month].taxes = (monthMap[month].taxes || 0) + e.amount;
       } else {
         monthMap[month].expenses += e.amount;
       }
     });
     const monthlyStats = Object.entries(monthMap)
-      .map(([month, data]) => ({ month, count: data.count, total: data.total, income: data.income, expenses: data.expenses }))
+      .map(([month, data]) => ({ month, count: data.count, total: data.total, income: data.income, expenses: data.expenses, taxes: data.taxes || 0 }))
       .sort((a, b) => b.month.localeCompare(a.month))
       .slice(0, 12);
 
@@ -355,6 +365,7 @@ router.get('/stats/summary', async (req, res) => {
     res.json({
       totals: totalStats,
       income: incomeStats,
+      taxes: taxStats,
       income_by_subcategory: Object.entries(incomeBySubcat)
         .map(([subcategory, data]) => ({ subcategory, count: data.count, total: data.total }))
         .sort((a, b) => b.total - a.total),

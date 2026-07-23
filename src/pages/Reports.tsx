@@ -204,6 +204,7 @@ const Reports: React.FC = () => {
   const monthlyStats: MonthlyStat[] = stats?.by_month || [];
   const totalSpent = stats?.totals?.total_amount || 0;
   const totalIncome = stats?.income?.total_amount || 0;
+  const totalTaxes = stats?.taxes?.total_amount || 0;
   const savings = totalIncome - totalSpent;
   const savingsRate = totalIncome > 0 ? (savings / totalIncome) * 100 : 0;
   const txCount = stats?.totals?.total_count || 0;
@@ -347,14 +348,18 @@ const Reports: React.FC = () => {
           )}
         </div>
         <div className="bg-white rounded-lg p-5 shadow-sm border">
-          <p className="text-sm text-gray-500">Transactions</p>
-          <p className="text-2xl font-bold text-gray-900">{txCount}</p>
+          <p className="text-sm text-gray-500">Taxes</p>
+          <p className="text-2xl font-bold text-gray-900">{fmt(totalTaxes)}</p>
+          <p className="text-sm mt-1 text-gray-500">excluded from Spent</p>
         </div>
         <div className="bg-white rounded-lg p-5 shadow-sm border">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm text-gray-500">Uncategorized</p>
-              <p className="text-2xl font-bold text-gray-900">{uncategorizedCount}</p>
+              <p className="text-sm text-gray-500">Transactions</p>
+              <p className="text-2xl font-bold text-gray-900">{txCount}</p>
+              {uncategorizedCount > 0 && (
+                <p className="text-sm mt-1 text-amber-600">{uncategorizedCount} uncategorized</p>
+              )}
             </div>
             {uncategorizedCount > 0 && <AlertTriangle className="h-8 w-8 text-amber-400" />}
           </div>

@@ -9,6 +9,7 @@
     "init-db": "node scripts/initDb.js"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.110.0",
     "@simplewebauthn/server": "^11.0.0",
     "axios": "^1.12.2",
     "bcryptjs": "^2.4.3",

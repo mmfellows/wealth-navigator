@@ -1,54 +1,105 @@
-import React, { useState } from 'react';
-import { Search, Plus, TrendingUp, Loader2 } from 'lucide-react';
+import React, { useEffect, useRef, useState } from 'react';
+import { Search, Plus, TrendingUp, Loader2, Sparkles, AlertCircle } from 'lucide-react';
 import axios from 'axios';
+
+interface ChatTurn {
+  role: 'user' | 'assistant';
+  content: string;
+}
+
+interface HistoryItem {
+  query: string;
+  response: string;
+  created_at: string;
+}
+
+const relTime = (iso: string) => {
+  const ms = Date.now() - new Date(iso).getTime();
+  const mins = Math.floor(ms / 60000);
+  if (mins < 1) return 'just now';
+  if (mins < 60) return `${mins}m ago`;
+  const hours = Math.floor(mins / 60);
+  if (hours < 24) return `${hours}h ago`;
+  const days = Math.floor(hours / 24);
+  return `${days}d ago`;
+};
 
 const Research: React.FC = () => {
   const [query, setQuery] = useState('');
-  const [selectedTicker, setSelectedTicker] = useState('');
-  const [searchResult, setSearchResult] = useState<string | null>(null);
+  const [thread, setThread] = useState<ChatTurn[]>([]);
   const [isSearching, setIsSearching] = useState(false);
+  const [configError, setConfigError] = useState<string | null>(null);
+
+  const [selectedTicker, setSelectedTicker] = useState('');
   const [stockAnalysis, setStockAnalysis] = useState<string | null>(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
 
-  const handleSearch = async () => {
-    if (!query.trim()) {
-      alert('Please enter a search query');
-      return;
-    }
+  const [history, setHistory] = useState<HistoryItem[]>([]);
+  const [expandedHistory, setExpandedHistory] = useState<number | null>(null);
 
-    setIsSearching(true);
+  const threadEndRef = useRef<HTMLDivElement>(null);
+
+  const loadHistory = async () => {
     try {
-      const response = await axios.post('/api/research/query', {
-        query: query
-      });
-      setSearchResult(response.data.response);
-    } catch (error) {
-      console.error('Search failed:', error);
-      alert('Search failed. Please try again.');
-    } finally {
-      setIsSearching(false);
+      const res = await axios.get<HistoryItem[]>('/api/research/history?limit=20');
+      setHistory(res.data || []);
+    } catch (err) {
+      console.error('Failed to load research history:', err);
     }
   };
 
-  const handleAnalyze = async () => {
-    if (!selectedTicker.trim()) {
-      alert('Please enter a ticker symbol');
-      return;
-    }
+  useEffect(() => { loadHistory(); }, []);
 
-    setIsAnalyzing(true);
+  useEffect(() => {
+    threadEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [thread]);
+
+  const ask = async (q: string, withThread: boolean): Promise<string | null> => {
+    setConfigError(null);
     try {
-      const analysisQuery = `Technical analysis for ${selectedTicker.toUpperCase()}`;
-      const response = await axios.post('/api/research/query', {
-        query: analysisQuery
+      const res = await axios.post('/api/research/query', {
+        query: q,
+        history: withThread ? thread : [],
       });
-      setStockAnalysis(response.data.response);
+      loadHistory();
+      return res.data.response as string;
     } catch (error) {
-      console.error('Analysis failed:', error);
-      alert('Analysis failed. Please try again.');
-    } finally {
-      setIsAnalyzing(false);
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const e = error as any;
+      if (e?.response?.status === 503) {
+        setConfigError(e.response.data?.detail || 'AI research is not configured.');
+      } else {
+        setConfigError('Request failed. Please try again.');
+      }
+      return null;
     }
+  };
+
+  const handleSearch = async () => {
+    const q = query.trim();
+    if (!q || isSearching) return;
+    setIsSearching(true);
+    setThread(prev => [...prev, { role: 'user', content: q }]);
+    setQuery('');
+    const answer = await ask(q, true);
+    if (answer != null) {
+      setThread(prev => [...prev, { role: 'assistant', content: answer }]);
+    } else {
+      setThread(prev => prev.slice(0, -1));
+    }
+    setIsSearching(false);
+  };
+
+  const handleAnalyze = async () => {
+    const ticker = selectedTicker.trim().toUpperCase();
+    if (!ticker || isAnalyzing) return;
+    setIsAnalyzing(true);
+    const answer = await ask(
+      `Give me a research overview of ${ticker}: business model, competitive position, key risks, valuation context, and how it relates to my current portfolio exposure.`,
+      false,
+    );
+    if (answer != null) setStockAnalysis(answer);
+    setIsAnalyzing(false);
   };
 
   const handleAddToIdeas = async (ticker: string, category: string) => {
@@ -57,7 +108,7 @@ const Research: React.FC = () => {
         ticker: ticker.toUpperCase(),
         name: ticker.toUpperCase(),
         category: category.toLowerCase().replace(' ', '-'),
-        notes: `Added from research analysis. Category: ${category}`
+        notes: `Added from research analysis. Category: ${category}`,
       });
       alert(`${ticker} has been added to your ${category} ideas!`);
     } catch (error) {
@@ -72,53 +123,86 @@ const Research: React.FC = () => {
         <h1 className="text-3xl font-bold text-gray-900">Research</h1>
       </div>
 
+      {configError && (
+        <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 flex items-start gap-3">
+          <AlertCircle className="h-5 w-5 text-amber-600 flex-shrink-0 mt-0.5" />
+          <div className="text-sm text-amber-800">{configError}</div>
+        </div>
+      )}
+
+      {/* AI research chat */}
       <div className="bg-white rounded-lg p-6 shadow-sm border">
-        <h2 className="text-xl font-semibold text-gray-900 mb-4">AI Research Assistant</h2>
-        <div className="space-y-4">
-          <div className="flex space-x-4">
-            <div className="flex-1">
-              <input
-                type="text"
-                value={query}
-                onChange={(e) => setQuery(e.target.value)}
-                placeholder="Ask about stocks, market trends, or investment strategies..."
-                className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-              />
-            </div>
-            <button
-              onClick={handleSearch}
-              disabled={isSearching}
-              className="px-6 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center"
-            >
-              {isSearching ? (
-                <>
-                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                  Researching...
-                </>
-              ) : (
-                <>
-                  <Search className="h-4 w-4 mr-2" />
-                  Research
-                </>
-              )}
-            </button>
-          </div>
+        <h2 className="text-xl font-semibold text-gray-900 mb-1 flex items-center gap-2">
+          <Sparkles className="h-5 w-5 text-blue-600" /> Research Assistant
+        </h2>
+        <p className="text-sm text-gray-500 mb-4">
+          Ask about tickers, theses, or your own exposure — it sees your live portfolio and bets.
+        </p>
 
-          <div className="text-sm text-gray-500">
-            Try asking: "What are the best dividend stocks for 2024?" or "Technical analysis for AAPL"
-          </div>
-
-          {searchResult && (
-            <div className="mt-6 p-4 bg-gray-50 rounded-md border">
-              <h3 className="text-lg font-medium text-gray-900 mb-3">Research Results</h3>
-              <div className="prose prose-sm max-w-none">
-                <pre className="whitespace-pre-wrap text-sm text-gray-700 font-sans">{searchResult}</pre>
+        {thread.length > 0 && (
+          <div className="space-y-4 mb-4 max-h-[32rem] overflow-y-auto pr-1">
+            {thread.map((turn, i) => (
+              <div key={i} className={turn.role === 'user' ? 'flex justify-end' : ''}>
+                <div
+                  className={
+                    turn.role === 'user'
+                      ? 'bg-blue-600 text-white rounded-lg px-4 py-2 max-w-[80%] text-sm'
+                      : 'bg-gray-50 border rounded-lg px-4 py-3 max-w-[95%]'
+                  }
+                >
+                  {turn.role === 'user' ? (
+                    turn.content
+                  ) : (
+                    <pre className="whitespace-pre-wrap text-sm text-gray-800 font-sans">{turn.content}</pre>
+                  )}
+                </div>
               </div>
-            </div>
+            ))}
+            {isSearching && (
+              <div className="flex items-center gap-2 text-sm text-gray-500">
+                <Loader2 className="h-4 w-4 animate-spin" /> Thinking…
+              </div>
+            )}
+            <div ref={threadEndRef} />
+          </div>
+        )}
+
+        <div className="flex space-x-4">
+          <input
+            type="text"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
+            placeholder={thread.length ? 'Ask a follow-up…' : 'Ask about stocks, your exposure, or a thesis…'}
+            className="flex-1 px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+          />
+          <button
+            onClick={handleSearch}
+            disabled={isSearching}
+            className="px-6 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center"
+          >
+            {isSearching ? (
+              <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Researching…</>
+            ) : (
+              <><Search className="h-4 w-4 mr-2" /> Ask</>
+            )}
+          </button>
+          {thread.length > 0 && (
+            <button
+              onClick={() => setThread([])}
+              className="px-3 py-2 text-sm text-gray-500 hover:text-gray-800"
+              title="Start a new conversation"
+            >
+              Clear
+            </button>
           )}
+        </div>
+        <div className="text-sm text-gray-500 mt-2">
+          Try: "How concentrated am I in solar?" or "What would change your view on my IIPR thesis?"
         </div>
       </div>
 
+      {/* Single-ticker analysis */}
       <div className="bg-white rounded-lg p-6 shadow-sm border">
         <h2 className="text-xl font-semibold text-gray-900 mb-4">Stock Analysis</h2>
         <div className="space-y-4">
@@ -127,6 +211,7 @@ const Research: React.FC = () => {
               type="text"
               value={selectedTicker}
               onChange={(e) => setSelectedTicker(e.target.value.toUpperCase())}
+              onKeyDown={(e) => e.key === 'Enter' && handleAnalyze()}
               placeholder="Enter stock ticker (e.g., AAPL, MSFT)"
               className="flex-1 px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
             />
@@ -136,15 +221,9 @@ const Research: React.FC = () => {
               className="px-6 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center"
             >
               {isAnalyzing ? (
-                <>
-                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                  Analyzing...
-                </>
+                <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Analyzing…</>
               ) : (
-                <>
-                  <TrendingUp className="h-4 w-4 mr-2" />
-                  Analyze
-                </>
+                <><TrendingUp className="h-4 w-4 mr-2" /> Analyze</>
               )}
             </button>
           </div>
@@ -174,20 +253,31 @@ const Research: React.FC = () => {
         </div>
       </div>
 
+      {/* Research history — real, persisted server-side */}
       <div className="bg-white rounded-lg p-6 shadow-sm border">
         <h2 className="text-xl font-semibold text-gray-900 mb-4">Research History</h2>
-        <div className="space-y-3">
-          {[
-            { query: "Best dividend stocks for retirement", timestamp: "2 hours ago" },
-            { query: "Technical analysis for NVDA", timestamp: "1 day ago" },
-            { query: "Clean energy ETFs comparison", timestamp: "3 days ago" }
-          ].map((item, index) => (
-            <div key={index} className="flex items-center justify-between p-3 bg-gray-50 rounded-md">
-              <span className="text-gray-900">{item.query}</span>
-              <span className="text-sm text-gray-500">{item.timestamp}</span>
-            </div>
-          ))}
-        </div>
+        {history.length === 0 ? (
+          <div className="text-sm text-gray-500">No research queries yet.</div>
+        ) : (
+          <div className="space-y-3">
+            {history.map((item, index) => (
+              <div key={index} className="bg-gray-50 rounded-md">
+                <button
+                  className="w-full flex items-center justify-between p-3 text-left"
+                  onClick={() => setExpandedHistory(expandedHistory === index ? null : index)}
+                >
+                  <span className="text-gray-900 truncate pr-4">{item.query}</span>
+                  <span className="text-sm text-gray-500 flex-shrink-0">{relTime(item.created_at)}</span>
+                </button>
+                {expandedHistory === index && (
+                  <div className="px-3 pb-3">
+                    <pre className="whitespace-pre-wrap text-sm text-gray-700 font-sans border-t pt-3">{item.response}</pre>
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
       </div>
     </div>
   );

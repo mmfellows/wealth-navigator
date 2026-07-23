@@ -108,9 +108,11 @@ export default function Privacy() {
             The application is hosted on <strong>Vercel</strong> (serverless functions + static
             frontend) and stores data in <strong>Google Cloud / Firestore</strong> (encrypted at
             rest with Google-managed AES-256). Outbound calls go to <strong>Plaid</strong> (when
-            syncing), public financial-data APIs (for ticker prices), and optional AI research
-            APIs (OpenAI, Perplexity) if configured — these send only the prompt content you
-            compose, not your financial data.
+            syncing), public financial-data APIs (for ticker prices), and the optional AI research
+            assistant (Anthropic Claude API) if configured — research queries send the prompt you
+            compose plus a summary of your portfolio (net worth, allocation, top holdings, and
+            active bet theses) so answers can reference your actual positions. No account numbers,
+            credentials, or transaction-level data are sent.
           </p>
 
           <h2 className="text-xl font-semibold mt-8 mb-2">6. Storage & security</h2>

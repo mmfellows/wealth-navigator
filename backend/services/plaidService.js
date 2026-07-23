@@ -317,8 +317,13 @@ class PlaidService {
   async syncAccounts(item, accessToken) {
     const token = accessToken || decrypt(item.access_token);
 
-    const response = await this.client.accountsBalanceGet({ access_token: token });
-    logPlaid('info', 'accounts_balance_get', {
+    // accountsGet returns the same account list with Plaid's cached balances
+    // (refreshed whenever transactions/holdings sync) and is not billed as
+    // the standalone Balance product. accountsBalanceGet forces a live
+    // balance pull, which bills per call — on limited production credits it
+    // fails with CREDITS_EXHAUSTED and left plaid_accounts empty.
+    const response = await this.client.accountsGet({ access_token: token });
+    logPlaid('info', 'accounts_get', {
       item_id: item.item_id,
       request_id: response.data.request_id,
       message: `Fetched ${response.data.accounts.length} accounts`,
@@ -677,7 +682,12 @@ class PlaidService {
     const token = accessToken || decrypt(item.access_token);
 
     const response = await this.client.liabilitiesGet({ access_token: token });
-    const { credit = [], student = [], mortgage = [] } = response.data.liabilities || {};
+    // Plaid sends explicit null (not undefined) for liability types the item
+    // doesn't have, so destructuring defaults alone don't protect .length.
+    const liab = response.data.liabilities || {};
+    const credit = liab.credit || [];
+    const student = liab.student || [];
+    const mortgage = liab.mortgage || [];
 
     logPlaid('info', 'liabilities_get', {
       item_id: item.item_id,

@@ -1,6 +1,9 @@
 const express = require('express');
 const router = express.Router();
 const { db, docToObj } = require('../services/database');
+const { optionalAuth } = require('../middleware/auth');
+
+router.use(optionalAuth);
 
 // Get all carrots with optional filtering
 router.get('/', async (req, res) => {

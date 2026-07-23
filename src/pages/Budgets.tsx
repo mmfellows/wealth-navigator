@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
+import { authedFetch } from '../services/authRedirect';
 import { DollarSign, PlusCircle, Edit2, Trash2, Calendar, Target, X, Archive, RotateCcw, ChevronDown, ChevronRight, History, GripVertical } from 'lucide-react';
 import { fetchBudgetCategories, fetchCategoryColors, DEFAULT_CATEGORY_COLOR } from '../constants/budgetCategories';
 import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors, DragEndEvent } from '@dnd-kit/core';
@@ -134,18 +135,18 @@ const Budgets: React.FC = () => {
   });
 
   useEffect(() => {
-    fetch('/api/budgets')
+    authedFetch('/api/budgets')
       .then(r => r.json())
       .then(async (items: any[]) => {
         if (items.length > 0) {
           setBudgetItems(items.map(mapItem));
         } else {
-          fetch('/api/budgets/seed', {
+          authedFetch('/api/budgets/seed', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ items: SEED_ITEMS }),
           })
-            .then(r => r.ok ? fetch('/api/budgets') : Promise.reject('Seed failed'))
+            .then(r => r.ok ? authedFetch('/api/budgets') : Promise.reject('Seed failed'))
             .then(r => typeof r === 'object' && 'json' in r ? r.json() : [])
             .then((seeded: any[]) => setBudgetItems(seeded.map(mapItem)))
             .catch(console.error);
@@ -163,7 +164,7 @@ const Budgets: React.FC = () => {
   const [categoryOrder, setCategoryOrder] = useState<string[]>([]);
 
   useEffect(() => {
-    fetch('/api/settings/budget-category-order')
+    authedFetch('/api/settings/budget-category-order')
       .then(r => r.json())
       .then(data => { if (data.order?.length) setCategoryOrder(data.order); })
       .catch(console.error);
@@ -251,7 +252,7 @@ const Budgets: React.FC = () => {
       };
 
       try {
-        const res = await fetch(`/api/budgets/${editingItem.id}`, {
+        const res = await authedFetch(`/api/budgets/${editingItem.id}`, {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(updateData),
@@ -265,7 +266,7 @@ const Budgets: React.FC = () => {
       } catch (err) { console.error('Failed to update budget item:', err); }
     } else {
       try {
-        const res = await fetch('/api/budgets', {
+        const res = await authedFetch('/api/budgets', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ ...form, amount, endDate: form.endDate || null }),
@@ -285,7 +286,7 @@ const Budgets: React.FC = () => {
   const handleArchive = async (id: string) => {
     const today = new Date().toISOString().split('T')[0];
     try {
-      await fetch(`/api/budgets/${id}`, {
+      await authedFetch(`/api/budgets/${id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ status: 'archived', archivedDate: today, endDate: today }),
@@ -298,7 +299,7 @@ const Budgets: React.FC = () => {
 
   const handleRestore = async (id: string) => {
     try {
-      await fetch(`/api/budgets/${id}`, {
+      await authedFetch(`/api/budgets/${id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ status: 'active', archivedDate: null, endDate: null }),
@@ -311,7 +312,7 @@ const Budgets: React.FC = () => {
 
   const handleDelete = async (id: string) => {
     try {
-      await fetch(`/api/budgets/${id}`, { method: 'DELETE' });
+      await authedFetch(`/api/budgets/${id}`, { method: 'DELETE' });
       setBudgetItems(items => items.filter(i => i.id !== id));
     } catch (err) { console.error('Failed to delete:', err); }
   };
@@ -353,7 +354,7 @@ const Budgets: React.FC = () => {
       const newIndex = currentOrder.indexOf(over.id as string);
       const newOrder = arrayMove(currentOrder, oldIndex, newIndex);
       setCategoryOrder(newOrder);
-      fetch('/api/settings/budget-category-order', {
+      authedFetch('/api/settings/budget-category-order', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ order: newOrder }),

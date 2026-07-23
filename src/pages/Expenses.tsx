@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
+import { authedFetch } from '../services/authRedirect';
 import { useQuery } from '@tanstack/react-query';
 import { CreditCard, Search, PlusCircle, Tag, DollarSign, Info, Upload, Download, Eye, X, ArrowLeftRight, FileText, BarChart3 } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine, Cell } from 'recharts';
@@ -109,7 +110,7 @@ const Expenses: React.FC = () => {
         }
       }
 
-      const response = await fetch(`/api/expenses/${expenseId}`, {
+      const response = await authedFetch(`/api/expenses/${expenseId}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(updates),
@@ -125,7 +126,7 @@ const Expenses: React.FC = () => {
     if (selectedIds.size === 0) return;
     const mainCategory = subToMain[subcategory] || null;
     try {
-      const response = await fetch('/api/expenses/bulk-update', {
+      const response = await authedFetch('/api/expenses/bulk-update', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -220,7 +221,7 @@ const Expenses: React.FC = () => {
     if (selectedCategory !== 'all') params.append('category', selectedCategory);
     if (selectedSubcategory !== 'all') params.append('subcategory', selectedSubcategory);
 
-    const response = await fetch(`/api/expenses?${params}`);
+    const response = await authedFetch(`/api/expenses?${params}`);
     if (!response.ok) {
       throw new Error('Failed to fetch expenses');
     }
@@ -231,7 +232,7 @@ const Expenses: React.FC = () => {
   const { data: filterOptions } = useQuery({
     queryKey: ['expenseFilters'],
     queryFn: async () => {
-      const response = await fetch('/api/expenses/filters');
+      const response = await authedFetch('/api/expenses/filters');
       if (!response.ok) throw new Error('Failed to fetch filter options');
       return response.json();
     },
@@ -273,7 +274,7 @@ const Expenses: React.FC = () => {
       if (searchTerm) params.append('search', searchTerm);
       if (selectedCategory !== 'all') params.append('category', selectedCategory);
       if (selectedSubcategory !== 'all') params.append('subcategory', selectedSubcategory);
-      const response = await fetch(`/api/expenses?${params}`);
+      const response = await authedFetch(`/api/expenses?${params}`);
       if (!response.ok) throw new Error('Failed to fetch expenses for chart');
       return response.json();
     },
@@ -378,7 +379,7 @@ const Expenses: React.FC = () => {
     console.log('Starting CSV import with data:', csvData.slice(0, 2)); // Log first 2 items
     setIsUploading(true);
     try {
-      const response = await fetch('/api/expenses/bulk', {
+      const response = await authedFetch('/api/expenses/bulk', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -493,7 +494,7 @@ const Expenses: React.FC = () => {
       const formData = new FormData();
       Array.from(files).forEach(file => formData.append('files', file));
 
-      const response = await fetch('/api/expenses/preview-pdf', {
+      const response = await authedFetch('/api/expenses/preview-pdf', {
         method: 'POST',
         body: formData,
       });
@@ -528,7 +529,7 @@ const Expenses: React.FC = () => {
 
     setIsPdfUploading(true);
     try {
-      const response = await fetch('/api/expenses/bulk', {
+      const response = await authedFetch('/api/expenses/bulk', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -1646,7 +1647,7 @@ const Expenses: React.FC = () => {
                     <button
                       onClick={async () => {
                         try {
-                          const response = await fetch(`/api/expenses/${expense.id}`, {
+                          const response = await authedFetch(`/api/expenses/${expense.id}`, {
                             method: 'PUT',
                             headers: { 'Content-Type': 'application/json' },
                             body: JSON.stringify({ is_transfer: !expense.is_transfer })

@@ -5,6 +5,9 @@ const path = require('path');
 const fs = require('fs');
 const { db, docToObj } = require('../services/database');
 const { detectAndParse, extractPdfText } = require('../services/chasePdfParser');
+const { optionalAuth } = require('../middleware/auth');
+
+router.use(optionalAuth);
 
 // Configure multer for PDF uploads.
 // In production we use memoryStorage so multer doesn't try to mkdir on

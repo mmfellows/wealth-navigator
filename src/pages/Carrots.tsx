@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { authedFetch } from '../services/authRedirect';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Gift, Check, X, Plus, Target, DollarSign, AlertCircle } from 'lucide-react';
 
@@ -41,7 +42,7 @@ const Carrots: React.FC = () => {
   const { data: carrotsData, isLoading } = useQuery({
     queryKey: ['carrots'],
     queryFn: async () => {
-      const response = await fetch('/api/carrots');
+      const response = await authedFetch('/api/carrots');
       if (!response.ok) throw new Error('Failed to fetch carrots');
       return response.json();
     }
@@ -51,7 +52,7 @@ const Carrots: React.FC = () => {
   const { data: stats } = useQuery<CarrotStats>({
     queryKey: ['carrots-stats'],
     queryFn: async () => {
-      const response = await fetch('/api/carrots/stats/summary');
+      const response = await authedFetch('/api/carrots/stats/summary');
       if (!response.ok) throw new Error('Failed to fetch stats');
       return response.json();
     }
@@ -60,7 +61,7 @@ const Carrots: React.FC = () => {
   // Create carrot mutation
   const createCarrot = useMutation({
     mutationFn: async (data: typeof formData) => {
-      const response = await fetch('/api/carrots', {
+      const response = await authedFetch('/api/carrots', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -82,7 +83,7 @@ const Carrots: React.FC = () => {
   // Update carrot mutation
   const updateCarrot = useMutation({
     mutationFn: async ({ id, data }: { id: number; data: Partial<Carrot> }) => {
-      const response = await fetch(`/api/carrots/${id}`, {
+      const response = await authedFetch(`/api/carrots/${id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(data)
@@ -101,7 +102,7 @@ const Carrots: React.FC = () => {
   // Delete carrot mutation
   const deleteCarrot = useMutation({
     mutationFn: async (id: number) => {
-      const response = await fetch(`/api/carrots/${id}`, {
+      const response = await authedFetch(`/api/carrots/${id}`, {
         method: 'DELETE'
       });
       if (!response.ok) throw new Error('Failed to delete carrot');

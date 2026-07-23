@@ -21,6 +21,26 @@ function storedToken(): string | null {
 // 2. Response interceptor — on any 401 the session is gone; clear it and
 //    send the user to /login. Auth endpoints are excluded so a
 //    wrong-password 401 on the login form doesn't trigger a redirect loop.
+// fetch() with the same auth behavior the axios interceptors provide:
+// attach the stored token, and on 401 clear the session and go to /login.
+// For pages that use fetch directly instead of the shared axios instance.
+export async function authedFetch(input: RequestInfo | URL, init: RequestInit = {}): Promise<Response> {
+  const headers = new Headers(init.headers);
+  if (!headers.has('Authorization')) {
+    const token = storedToken();
+    if (token) headers.set('Authorization', `Bearer ${token}`);
+  }
+  const res = await fetch(input, { ...init, headers });
+  const url = typeof input === 'string' ? input : input instanceof URL ? input.href : input.url;
+  const isAuthEndpoint = url.includes('/auth/');
+  const onLoginPage = window.location.pathname === '/login';
+  if (res.status === 401 && !isAuthEndpoint && !onLoginPage) {
+    localStorage.removeItem(STORAGE_KEY);
+    window.location.assign('/login');
+  }
+  return res;
+}
+
 export function installAuthRedirect(instance: AxiosInstance) {
   instance.interceptors.request.use((config) => {
     if (!config.headers?.Authorization) {

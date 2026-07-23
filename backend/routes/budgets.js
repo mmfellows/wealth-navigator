@@ -1,7 +1,10 @@
 const express = require('express');
 const { db, docToObj } = require('../services/database');
+const { optionalAuth } = require('../middleware/auth');
 
 const router = express.Router();
+
+router.use(optionalAuth);
 
 // Get all budget items
 router.get('/', async (req, res) => {

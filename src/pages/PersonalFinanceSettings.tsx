@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { authedFetch } from '../services/authRedirect';
 import { Link } from 'react-router-dom';
-import { Trash2, Plus, Edit2, Tag, X, ChevronDown, ChevronRight, Upload, Download, Palette, GripVertical, Link as LinkIcon, RefreshCw, Loader2, Unlink } from 'lucide-react';
+import { Trash2, Plus, Edit2, Tag, X, ChevronDown, ChevronRight, Upload, Download, GripVertical, Link as LinkIcon, RefreshCw, Loader2, Unlink } from 'lucide-react';
 import { usePlaidLink } from 'react-plaid-link';
 import { CONSENT_TEXT, logPlaidLinkConsent } from '../lib/consent';
 
@@ -60,7 +60,7 @@ const PersonalFinanceSettings: React.FC = () => {
       return;
     }
     try {
-      const res = await fetch(`${API_BASE}/categories/${dragItem.id}`, {
+      const res = await authedFetch(`${API_BASE}/categories/${dragItem.id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ mainCategory: targetMainCategory }),
@@ -236,7 +236,7 @@ const PersonalFinanceSettings: React.FC = () => {
 
   const fetchCategoryColors = async () => {
     try {
-      const res = await fetch(`${API_BASE}/category-colors`);
+      const res = await authedFetch(`${API_BASE}/category-colors`);
       if (res.ok) {
         const data = await res.json();
         setCategoryColors(data.colors);
@@ -248,7 +248,7 @@ const PersonalFinanceSettings: React.FC = () => {
 
   const handleColorChange = async (category: string, color: string) => {
     try {
-      await fetch(`${API_BASE}/category-colors/${encodeURIComponent(category)}`, {
+      await authedFetch(`${API_BASE}/category-colors/${encodeURIComponent(category)}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ color }),
@@ -263,7 +263,7 @@ const PersonalFinanceSettings: React.FC = () => {
   const fetchCategories = async () => {
     try {
       setLoading(true);
-      const res = await fetch(`${API_BASE}/categories`);
+      const res = await authedFetch(`${API_BASE}/categories`);
       if (!res.ok) throw new Error('Failed to fetch categories');
       const data: CategoriesData = await res.json();
       setCategories(data.categories);
@@ -300,7 +300,7 @@ const PersonalFinanceSettings: React.FC = () => {
     if (!name) return;
     try {
       // Add a placeholder subcategory to create the main category
-      const res = await fetch(`${API_BASE}/categories`, {
+      const res = await authedFetch(`${API_BASE}/categories`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ mainCategory: name, subCategory: 'General' }),
@@ -321,7 +321,7 @@ const PersonalFinanceSettings: React.FC = () => {
     const name = newSubName.trim();
     if (!name) return;
     try {
-      const res = await fetch(`${API_BASE}/categories`, {
+      const res = await authedFetch(`${API_BASE}/categories`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ mainCategory, subCategory: name }),
@@ -347,7 +347,7 @@ const PersonalFinanceSettings: React.FC = () => {
       return;
     }
     try {
-      const res = await fetch(`${API_BASE}/categories/rename-main`, {
+      const res = await authedFetch(`${API_BASE}/categories/rename-main`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ oldName: editingMain.oldName, newName }),
@@ -370,7 +370,7 @@ const PersonalFinanceSettings: React.FC = () => {
       return;
     }
     try {
-      const res = await fetch(`${API_BASE}/categories/${editingSub.id}`, {
+      const res = await authedFetch(`${API_BASE}/categories/${editingSub.id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ subCategory: newName }),
@@ -386,7 +386,7 @@ const PersonalFinanceSettings: React.FC = () => {
 
   const handleDeleteMainCategory = async (mainCategory: string) => {
     try {
-      const res = await fetch(`${API_BASE}/categories/main/${encodeURIComponent(mainCategory)}`, {
+      const res = await authedFetch(`${API_BASE}/categories/main/${encodeURIComponent(mainCategory)}`, {
         method: 'DELETE',
       });
       if (!res.ok) throw new Error('Failed to delete category');
@@ -399,7 +399,7 @@ const PersonalFinanceSettings: React.FC = () => {
 
   const handleDeleteSubCategory = async (id: number) => {
     try {
-      const res = await fetch(`${API_BASE}/categories/${id}`, {
+      const res = await authedFetch(`${API_BASE}/categories/${id}`, {
         method: 'DELETE',
       });
       if (!res.ok) throw new Error('Failed to delete subcategory');
@@ -475,7 +475,7 @@ const PersonalFinanceSettings: React.FC = () => {
       let skipped = 0;
       for (const row of csvPreview) {
         const subCategory = row.subCategory || 'General';
-        const res = await fetch(`${API_BASE}/categories`, {
+        const res = await authedFetch(`${API_BASE}/categories`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ mainCategory: row.mainCategory, subCategory }),
@@ -653,22 +653,19 @@ const PersonalFinanceSettings: React.FC = () => {
                         autoFocus
                       />
                     ) : (
-                      <span className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${categoryColors[mainCat] || 'bg-gray-100 text-gray-800'}`}>
+                      <button
+                        onClick={(e) => { e.stopPropagation(); setEditingColor(editingColor === mainCat ? null : mainCat); }}
+                        className={`inline-flex px-2 py-1 text-xs font-medium rounded-full transition-transform hover:scale-105 ${categoryColors[mainCat] || 'bg-gray-100 text-gray-800'}`}
+                        title="Change color"
+                      >
                         {mainCat}
-                      </span>
+                      </button>
                     )}
 
                     <span className="ml-2 text-xs text-gray-400">{subs.length} subcategories</span>
                   </div>
 
                   <div className="flex items-center space-x-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                    <button
-                      onClick={(e) => { e.stopPropagation(); setEditingColor(editingColor === mainCat ? null : mainCat); }}
-                      className="p-1 text-gray-400 hover:text-purple-600"
-                      title="Change color"
-                    >
-                      <Palette className="h-3.5 w-3.5" />
-                    </button>
                     <button
                       onClick={() => { setEditingMain({ oldName: mainCat }); setEditingValue(mainCat); }}
                       className="p-1 text-gray-400 hover:text-blue-600"

@@ -1,6 +1,7 @@
 const { PlaidApi, Configuration, PlaidEnvironments } = require('plaid');
 const { db } = require('./database');
 const { encrypt, decrypt } = require('./encryption');
+const { mapPlaidCategory } = require('./categoryMapper');
 
 // Structured Plaid logger - captures key identifiers for troubleshooting
 function logPlaid(level, action, details = {}) {
@@ -455,14 +456,19 @@ class PlaidService {
         || /\b(PAYMENT\s*THANK YOU|AUTOPAY|AUTOMATIC PAYMENT)\b/.test(txnName);
       const isTaxPayment = plaidDetailed.includes('TAX_PAYMENT')
         || /\b(IRS|INTERNAL REVENUE|FRANCHISE TAX)\b/.test(txnName);
+      // Special buckets (Income / Taxes / CC payment) win; otherwise fall
+      // back to the Plaid-category → budget-scheme mapping.
+      const mapped = (!isIncome && !isTaxPayment && !isCreditCardPayment && !isTransfer)
+        ? mapPlaidCategory(plaidPrimary, plaidDetailed)
+        : null;
 
       batchOps.push({
         date: txn.date,
         merchant: txn.merchant_name || txn.name || 'Unknown',
         description: txn.name || '',
         amount,
-        category: isIncome ? 'Income' : isTaxPayment ? 'Taxes' : isCreditCardPayment ? 'Credit Card Payment' : '',
-        subcategory: '',
+        category: isIncome ? 'Income' : isTaxPayment ? 'Taxes' : isCreditCardPayment ? 'Credit Card Payment' : (mapped?.category || ''),
+        subcategory: mapped?.subcategory || '',
         account: item.institution_name,
         statement: `Plaid - ${item.institution_name}`,
         is_transfer: isTransfer,

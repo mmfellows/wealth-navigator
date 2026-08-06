@@ -2,6 +2,9 @@ import React, { useState, useMemo } from 'react';
 import { authedFetch } from '../services/authRedirect';
 import { useQuery } from '@tanstack/react-query';
 import { AlertTriangle, ChevronDown, ChevronRight } from 'lucide-react';
+import SpendingOverTimeChart, { SpendingPoint } from '../components/charts/SpendingOverTimeChart';
+import { Card, CardHeader, StatCard } from '../components/ui';
+import { cn } from '../lib/cn';
 
 interface CategoryStat {
   category: string;
@@ -36,20 +39,21 @@ interface SubcategoryStat {
   total: number;
 }
 
+// Evergreen categorical palette for progress-bar fills (violet/teal/lime/orange + neutral).
 const CATEGORY_COLORS: Record<string, string> = {
-  'Discretionary': 'bg-purple-500',
-  'Fixed Costs': 'bg-blue-500',
-  'Home': 'bg-indigo-500',
-  'Other Spending': 'bg-gray-500',
-  'Special Expense': 'bg-amber-500',
+  'Discretionary': 'bg-violet-500',
+  'Fixed Costs': 'bg-teal-500',
+  'Home': 'bg-lime-500',
+  'Other Spending': 'bg-slate-500',
+  'Special Expense': 'bg-orange-500',
 };
 
 const CATEGORY_TEXT_COLORS: Record<string, string> = {
-  'Discretionary': 'text-purple-600',
-  'Fixed Costs': 'text-blue-600',
-  'Home': 'text-indigo-600',
-  'Other Spending': 'text-gray-600',
-  'Special Expense': 'text-amber-600',
+  'Discretionary': 'text-violet-300',
+  'Fixed Costs': 'text-teal-300',
+  'Home': 'text-lime-300',
+  'Other Spending': 'text-ever-dim',
+  'Special Expense': 'text-orange-300',
 };
 
 const Reports: React.FC = () => {
@@ -57,6 +61,7 @@ const Reports: React.FC = () => {
   const [selectedYear, setSelectedYear] = useState(String(now.getFullYear()));
   const [selectedMonth, setSelectedMonth] = useState(String(now.getMonth() + 1).padStart(2, '0'));
   const [viewMode, setViewMode] = useState<'month' | 'year'>('year');
+  const [segmentBy, setSegmentBy] = useState<'category' | 'spend_type'>('spend_type');
   const [expandedCategories, setExpandedCategories] = useState<Set<string>>(new Set());
 
   const toggleCategory = (category: string) => {
@@ -68,12 +73,21 @@ const Reports: React.FC = () => {
     });
   };
 
-  // Closed months for pacing (persisted per year)
+  // Default pacing selection: every completed month is closed (uses actuals),
+  // the current and future months stay open (assume budget).
+  const defaultClosedMonths = (year: string): Set<number> => {
+    const y = Number(year);
+    if (y < now.getFullYear()) return new Set(Array.from({ length: 12 }, (_, i) => i + 1));
+    if (y > now.getFullYear()) return new Set();
+    return new Set(Array.from({ length: now.getMonth() }, (_, i) => i + 1));
+  };
+
+  // Closed months for pacing (persisted per year once manually changed)
   const [closedMonths, setClosedMonths] = useState<Set<number>>(() => {
     try {
-      const stored = localStorage.getItem(`closedMonths-${now.getFullYear()}`);
-      return stored ? new Set(JSON.parse(stored)) : new Set();
-    } catch { return new Set(); }
+      const stored = JSON.parse(localStorage.getItem(`closedMonths-${now.getFullYear()}`) || '[]');
+      return stored.length > 0 ? new Set<number>(stored) : defaultClosedMonths(String(now.getFullYear()));
+    } catch { return defaultClosedMonths(String(now.getFullYear())); }
   });
 
   const toggleClosedMonth = (month: number) => {
@@ -89,9 +103,9 @@ const Reports: React.FC = () => {
   // Reload closed months when year changes
   React.useEffect(() => {
     try {
-      const stored = localStorage.getItem(`closedMonths-${selectedYear}`);
-      setClosedMonths(stored ? new Set(JSON.parse(stored)) : new Set());
-    } catch { setClosedMonths(new Set()); }
+      const stored = JSON.parse(localStorage.getItem(`closedMonths-${selectedYear}`) || '[]');
+      setClosedMonths(stored.length > 0 ? new Set<number>(stored) : defaultClosedMonths(selectedYear));
+    } catch { setClosedMonths(defaultClosedMonths(selectedYear)); }
   }, [selectedYear]);
 
   const startDate = viewMode === 'month'
@@ -122,6 +136,21 @@ const Reports: React.FC = () => {
       const res = await authedFetch(`/api/expenses?${params}`);
       if (!res.ok) throw new Error('Failed to fetch expenses');
       return res.json();
+    },
+  });
+
+  // Spending time series — always the full selected year, monthly buckets
+  const { data: timeseries } = useQuery({
+    queryKey: ['expenseTimeseries', selectedYear, segmentBy],
+    queryFn: async () => {
+      const params = new URLSearchParams({
+        startDate: `${selectedYear}-01-01`,
+        endDate: `${selectedYear}-12-31`,
+        segmentBy,
+      });
+      const res = await authedFetch(`/api/expenses/stats/timeseries?${params}`);
+      if (!res.ok) throw new Error('Failed to fetch spending timeseries');
+      return res.json() as Promise<{ points: SpendingPoint[]; segments: string[] }>;
     },
   });
 
@@ -268,7 +297,7 @@ const Reports: React.FC = () => {
   if (statsLoading) {
     return (
       <div className="flex justify-center items-center h-64">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-ever-lime"></div>
       </div>
     );
   }
@@ -276,29 +305,35 @@ const Reports: React.FC = () => {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex justify-between items-center">
-        <h1 className="text-3xl font-bold text-gray-900">Spending Dashboard</h1>
+      <div className="flex justify-between items-center gap-3">
+        <h1 className="text-2xl font-extrabold tracking-tight text-ever-ink md:text-[26px]">Spending Dashboard</h1>
         <div className="flex gap-2 items-center">
           <button
             onClick={() => setViewMode('month')}
-            className={`px-4 py-2 rounded-md font-medium transition-colors ${
-              viewMode === 'month' ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-            }`}
+            className={cn(
+              'px-4 py-2 rounded-lg text-sm transition',
+              viewMode === 'month'
+                ? 'bg-ever-lime font-semibold text-ever-lime-ink'
+                : 'border border-ever-line text-ever-dim hover:text-ever-ink',
+            )}
           >
             Monthly
           </button>
           <button
             onClick={() => setViewMode('year')}
-            className={`px-4 py-2 rounded-md font-medium transition-colors ${
-              viewMode === 'year' ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-            }`}
+            className={cn(
+              'px-4 py-2 rounded-lg text-sm transition',
+              viewMode === 'year'
+                ? 'bg-ever-lime font-semibold text-ever-lime-ink'
+                : 'border border-ever-line text-ever-dim hover:text-ever-ink',
+            )}
           >
             Yearly
           </button>
           <select
             value={selectedYear}
             onChange={e => setSelectedYear(e.target.value)}
-            className="px-3 py-2 rounded-md text-sm border border-gray-300"
+            className="px-3 py-2 rounded-lg text-sm bg-ever-bg border border-ever-line text-ever-ink focus:outline-none focus:border-ever-lime"
           >
             {Array.from({ length: 5 }, (_, i) => now.getFullYear() - i).map(y => (
               <option key={y} value={y}>{y}</option>
@@ -308,7 +343,7 @@ const Reports: React.FC = () => {
             <select
               value={selectedMonth}
               onChange={e => setSelectedMonth(e.target.value)}
-              className="px-3 py-2 rounded-md text-sm border border-gray-300"
+              className="px-3 py-2 rounded-lg text-sm bg-ever-bg border border-ever-line text-ever-ink focus:outline-none focus:border-ever-lime"
             >
               {['01','02','03','04','05','06','07','08','09','10','11','12'].map(m => (
                 <option key={m} value={m}>
@@ -321,142 +356,163 @@ const Reports: React.FC = () => {
       </div>
 
       {/* Summary Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-6 gap-4">
-        <div className="bg-white rounded-lg p-5 shadow-sm border">
-          <p className="text-sm text-gray-500">Income</p>
-          <p className="text-2xl font-bold text-green-600">{fmt(totalIncome)}</p>
-        </div>
-        <div className="bg-white rounded-lg p-5 shadow-sm border">
-          <p className="text-sm text-gray-500">Spent</p>
-          <p className="text-2xl font-bold text-gray-900">{fmt(totalSpent)}</p>
-          <p className={`text-sm mt-1 ${totalSpent > totalBudget ? 'text-red-600' : 'text-green-600'}`}>
-            {totalBudget > 0 && (totalSpent > totalBudget
-              ? `${fmt(totalSpent - totalBudget)} over budget`
-              : `${fmt(totalBudget - totalSpent)} under budget`)}
-          </p>
-        </div>
-        <div className="bg-white rounded-lg p-5 shadow-sm border">
-          <p className="text-sm text-gray-500">Budget</p>
-          <p className="text-2xl font-bold text-gray-900">{fmt(totalBudget)}</p>
-        </div>
-        <div className="bg-white rounded-lg p-5 shadow-sm border">
-          <p className="text-sm text-gray-500">Savings</p>
-          <p className={`text-2xl font-bold ${savings >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-            {fmt(savings)}
-          </p>
-          {totalIncome > 0 && (
-            <p className="text-sm mt-1 text-gray-500">{savingsRate.toFixed(1)}% rate</p>
-          )}
-        </div>
-        <div className="bg-white rounded-lg p-5 shadow-sm border">
-          <p className="text-sm text-gray-500">Taxes</p>
-          <p className="text-2xl font-bold text-gray-900">{fmt(totalTaxes)}</p>
-          <p className="text-sm mt-1 text-gray-500">excluded from Spent</p>
-        </div>
-        <div className="bg-white rounded-lg p-5 shadow-sm border">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm text-gray-500">Transactions</p>
-              <p className="text-2xl font-bold text-gray-900">{txCount}</p>
-              {uncategorizedCount > 0 && (
-                <p className="text-sm mt-1 text-amber-600">{uncategorizedCount} uncategorized</p>
-              )}
-            </div>
-            {uncategorizedCount > 0 && <AlertTriangle className="h-8 w-8 text-amber-400" />}
-          </div>
-        </div>
+      <div className="grid grid-cols-2 md:grid-cols-6 gap-3">
+        <StatCard
+          label="Income"
+          value={<span className="text-ever-pos">{fmt(totalIncome)}</span>}
+          dot="var(--ever-pos)"
+        />
+        <StatCard
+          label="Spent"
+          value={fmt(totalSpent)}
+          dot="var(--ever-violet)"
+          sub={totalBudget > 0 ? (
+            <span className={totalSpent > totalBudget ? 'text-ever-neg' : 'text-ever-pos'}>
+              {totalSpent > totalBudget
+                ? `${fmt(totalSpent - totalBudget)} over budget`
+                : `${fmt(totalBudget - totalSpent)} under budget`}
+            </span>
+          ) : undefined}
+        />
+        <StatCard label="Budget" value={fmt(totalBudget)} dot="var(--ever-teal)" />
+        <StatCard
+          label="Savings"
+          value={<span className={savings >= 0 ? 'text-ever-pos' : 'text-ever-neg'}>{fmt(savings)}</span>}
+          dot="var(--ever-lime)"
+          sub={totalIncome > 0 ? `${savingsRate.toFixed(1)}% rate` : undefined}
+        />
+        <StatCard label="Taxes" value={fmt(totalTaxes)} dot="var(--ever-orange)" sub="excluded from Spent" />
+        <StatCard
+          label="Transactions"
+          value={
+            <span className="flex items-center justify-between gap-2">
+              {txCount}
+              {uncategorizedCount > 0 && <AlertTriangle className="h-5 w-5 text-ever-orange" />}
+            </span>
+          }
+          dot="var(--ever-teal)"
+          sub={uncategorizedCount > 0 ? (
+            <span className="text-ever-orange">{uncategorizedCount} uncategorized</span>
+          ) : undefined}
+        />
       </div>
 
       {/* Annual Spend Pacing */}
       {pacing && (
-        <div className="bg-white rounded-lg shadow-sm border p-6">
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-lg font-semibold text-gray-900">Annual Spend Pacing</h2>
-            <div className="flex gap-1">
-              {['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'].map((label, i) => {
-                const month = i + 1;
-                const isFuture = pacing.isFutureMonth(month);
-                const isClosed = closedMonths.has(month);
-                return (
-                  <button
-                    key={month}
-                    onClick={() => !isFuture && toggleClosedMonth(month)}
-                    disabled={isFuture}
-                    className={`px-2 py-1 text-xs rounded font-medium transition-colors ${
-                      isFuture
-                        ? 'bg-gray-100 text-gray-300 cursor-not-allowed'
-                        : isClosed
-                          ? 'bg-green-100 text-green-700 hover:bg-green-200'
-                          : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
-                    }`}
-                    title={isFuture ? 'Future month' : isClosed ? `${label} closed (using actuals)` : `${label} open (using budget)`}
-                  >
-                    {label}
-                  </button>
-                );
-              })}
-            </div>
-          </div>
+        <Card>
+          <CardHeader
+            title="Annual Spend Pacing"
+            right={
+              <div className="flex gap-1">
+                {['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'].map((label, i) => {
+                  const month = i + 1;
+                  const isFuture = pacing.isFutureMonth(month);
+                  const isClosed = closedMonths.has(month);
+                  return (
+                    <button
+                      key={month}
+                      onClick={() => !isFuture && toggleClosedMonth(month)}
+                      disabled={isFuture}
+                      className={cn(
+                        'px-2 py-1 text-xs rounded font-medium transition',
+                        isFuture
+                          ? 'bg-ever-track text-ever-faint cursor-not-allowed'
+                          : isClosed
+                            ? 'bg-ever-lime font-semibold text-ever-lime-ink'
+                            : 'border border-ever-line text-ever-dim hover:text-ever-ink',
+                      )}
+                      title={isFuture ? 'Future month' : isClosed ? `${label} closed (using actuals)` : `${label} open (using budget)`}
+                    >
+                      {label}
+                    </button>
+                  );
+                })}
+              </div>
+            }
+          />
           <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-4">
             <div>
-              <p className="text-sm text-gray-500">Actual ({pacing.completedMonths} months)</p>
-              <p className="text-xl font-bold text-gray-900">{fmt(pacing.actualTotal)}</p>
+              <p className="text-sm text-ever-dim">Actual ({pacing.completedMonths} months)</p>
+              <p className="text-xl font-bold text-ever-ink">{fmt(pacing.actualTotal)}</p>
             </div>
             <div>
-              <p className="text-sm text-gray-500">Projected ({pacing.remainingMonthCount} months at budget)</p>
-              <p className="text-xl font-bold text-gray-900">{fmt(pacing.projectedTotal)}</p>
+              <p className="text-sm text-ever-dim">Projected ({pacing.remainingMonthCount} months at budget)</p>
+              <p className="text-xl font-bold text-ever-ink">{fmt(pacing.projectedTotal)}</p>
             </div>
             <div>
-              <p className="text-sm text-gray-500">Annual Budget</p>
-              <p className="text-xl font-bold text-gray-900">{fmt(pacing.annualBudget)}</p>
+              <p className="text-sm text-ever-dim">Annual Budget</p>
+              <p className="text-xl font-bold text-ever-ink">{fmt(pacing.annualBudget)}</p>
             </div>
             <div>
-              <p className="text-sm text-gray-500">Pacing</p>
-              <p className={`text-xl font-bold ${pacing.pacingDiff > 0 ? 'text-red-600' : 'text-green-600'}`}>
+              <p className="text-sm text-ever-dim">Pacing</p>
+              <p className={`text-xl font-bold ${pacing.pacingDiff > 0 ? 'text-ever-neg' : 'text-ever-pos'}`}>
                 {pacing.pacingDiff > 0 ? '+' : ''}{fmt(pacing.pacingDiff)}
               </p>
-              <p className={`text-sm ${pacing.pacingDiff > 0 ? 'text-red-500' : 'text-green-500'}`}>
+              <p className={`text-sm ${pacing.pacingDiff > 0 ? 'text-ever-neg' : 'text-ever-pos'}`}>
                 {pacing.pacingDiff > 0 ? 'over budget' : 'under budget'}
               </p>
             </div>
           </div>
           <div className="relative">
-            <div className="w-full bg-gray-100 rounded-full h-4">
+            <div className="w-full bg-ever-track rounded-full h-4">
               <div
-                className={`h-4 rounded-full transition-all ${pacing.pacingDiff > 0 ? 'bg-red-500' : 'bg-green-500'}`}
+                className={`h-4 rounded-full transition-all ${pacing.pacingDiff > 0 ? 'bg-ever-neg' : 'bg-ever-pos'}`}
                 style={{ width: `${Math.min((pacing.projectedTotal / pacing.annualBudget) * 100, 100)}%` }}
               />
             </div>
             {/* Budget line marker at 100% */}
             <div
-              className="absolute top-0 h-4 border-r-2 border-gray-800"
+              className="absolute top-0 h-4 border-r-2 border-ever-ink"
               style={{ left: `${Math.min((pacing.annualBudget / Math.max(pacing.projectedTotal, pacing.annualBudget)) * 100, 100)}%` }}
               title="Annual Budget"
             />
           </div>
-          <p className="text-xs text-gray-400 mt-2">
+          <p className="text-xs text-ever-faint mt-2">
             Based on {pacing.completedMonths} month{pacing.completedMonths !== 1 ? 's' : ''} of actual spending + {pacing.remainingMonthCount} month{pacing.remainingMonthCount !== 1 ? 's' : ''} at {fmtShort(monthlyBudget)}/mo budget
           </p>
-        </div>
+        </Card>
       )}
+
+      {/* Spending over time — stacked by category or spend type */}
+      <Card>
+        <div className="flex items-center justify-between mb-4 gap-3">
+          <div>
+            <h3 className="text-[15px] font-semibold tracking-tight text-ever-ink">Spending Over Time</h3>
+            <p className="text-xs text-ever-dim mt-0.5">{selectedYear} monthly spend, excluding transfers, income, and taxes</p>
+          </div>
+          <select
+            value={segmentBy}
+            onChange={e => setSegmentBy(e.target.value as 'category' | 'spend_type')}
+            className="px-3 py-2 rounded-lg text-sm bg-ever-bg border border-ever-line text-ever-ink focus:outline-none focus:border-ever-lime"
+          >
+            <option value="spend_type">By Type</option>
+            <option value="category">By Category</option>
+          </select>
+        </div>
+        <SpendingOverTimeChart
+          points={timeseries?.points || []}
+          segments={timeseries?.segments || []}
+          segmentBy={segmentBy}
+        />
+      </Card>
 
       {/* Main content: Category breakdown + Monthly trend */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Spending by Category */}
-        <div className="lg:col-span-2 bg-white rounded-lg shadow-sm border">
-          <div className="px-6 py-4 border-b border-gray-200">
-            <h2 className="text-lg font-semibold text-gray-900">Spending by Category</h2>
+        <div className="lg:col-span-2 rounded-ever border border-ever-line bg-ever-card">
+          <div className="px-6 py-4 border-b border-ever-line">
+            <h3 className="text-[15px] font-semibold tracking-tight text-ever-ink">Spending by Category</h3>
           </div>
           <div className="p-6 space-y-4">
             {categoryStats.length === 0 && (
-              <p className="text-gray-400 text-center py-8">No categorized spending data</p>
+              <p className="text-ever-dim text-center py-8">No categorized spending data</p>
             )}
             {categoryStats.map(cat => {
               const budget = budgetByCategory[cat.category] || 0;
               const pct = totalSpent > 0 ? (cat.total / totalSpent) * 100 : 0;
               const overBudget = budget > 0 && cat.total > budget;
-              const barColor = CATEGORY_COLORS[cat.category] || 'bg-gray-400';
-              const textColor = CATEGORY_TEXT_COLORS[cat.category] || 'text-gray-700';
+              const barColor = CATEGORY_COLORS[cat.category] || 'bg-slate-500';
+              const textColor = CATEGORY_TEXT_COLORS[cat.category] || 'text-ever-dim';
               const isExpanded = expandedCategories.has(cat.category);
               const subs = subcatsByCategory[cat.category] || [];
 
@@ -474,28 +530,28 @@ const Reports: React.FC = () => {
                       {cat.category}
                     </span>
                     <div className="text-right text-sm">
-                      <span className="font-medium text-gray-900">{fmt(cat.total)}</span>
+                      <span className="font-medium text-ever-ink">{fmt(cat.total)}</span>
                       {budget > 0 && (
-                        <span className={`ml-2 ${overBudget ? 'text-red-500' : 'text-gray-400'}`}>
+                        <span className={`ml-2 ${overBudget ? 'text-ever-neg' : 'text-ever-faint'}`}>
                           / {fmtShort(budget)}
                         </span>
                       )}
                     </div>
                   </button>
-                  <div className="w-full bg-gray-100 rounded-full h-3 relative">
+                  <div className="w-full bg-ever-track rounded-full h-3 relative">
                     <div
                       className={`${barColor} h-3 rounded-full transition-all`}
                       style={{ width: `${Math.min((cat.total / maxCategorySpend) * 100, 100)}%` }}
                     />
                     {budget > 0 && (
                       <div
-                        className="absolute top-0 h-3 border-r-2 border-gray-800"
+                        className="absolute top-0 h-3 border-r-2 border-ever-ink"
                         style={{ left: `${Math.min((budget / maxCategorySpend) * 100, 100)}%` }}
                         title={`Budget: ${fmtShort(budget)}`}
                       />
                     )}
                   </div>
-                  <div className="text-xs text-gray-400 mt-0.5">{pct.toFixed(1)}% of total -- {cat.count} transactions</div>
+                  <div className="text-xs text-ever-faint mt-0.5">{pct.toFixed(1)}% of total -- {cat.count} transactions</div>
                   {isExpanded && subs.length > 0 && (
                     <div className="ml-5 mt-2 mb-1 space-y-1.5">
                       {subs.map(sub => {
@@ -504,18 +560,18 @@ const Reports: React.FC = () => {
                         return (
                           <div key={sub.subcategory}>
                             <div className="flex items-center justify-between text-xs">
-                              <span className="text-gray-600">{sub.subcategory}</span>
+                              <span className="text-ever-dim">{sub.subcategory}</span>
                               <div className="text-right">
-                                <span className="font-medium text-gray-800">{fmt(sub.total)}</span>
+                                <span className="font-medium text-ever-ink">{fmt(sub.total)}</span>
                                 {subBudget > 0 && (
-                                  <span className={`ml-1.5 ${subOver ? 'text-red-500' : 'text-gray-400'}`}>
+                                  <span className={`ml-1.5 ${subOver ? 'text-ever-neg' : 'text-ever-faint'}`}>
                                     / {fmtShort(subBudget)}
                                   </span>
                                 )}
-                                <span className="ml-1.5 text-gray-400">{sub.count} txn</span>
+                                <span className="ml-1.5 text-ever-faint">{sub.count} txn</span>
                               </div>
                             </div>
-                            <div className="w-full bg-gray-50 rounded-full h-1.5 mt-0.5">
+                            <div className="w-full bg-ever-track rounded-full h-1.5 mt-0.5">
                               <div
                                 className={`${barColor} opacity-60 h-1.5 rounded-full`}
                                 style={{ width: `${Math.min((sub.total / cat.total) * 100, 100)}%` }}
@@ -533,13 +589,13 @@ const Reports: React.FC = () => {
         </div>
 
         {/* Monthly Trend - Income vs Expenses */}
-        <div className="bg-white rounded-lg shadow-sm border">
-          <div className="px-6 py-4 border-b border-gray-200">
-            <h2 className="text-lg font-semibold text-gray-900">Income vs Expenses</h2>
+        <div className="rounded-ever border border-ever-line bg-ever-card">
+          <div className="px-6 py-4 border-b border-ever-line">
+            <h3 className="text-[15px] font-semibold tracking-tight text-ever-ink">Income vs Expenses</h3>
           </div>
           <div className="p-6">
             {monthlyStats.length === 0 && (
-              <p className="text-gray-400 text-center py-8">No data</p>
+              <p className="text-ever-dim text-center py-8">No data</p>
             )}
             {(() => {
               const maxVal = Math.max(...monthlyStats.map(m => Math.max(m.income, m.expenses)), 1);
@@ -548,34 +604,34 @@ const Reports: React.FC = () => {
                 return (
                   <div key={m.month} className="mb-4">
                     <div className="flex justify-between text-sm mb-1">
-                      <span className="text-gray-600 font-medium">
+                      <span className="text-ever-dim font-medium">
                         {new Date(m.month + '-01').toLocaleString('default', { month: 'short', year: 'numeric' })}
                       </span>
-                      <span className={`text-xs font-medium ${net >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                      <span className={`text-xs font-medium ${net >= 0 ? 'text-ever-pos' : 'text-ever-neg'}`}>
                         {net >= 0 ? '+' : ''}{fmt(net)}
                       </span>
                     </div>
                     {m.income > 0 && (
                       <div className="flex items-center gap-2 mb-1">
-                        <span className="text-xs text-gray-400 w-12">In</span>
-                        <div className="flex-1 bg-gray-100 rounded-full h-2">
+                        <span className="text-xs text-ever-faint w-12">In</span>
+                        <div className="flex-1 bg-ever-track rounded-full h-2">
                           <div
-                            className="bg-green-500 h-2 rounded-full transition-all"
+                            className="bg-ever-pos h-2 rounded-full transition-all"
                             style={{ width: `${(m.income / maxVal) * 100}%` }}
                           />
                         </div>
-                        <span className="text-xs text-gray-500 w-20 text-right">{fmtShort(m.income)}</span>
+                        <span className="text-xs text-ever-dim w-20 text-right">{fmtShort(m.income)}</span>
                       </div>
                     )}
                     <div className="flex items-center gap-2">
-                      <span className="text-xs text-gray-400 w-12">Out</span>
-                      <div className="flex-1 bg-gray-100 rounded-full h-2">
+                      <span className="text-xs text-ever-faint w-12">Out</span>
+                      <div className="flex-1 bg-ever-track rounded-full h-2">
                         <div
-                          className="bg-red-400 h-2 rounded-full transition-all"
+                          className="bg-ever-neg h-2 rounded-full transition-all"
                           style={{ width: `${(m.expenses / maxVal) * 100}%` }}
                         />
                       </div>
-                      <span className="text-xs text-gray-500 w-20 text-right">{fmtShort(m.expenses)}</span>
+                      <span className="text-xs text-ever-dim w-20 text-right">{fmtShort(m.expenses)}</span>
                     </div>
                   </div>
                 );
@@ -586,24 +642,24 @@ const Reports: React.FC = () => {
       </div>
 
       {/* Subcategory breakdown */}
-      <div className="bg-white rounded-lg shadow-sm border">
-        <div className="px-6 py-4 border-b border-gray-200">
-          <h2 className="text-lg font-semibold text-gray-900">Subcategory Breakdown</h2>
+      <div className="rounded-ever border border-ever-line bg-ever-card">
+        <div className="px-6 py-4 border-b border-ever-line">
+          <h3 className="text-[15px] font-semibold tracking-tight text-ever-ink">Subcategory Breakdown</h3>
         </div>
         <div className="overflow-x-auto">
-          <table className="min-w-full divide-y divide-gray-200">
-            <thead className="bg-gray-50">
+          <table className="min-w-full divide-y divide-ever-line">
+            <thead>
               <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Category</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Subcategory</th>
-                <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">Spent</th>
-                <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">Budget</th>
-                <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">Remaining</th>
-                <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">Txns</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase w-48">Progress</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-ever-dim uppercase">Category</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-ever-dim uppercase">Subcategory</th>
+                <th className="px-6 py-3 text-right text-xs font-medium text-ever-dim uppercase">Spent</th>
+                <th className="px-6 py-3 text-right text-xs font-medium text-ever-dim uppercase">Budget</th>
+                <th className="px-6 py-3 text-right text-xs font-medium text-ever-dim uppercase">Remaining</th>
+                <th className="px-6 py-3 text-right text-xs font-medium text-ever-dim uppercase">Txns</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-ever-dim uppercase w-48">Progress</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-gray-200">
+            <tbody className="divide-y divide-ever-line">
               {subcategoryStats.map(sub => {
                 const budgetKey = `${sub.category}::${sub.subcategory}`;
                 const budget = budgetBySubcategory[budgetKey] || 0;
@@ -612,29 +668,29 @@ const Reports: React.FC = () => {
                 const overBudget = budget > 0 && sub.total > budget;
 
                 return (
-                  <tr key={budgetKey} className={overBudget ? 'bg-red-50' : ''}>
-                    <td className="px-6 py-2.5 text-sm text-gray-600">{sub.category}</td>
-                    <td className="px-6 py-2.5 text-sm font-medium text-gray-900">{sub.subcategory}</td>
-                    <td className="px-6 py-2.5 text-sm text-right font-medium text-gray-900">{fmt(sub.total)}</td>
-                    <td className="px-6 py-2.5 text-sm text-right text-gray-500">
+                  <tr key={budgetKey} className={overBudget ? 'bg-white/5' : 'hover:bg-white/5'}>
+                    <td className="px-6 py-2.5 text-sm text-ever-dim">{sub.category}</td>
+                    <td className="px-6 py-2.5 text-sm font-medium text-ever-ink">{sub.subcategory}</td>
+                    <td className="px-6 py-2.5 text-sm text-right font-medium text-ever-ink tabular-nums">{fmt(sub.total)}</td>
+                    <td className="px-6 py-2.5 text-sm text-right text-ever-dim tabular-nums">
                       {budget > 0 ? fmtShort(budget) : '--'}
                     </td>
-                    <td className={`px-6 py-2.5 text-sm text-right font-medium ${
-                      budget === 0 ? 'text-gray-400' : remaining >= 0 ? 'text-green-600' : 'text-red-600'
+                    <td className={`px-6 py-2.5 text-sm text-right font-medium tabular-nums ${
+                      budget === 0 ? 'text-ever-faint' : remaining >= 0 ? 'text-ever-pos' : 'text-ever-neg'
                     }`}>
                       {budget > 0 ? fmt(remaining) : '--'}
                     </td>
-                    <td className="px-6 py-2.5 text-sm text-right text-gray-500">{sub.count}</td>
+                    <td className="px-6 py-2.5 text-sm text-right text-ever-dim tabular-nums">{sub.count}</td>
                     <td className="px-6 py-2.5">
                       {budget > 0 ? (
-                        <div className="w-full bg-gray-100 rounded-full h-2">
+                        <div className="w-full bg-ever-track rounded-full h-2">
                           <div
-                            className={`h-2 rounded-full ${overBudget ? 'bg-red-500' : 'bg-green-500'}`}
+                            className={`h-2 rounded-full ${overBudget ? 'bg-ever-neg' : 'bg-ever-pos'}`}
                             style={{ width: `${Math.min(pct, 100)}%` }}
                           />
                         </div>
                       ) : (
-                        <span className="text-xs text-gray-300">--</span>
+                        <span className="text-xs text-ever-faint">--</span>
                       )}
                     </td>
                   </tr>

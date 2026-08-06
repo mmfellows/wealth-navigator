@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Plus, Edit, Trash2, TrendingUp, Shield, Dice1, Loader2, ChevronDown, ChevronRight, CheckCircle, MoreHorizontal, ArrowUpDown, ArrowUp, ArrowDown, Building, Target } from 'lucide-react';
 import { useIdeas, useAddIdea, useUpdateIdea, useDeleteIdea, useInvestments } from '../hooks/usePortfolio';
+import { Card, Button } from '../components/ui';
 import axios from 'axios';
 
 const Ideas: React.FC = () => {
@@ -269,8 +270,8 @@ const Ideas: React.FC = () => {
   if (isLoading) {
     return (
       <div className="flex items-center justify-center h-64">
-        <Loader2 className="h-8 w-8 animate-spin" />
-        <span className="ml-2">Loading investment ideas...</span>
+        <Loader2 className="h-8 w-8 animate-spin text-ever-lime" />
+        <span className="ml-2 text-ever-dim">Loading investment ideas...</span>
       </div>
     );
   }
@@ -278,7 +279,7 @@ const Ideas: React.FC = () => {
   if (error) {
     return (
       <div className="text-center py-8">
-        <p className="text-red-600">Failed to load investment ideas. Please try again.</p>
+        <p className="text-ever-neg">Failed to load investment ideas. Please try again.</p>
       </div>
     );
   }
@@ -294,19 +295,19 @@ const Ideas: React.FC = () => {
 
   const getCategoryColor = (category: string) => {
     switch (category) {
-      case 'low-risk': return 'text-green-600 bg-green-100';
-      case 'growth': return 'text-blue-600 bg-blue-100';
-      case 'speculative': return 'text-red-600 bg-red-100';
-      default: return 'text-gray-600 bg-gray-100';
+      case 'low-risk': return 'text-ever-teal bg-white/5';
+      case 'growth': return 'text-ever-lime bg-white/5';
+      case 'speculative': return 'text-ever-orange bg-white/5';
+      default: return 'text-ever-dim bg-white/5';
     }
   };
 
   const getConfidenceColor = (confidence: string) => {
     switch (confidence) {
-      case 'high': return 'text-green-700 bg-green-50 border-green-200';
-      case 'medium': return 'text-yellow-700 bg-yellow-50 border-yellow-200';
-      case 'low': return 'text-red-700 bg-red-50 border-red-200';
-      default: return 'text-gray-700 bg-gray-50 border-gray-200';
+      case 'high': return 'text-ever-pos bg-white/5';
+      case 'medium': return 'text-ever-orange bg-white/5';
+      case 'low': return 'text-ever-neg bg-white/5';
+      default: return 'text-ever-dim bg-white/5';
     }
   };
 
@@ -321,12 +322,12 @@ const Ideas: React.FC = () => {
 
   const getSortIcon = (columnKey: string) => {
     if (sortConfig.key !== columnKey || !sortConfig.direction) {
-      return <ArrowUpDown className="h-3 w-3 text-gray-400" />;
+      return <ArrowUpDown className="h-3 w-3 text-ever-faint" />;
     }
     return sortConfig.direction === 'asc' ? (
-      <ArrowUp className="h-3 w-3 text-blue-600" />
+      <ArrowUp className="h-3 w-3 text-ever-lime" />
     ) : (
-      <ArrowDown className="h-3 w-3 text-blue-600" />
+      <ArrowDown className="h-3 w-3 text-ever-lime" />
     );
   };
 
@@ -345,10 +346,10 @@ const Ideas: React.FC = () => {
 
   const getMarketCapCategoryColor = (category: string) => {
     switch (category) {
-      case 'large': return 'text-purple-700 bg-purple-100 border-purple-200';
-      case 'mid': return 'text-blue-700 bg-blue-100 border-blue-200';
-      case 'small': return 'text-orange-700 bg-orange-100 border-orange-200';
-      default: return 'text-gray-700 bg-gray-100 border-gray-200';
+      case 'large': return 'text-ever-violet bg-white/5 border-ever-line';
+      case 'mid': return 'text-ever-lime bg-white/5 border-ever-line';
+      case 'small': return 'text-ever-orange bg-white/5 border-ever-line';
+      default: return 'text-ever-dim bg-white/5 border-ever-line';
     }
   };
 
@@ -365,19 +366,16 @@ const Ideas: React.FC = () => {
     <div className="space-y-8">
       <div className="flex justify-between items-center">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900">Watchlist</h1>
-          <p className="text-gray-600 mt-1">Theses you're tracking. Promote one to a bet when you actually buy in.</p>
+          <h1 className="text-2xl font-extrabold tracking-tight text-ever-ink md:text-[26px]">Watchlist</h1>
+          <p className="text-ever-dim mt-1 text-sm">Theses you're tracking. Promote one to a bet when you actually buy in.</p>
         </div>
-        <button
-          onClick={() => setShowAddForm(true)}
-          className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 flex items-center"
-        >
-          <Plus className="h-4 w-4 mr-2" />
+        <Button onClick={() => setShowAddForm(true)}>
+          <Plus className="h-4 w-4" />
           Add to Watchlist
-        </button>
+        </Button>
       </div>
 
-      <div className="flex space-x-4">
+      <div className="flex space-x-2">
         {[
           { key: 'all', label: 'All Ideas' },
           { key: 'low-risk', label: 'Low Risk' },
@@ -387,10 +385,10 @@ const Ideas: React.FC = () => {
           <button
             key={category.key}
             onClick={() => setSelectedCategory(category.key)}
-            className={`px-4 py-2 rounded-md text-sm font-medium ${
+            className={`px-4 py-2 rounded-lg text-sm font-medium transition ${
               selectedCategory === category.key
-                ? 'bg-blue-100 text-blue-700'
-                : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                ? 'bg-ever-lime text-ever-lime-ink'
+                : 'border border-ever-line text-ever-dim hover:text-ever-ink'
             }`}
           >
             {category.label}
@@ -399,50 +397,50 @@ const Ideas: React.FC = () => {
       </div>
 
       {showAddForm && (
-        <div className="bg-white rounded-lg p-6 shadow-sm border">
-          <h2 className="text-xl font-semibold text-gray-900 mb-4">
+        <Card className="p-6">
+          <h2 className="text-xl font-semibold text-ever-ink mb-4">
             {editingIdea ? 'Edit Investment Idea' : 'Add New Investment Idea'}
           </h2>
           <form onSubmit={handleSubmitIdea}>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Ticker Symbol *</label>
+                <label className="block text-sm font-medium text-ever-dim mb-2">Ticker Symbol *</label>
                 <input
                   type="text"
                   placeholder="e.g., AAPL"
                   value={formData.ticker}
                   onChange={(e) => setFormData(prev => ({ ...prev, ticker: e.target.value.toUpperCase() }))}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  className="w-full px-3 py-2 bg-ever-bg border border-ever-line text-ever-ink placeholder-ever-faint rounded-lg focus:outline-none focus:border-ever-lime"
                   required
                 />
                 {formData.ticker && (
                   <div className="mt-2 min-h-[20px]">
                     {isLoadingPreview ? (
-                      <div className="flex items-center text-xs text-gray-500">
+                      <div className="flex items-center text-xs text-ever-dim">
                         <Loader2 className="h-3 w-3 animate-spin mr-1" />
                         Looking up company...
                       </div>
                     ) : companyNamePreview ? (
-                      <div className="text-sm text-gray-600">
+                      <div className="text-sm text-ever-dim">
                         📈 {companyNamePreview}
                       </div>
                     ) : formData.ticker.length > 0 ? (
-                      <div className="text-xs text-red-500">
+                      <div className="text-xs text-ever-neg">
                         Company not found - please verify ticker symbol
                       </div>
                     ) : null}
                   </div>
                 )}
                 {!formData.ticker && (
-                  <p className="mt-1 text-xs text-gray-500">Company name will be fetched automatically</p>
+                  <p className="mt-1 text-xs text-ever-faint">Company name will be fetched automatically</p>
                 )}
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Category</label>
+                <label className="block text-sm font-medium text-ever-dim mb-2">Category</label>
                 <select
                   value={formData.category}
                   onChange={(e) => setFormData(prev => ({ ...prev, category: e.target.value }))}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  className="w-full px-3 py-2 bg-ever-bg border border-ever-line text-ever-ink rounded-lg focus:outline-none focus:border-ever-lime"
                 >
                   <option value="low-risk">Low Risk</option>
                   <option value="growth">Growth</option>
@@ -450,11 +448,11 @@ const Ideas: React.FC = () => {
                 </select>
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Confidence Level</label>
+                <label className="block text-sm font-medium text-ever-dim mb-2">Confidence Level</label>
                 <select
                   value={formData.confidence}
                   onChange={(e) => setFormData(prev => ({ ...prev, confidence: e.target.value }))}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  className="w-full px-3 py-2 bg-ever-bg border border-ever-line text-ever-ink rounded-lg focus:outline-none focus:border-ever-lime"
                 >
                   <option value="high">High Confidence</option>
                   <option value="medium">Medium Confidence</option>
@@ -462,10 +460,10 @@ const Ideas: React.FC = () => {
                 </select>
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Price Target (Optional)</label>
+                <label className="block text-sm font-medium text-ever-dim mb-2">Price Target (Optional)</label>
                 <div className="relative">
                   <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                    <span className="text-gray-500 sm:text-sm">$</span>
+                    <span className="text-ever-dim sm:text-sm">$</span>
                   </div>
                   <input
                     type="number"
@@ -474,201 +472,200 @@ const Ideas: React.FC = () => {
                     placeholder="0.00"
                     value={formData.price_target}
                     onChange={(e) => setFormData(prev => ({ ...prev, price_target: e.target.value }))}
-                    className="w-full pl-7 pr-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    className="w-full pl-7 pr-3 py-2 bg-ever-bg border border-ever-line text-ever-ink placeholder-ever-faint rounded-lg focus:outline-none focus:border-ever-lime"
                   />
                 </div>
-                <p className="mt-1 text-xs text-gray-500">The price you'd consider buying this stock</p>
+                <p className="mt-1 text-xs text-ever-faint">The price you'd consider buying this stock</p>
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Intended Bet Type</label>
+                <label className="block text-sm font-medium text-ever-dim mb-2">Intended Bet Type</label>
                 <select
                   value={formData.intended_bet_type}
                   onChange={(e) => setFormData(prev => ({ ...prev, intended_bet_type: e.target.value }))}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  className="w-full px-3 py-2 bg-ever-bg border border-ever-line text-ever-ink rounded-lg focus:outline-none focus:border-ever-lime"
                 >
                   <option value="">— not sure yet —</option>
                   <option value="Long">Long Bet (multi-year)</option>
                   <option value="Mid">Mid Bet (months to a couple years)</option>
                   <option value="Short">Short / Speculative Bet</option>
                 </select>
-                <p className="mt-1 text-xs text-gray-500">Pre-decide so promote-to-bet is one click later</p>
+                <p className="mt-1 text-xs text-ever-faint">Pre-decide so promote-to-bet is one click later</p>
               </div>
               <div className="md:col-span-2">
-                <label className="block text-sm font-medium text-gray-700 mb-2">Investment Rationale *</label>
+                <label className="block text-sm font-medium text-ever-dim mb-2">Investment Rationale *</label>
                 <textarea
                   rows={3}
                   placeholder="Why do you think this is a good investment opportunity?"
                   value={formData.notes}
                   onChange={(e) => setFormData(prev => ({ ...prev, notes: e.target.value }))}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  className="w-full px-3 py-2 bg-ever-bg border border-ever-line text-ever-ink placeholder-ever-faint rounded-lg focus:outline-none focus:border-ever-lime"
                   required
                 />
               </div>
               <div className="md:col-span-2 flex justify-end space-x-3">
-                <button
+                <Button
                   type="button"
+                  variant="ghost"
                   onClick={resetForm}
-                  className="px-4 py-2 text-gray-600 border border-gray-300 rounded-md hover:bg-gray-50"
                 >
                   Cancel
-                </button>
-                <button
+                </Button>
+                <Button
                   type="submit"
                   disabled={addIdeaMutation.isPending || updateIdeaMutation.isPending}
-                  className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center"
                 >
                   {(addIdeaMutation.isPending || updateIdeaMutation.isPending) ? (
                     <>
-                      <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                      <Loader2 className="h-4 w-4 animate-spin" />
                       {editingIdea ? 'Updating...' : 'Adding...'}
                     </>
                   ) : (
                     editingIdea ? 'Update Idea' : 'Add Idea'
                   )}
-                </button>
+                </Button>
               </div>
             </div>
           </form>
-        </div>
+        </Card>
       )}
 
       {filteredAndSortedIdeas.length === 0 ? (
         <div className="text-center py-8">
-          <p className="text-gray-500">No investment ideas found. Add your first idea!</p>
+          <p className="text-ever-dim">No investment ideas found. Add your first idea!</p>
         </div>
       ) : (
-        <div className="bg-white rounded-lg shadow-sm border overflow-hidden">
+        <div className="bg-ever-card rounded-ever border border-ever-line overflow-hidden">
           <div className="overflow-x-auto">
-            <table className="w-full divide-y divide-gray-200">
-              <thead className="bg-gray-50">
+            <table className="w-full divide-y divide-ever-line">
+              <thead className="bg-white/5">
                 <tr>
                   <th className="w-8 px-3 py-3"></th>
-                  <th className="w-16 px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="w-16 px-3 py-3 text-left text-xs font-medium text-ever-dim uppercase tracking-wider">
                     <button
                       onClick={() => handleSort('ticker')}
-                      className="flex items-center space-x-1 hover:text-gray-700 focus:outline-none"
+                      className="flex items-center space-x-1 hover:text-ever-ink focus:outline-none"
                     >
                       <span>Ticker</span>
                       {getSortIcon('ticker')}
                     </button>
                   </th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-4 py-3 text-left text-xs font-medium text-ever-dim uppercase tracking-wider">
                     <button
                       onClick={() => handleSort('name')}
-                      className="flex items-center space-x-1 hover:text-gray-700 focus:outline-none"
+                      className="flex items-center space-x-1 hover:text-ever-ink focus:outline-none"
                     >
                       <span>Company</span>
                       {getSortIcon('name')}
                     </button>
                   </th>
-                  <th className="w-20 px-3 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="w-20 px-3 py-3 text-right text-xs font-medium text-ever-dim uppercase tracking-wider">
                     <button
                       onClick={() => handleSort('current_price')}
-                      className="flex items-center space-x-1 hover:text-gray-700 focus:outline-none ml-auto"
+                      className="flex items-center space-x-1 hover:text-ever-ink focus:outline-none ml-auto"
                     >
                       <span>Price</span>
                       {getSortIcon('current_price')}
                     </button>
                   </th>
-                  <th className="w-20 px-3 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="w-20 px-3 py-3 text-right text-xs font-medium text-ever-dim uppercase tracking-wider">
                     <button
                       onClick={() => handleSort('price_target')}
-                      className="flex items-center space-x-1 hover:text-gray-700 focus:outline-none ml-auto"
+                      className="flex items-center space-x-1 hover:text-ever-ink focus:outline-none ml-auto"
                     >
                       <span>Target</span>
                       {getSortIcon('price_target')}
                     </button>
                   </th>
-                  <th className="w-24 px-2 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="w-24 px-2 py-3 text-right text-xs font-medium text-ever-dim uppercase tracking-wider">
                     <button
                       onClick={() => handleSort('market_cap')}
-                      className="flex items-center space-x-1 hover:text-gray-700 focus:outline-none ml-auto"
+                      className="flex items-center space-x-1 hover:text-ever-ink focus:outline-none ml-auto"
                     >
                       <span>Market Cap</span>
                       {getSortIcon('market_cap')}
                     </button>
                   </th>
-                  <th className="w-20 px-2 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="w-20 px-2 py-3 text-center text-xs font-medium text-ever-dim uppercase tracking-wider">
                     <button
                       onClick={() => handleSort('market_cap_category')}
-                      className="flex items-center space-x-1 hover:text-gray-700 focus:outline-none mx-auto"
+                      className="flex items-center space-x-1 hover:text-ever-ink focus:outline-none mx-auto"
                     >
                       <span>Cap</span>
                       {getSortIcon('market_cap_category')}
                     </button>
                   </th>
-                  <th className="w-24 px-2 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="w-24 px-2 py-3 text-center text-xs font-medium text-ever-dim uppercase tracking-wider">
                     <button
                       onClick={() => handleSort('category')}
-                      className="flex items-center space-x-1 hover:text-gray-700 focus:outline-none mx-auto"
+                      className="flex items-center space-x-1 hover:text-ever-ink focus:outline-none mx-auto"
                     >
                       <span>Category</span>
                       {getSortIcon('category')}
                     </button>
                   </th>
-                  <th className="w-20 px-2 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="w-20 px-2 py-3 text-center text-xs font-medium text-ever-dim uppercase tracking-wider">
                     <button
                       onClick={() => handleSort('confidence')}
-                      className="flex items-center space-x-1 hover:text-gray-700 focus:outline-none mx-auto"
+                      className="flex items-center space-x-1 hover:text-ever-ink focus:outline-none mx-auto"
                     >
                       <span>Conf.</span>
                       {getSortIcon('confidence')}
                     </button>
                   </th>
-                  <th className="w-16 px-2 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="w-16 px-2 py-3 text-center text-xs font-medium text-ever-dim uppercase tracking-wider">
                     Owned
                   </th>
-                  <th className="w-20 px-3 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="w-20 px-3 py-3 text-center text-xs font-medium text-ever-dim uppercase tracking-wider">
                     <button
                       onClick={() => handleSort('date_added')}
-                      className="flex items-center space-x-1 hover:text-gray-700 focus:outline-none mx-auto"
+                      className="flex items-center space-x-1 hover:text-ever-ink focus:outline-none mx-auto"
                     >
                       <span>Added</span>
                       {getSortIcon('date_added')}
                     </button>
                   </th>
-                  <th className="w-12 px-2 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="w-12 px-2 py-3 text-center text-xs font-medium text-ever-dim uppercase tracking-wider">
                     •••
                   </th>
                 </tr>
               </thead>
-            <tbody className="bg-white divide-y divide-gray-200">
+            <tbody className="divide-y divide-ever-line">
               {filteredAndSortedIdeas.map((idea) => {
                 const Icon = getCategoryIcon(idea.category);
                 const isExpanded = expandedRows.has(idea.id);
                 return (
                   <React.Fragment key={idea.id}>
                     <tr
-                      className="hover:bg-gray-50 cursor-pointer"
+                      className="hover:bg-white/5 cursor-pointer"
                       onClick={() => toggleRowExpansion(idea.id)}
                     >
                       <td className="px-3 py-3 whitespace-nowrap">
                         {isExpanded ? (
-                          <ChevronDown className="h-4 w-4 text-gray-400" />
+                          <ChevronDown className="h-4 w-4 text-ever-faint" />
                         ) : (
-                          <ChevronRight className="h-4 w-4 text-gray-400" />
+                          <ChevronRight className="h-4 w-4 text-ever-faint" />
                         )}
                       </td>
                       <td className="px-3 py-3 whitespace-nowrap">
-                        <div className="text-sm font-bold text-gray-900">{idea.ticker}</div>
+                        <div className="text-sm font-bold text-ever-ink">{idea.ticker}</div>
                       </td>
                       <td className="px-4 py-3">
-                        <div className="text-sm text-gray-900 truncate max-w-xs" title={idea.name}>
+                        <div className="text-sm text-ever-ink truncate max-w-xs" title={idea.name}>
                           {idea.name}
                         </div>
                       </td>
                       <td className="px-3 py-3 whitespace-nowrap text-right">
-                        <div className="text-sm font-semibold text-green-600">
+                        <div className="text-sm font-semibold text-ever-pos tabular-nums">
                           ${idea.current_price ? idea.current_price.toFixed(2) : '--'}
                         </div>
                       </td>
                       <td className="px-3 py-3 whitespace-nowrap text-right">
-                        <div className="text-sm font-semibold text-blue-600">
+                        <div className="text-sm font-semibold text-ever-lime tabular-nums">
                           {idea.price_target ? `$${idea.price_target.toFixed(2)}` : '--'}
                         </div>
                       </td>
                       <td className="px-2 py-3 whitespace-nowrap text-right">
-                        <div className="text-sm font-medium text-gray-900">
+                        <div className="text-sm font-medium text-ever-ink tabular-nums">
                           {formatMarketCap(idea.market_cap)}
                         </div>
                       </td>
@@ -690,29 +687,29 @@ const Ideas: React.FC = () => {
                       </td>
                       <td className="px-2 py-3 whitespace-nowrap text-center">
                         {checkHoldings(idea.ticker) ? (
-                          <span title="Owned"><CheckCircle className="h-4 w-4 text-green-500 mx-auto" /></span>
+                          <span title="Owned"><CheckCircle className="h-4 w-4 text-ever-pos mx-auto" /></span>
                         ) : (
-                          <div className="w-4 h-4 rounded-full border-2 border-gray-300 mx-auto" title="Not Owned" />
+                          <div className="w-4 h-4 rounded-full border-2 border-ever-line mx-auto" title="Not Owned" />
                         )}
                       </td>
                       <td className="px-3 py-3 whitespace-nowrap text-center">
-                        <div className="text-xs text-gray-500">
+                        <div className="text-xs text-ever-dim">
                           {new Date(idea.date_added || idea.dateAdded).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
                         </div>
                       </td>
                       <td className="px-2 py-3 whitespace-nowrap text-center">
                         <div className="relative" ref={openMenuId === idea.id ? menuRef : null}>
                           <button
-                            className="p-1 text-gray-400 hover:text-gray-600"
+                            className="p-1 text-ever-faint hover:text-ever-ink"
                             onClick={(e) => toggleMenu(idea.id, e)}
                             title="More actions"
                           >
                             <MoreHorizontal className="h-4 w-4" />
                           </button>
                           {openMenuId === idea.id && (
-                            <div className="absolute right-0 top-8 w-40 bg-white rounded-md shadow-lg border border-gray-200 py-1 z-50">
+                            <div className="absolute right-0 top-8 w-40 bg-ever-card rounded-ever shadow-lg border border-ever-line py-1 z-50">
                               <button
-                                className="w-full px-3 py-2 text-left text-sm text-blue-700 hover:bg-blue-50 flex items-center"
+                                className="w-full px-3 py-2 text-left text-sm text-ever-lime hover:bg-white/5 flex items-center"
                                 onClick={(e) => {
                                   e.stopPropagation();
                                   handlePromote(idea);
@@ -723,7 +720,7 @@ const Ideas: React.FC = () => {
                                 Promote to Bet
                               </button>
                               <button
-                                className="w-full px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 flex items-center"
+                                className="w-full px-3 py-2 text-left text-sm text-ever-ink hover:bg-white/5 flex items-center"
                                 onClick={(e) => {
                                   e.stopPropagation();
                                   handleEditIdea(idea);
@@ -734,7 +731,7 @@ const Ideas: React.FC = () => {
                                 Edit
                               </button>
                               <button
-                                className="w-full px-3 py-2 text-left text-sm text-red-600 hover:bg-gray-100 flex items-center"
+                                className="w-full px-3 py-2 text-left text-sm text-ever-neg hover:bg-white/5 flex items-center"
                                 onClick={(e) => {
                                   e.stopPropagation();
                                   setOpenMenuId(null);
@@ -753,9 +750,9 @@ const Ideas: React.FC = () => {
                     </tr>
                     {isExpanded && (
                       <tr>
-                        <td colSpan={12} className="px-6 py-4 bg-gray-50">
-                          <div className="text-sm text-gray-700">
-                            <h4 className="font-medium text-gray-900 mb-2">Investment Rationale:</h4>
+                        <td colSpan={12} className="px-6 py-4 bg-white/5">
+                          <div className="text-sm text-ever-dim">
+                            <h4 className="font-medium text-ever-ink mb-2">Investment Rationale:</h4>
                             <p className="whitespace-pre-wrap">{idea.notes}</p>
                           </div>
                         </td>

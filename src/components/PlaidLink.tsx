@@ -4,6 +4,7 @@ import { usePlaidLink, PlaidLinkOnSuccessMetadata, PlaidLinkOnExitMetadata, Plai
 import { Loader2, Link as LinkIcon } from 'lucide-react';
 import axios from 'axios';
 import { CONSENT_TEXT, logPlaidLinkConsent } from '../lib/consent';
+import { Button } from './ui';
 import type {
   PlaidApiError,
   LinkTokenResponse,
@@ -130,24 +131,24 @@ You can now view your holdings in the Portfolio section.`);
   return (
     <div className="space-y-3">
       {error && (
-        <div className="p-4 bg-red-50 border border-red-200 rounded-md">
-          <div className="text-red-800 text-sm whitespace-pre-line">{error}</div>
+        <div className="p-4 bg-white/5 border border-ever-line rounded-md">
+          <div className="text-ever-neg text-sm whitespace-pre-line">{error}</div>
         </div>
       )}
 
       {/* Consent block — must be acknowledged before Connect is enabled. */}
-      <div className="p-4 bg-blue-50 border border-blue-200 rounded-md text-sm text-gray-800">
+      <div className="p-4 bg-white/5 border border-ever-line rounded-md text-sm text-ever-dim">
         <p className="mb-3">{CONSENT_TEXT}</p>
         <label className="flex items-start gap-2 cursor-pointer select-none">
           <input
             type="checkbox"
             checked={acknowledged}
             onChange={(e) => setAcknowledged(e.target.checked)}
-            className="mt-1"
+            className="mt-1 accent-ever-lime"
           />
           <span>
             I have read and agree to the{' '}
-            <Link to="/privacy" className="text-blue-600 hover:underline" target="_blank" rel="noopener noreferrer">
+            <Link to="/privacy" className="text-ever-lime hover:underline" target="_blank" rel="noopener noreferrer">
               Privacy Policy
             </Link>
             .
@@ -155,23 +156,22 @@ You can now view your holdings in the Portfolio section.`);
         </label>
       </div>
 
-      <button
+      <Button
         onClick={createLinkTokenAndOpen}
         disabled={!acknowledged || isLoading}
-        className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center"
       >
         {isLoading ? (
           <>
-            <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+            <Loader2 className="h-4 w-4 animate-spin" />
             Connecting…
           </>
         ) : (
           <>
-            <LinkIcon className="h-4 w-4 mr-2" />
+            <LinkIcon className="h-4 w-4" />
             Connect Bank Account
           </>
         )}
-      </button>
+      </Button>
     </div>
   );
 };

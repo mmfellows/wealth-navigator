@@ -134,32 +134,32 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
   const currentNavItems = activeSection === 'investing' ? investingNavItems : personalFinanceNavItems;
 
   return (
-    <div className="flex flex-col h-screen bg-gray-100">
+    <div className={`theme-evergreen ${activeSection === 'personal-finance' ? 'theme-pf' : ''} flex flex-col h-screen bg-ever-bg font-grotesk text-ever-ink`}>
       {/* Top Navigation */}
-      <div className="bg-white shadow-sm border-b">
+      <div className="bg-ever-side border-b border-ever-line">
         <div className="px-6 py-3">
           <div className="flex items-center space-x-2">
-            <TrendingUp className="h-8 w-8 text-blue-600" />
-            <h1 className="text-xl font-bold text-gray-900">Wealth Navigator</h1>
+            <TrendingUp className="h-7 w-7 text-ever-lime" />
+            <h1 className="text-xl font-bold tracking-tight text-ever-ink">Wealth Navigator</h1>
           </div>
 
           {/* Section selector */}
-          <div className="relative mt-1 ml-10 inline-block" ref={sectionMenuRef}>
+          <div className="relative mt-1 ml-9 inline-block" ref={sectionMenuRef}>
             <button
               onClick={() => setSectionMenuOpen(open => !open)}
               aria-haspopup="listbox"
               aria-expanded={sectionMenuOpen}
-              className="inline-flex items-center gap-1.5 text-sm font-medium text-gray-600 hover:text-gray-900 transition-colors"
+              className="inline-flex items-center gap-1.5 text-sm font-medium text-ever-dim hover:text-ever-ink transition-colors"
             >
-              <currentSection.icon className="h-4 w-4 text-blue-600" />
+              <currentSection.icon className="h-4 w-4 text-ever-lime" />
               {currentSection.label}
-              <ChevronDown className={`h-4 w-4 text-gray-400 transition-transform ${sectionMenuOpen ? 'rotate-180' : ''}`} />
+              <ChevronDown className={`h-4 w-4 text-ever-faint transition-transform ${sectionMenuOpen ? 'rotate-180' : ''}`} />
             </button>
 
             {sectionMenuOpen && (
               <div
                 role="listbox"
-                className="absolute left-0 top-full mt-1 w-52 bg-white border border-gray-200 rounded-lg shadow-lg py-1 z-50"
+                className="absolute left-0 top-full mt-1 w-52 bg-ever-card border border-ever-line rounded-ever shadow-lg py-1 z-50"
               >
                 {SECTIONS.map(s => {
                   const Icon = s.icon;
@@ -171,7 +171,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
                       aria-selected={isActive}
                       onClick={() => selectSection(s)}
                       className={`w-full flex items-center gap-2 px-3 py-2 text-sm text-left transition-colors ${
-                        isActive ? 'text-blue-600 bg-blue-50' : 'text-gray-700 hover:bg-gray-50'
+                        isActive ? 'text-ever-lime bg-white/5' : 'text-ever-dim hover:bg-white/5 hover:text-ever-ink'
                       }`}
                     >
                       <Icon className="h-4 w-4" />
@@ -188,23 +188,23 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
 
       <div className="flex flex-1 overflow-hidden">
         {/* Side Navigation */}
-        <nav className={`${collapsed ? 'w-16' : 'w-52'} bg-white shadow-lg transition-all duration-200 flex flex-col`}>
+        <nav className={`${collapsed ? 'w-16' : 'w-52'} bg-ever-side border-r border-ever-line transition-all duration-200 flex flex-col`}>
           <div className={`p-4 flex items-center ${collapsed ? 'justify-center' : 'justify-between'}`}>
             {!collapsed && (
-              <h2 className="text-sm font-semibold text-gray-900 uppercase tracking-wide">
+              <h2 className="font-mono text-[10.5px] font-semibold text-ever-faint uppercase tracking-[0.16em]">
                 {activeSection === 'investing' ? 'Investment Tools' : 'Finance Tools'}
               </h2>
             )}
             <button
               onClick={toggleCollapsed}
-              className="text-gray-400 hover:text-gray-600 transition-colors"
+              className="text-ever-dim hover:text-ever-ink transition-colors"
               title={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
             >
               {collapsed ? <PanelLeftOpen className="h-5 w-5" /> : <PanelLeftClose className="h-5 w-5" />}
             </button>
           </div>
 
-          <div className="mt-2">
+          <div className="mt-1">
             {currentNavItems.map((item) => {
               const Icon = item.icon;
               const isActive = location.pathname === item.path;
@@ -214,10 +214,10 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
                   key={item.path}
                   to={item.path}
                   title={collapsed ? item.label : undefined}
-                  className={`flex items-center ${collapsed ? 'justify-center px-3' : 'pl-6 pr-3'} py-3 text-left w-full transition-colors ${
+                  className={`flex items-center ${collapsed ? 'justify-center px-3' : 'px-4'} py-2.5 mx-2 rounded-lg text-sm transition-colors ${
                     isActive
-                      ? 'bg-blue-50 text-blue-600 border-r-2 border-blue-600'
-                      : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
+                      ? 'bg-ever-lime text-ever-lime-ink font-semibold'
+                      : 'text-ever-dim hover:bg-white/5 hover:text-ever-ink'
                   }`}
                 >
                   <Icon className={`h-5 w-5 ${collapsed ? '' : 'mr-3'}`} />
@@ -232,10 +232,10 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
           <div className="p-8 flex-1">
             {children}
           </div>
-          <footer className="px-8 py-4 text-xs text-gray-400 border-t border-gray-200 bg-white">
-            <Link to="/privacy" className="hover:text-gray-600">Privacy Policy</Link>
+          <footer className="px-8 py-4 font-mono text-[11px] text-ever-faint border-t border-ever-line bg-ever-side">
+            <Link to="/privacy" className="hover:text-ever-ink">Privacy Policy</Link>
             <span className="mx-2" aria-hidden="true">·</span>
-            <Link to="/security" className="hover:text-gray-600">Security &amp; passkeys</Link>
+            <Link to="/security" className="hover:text-ever-ink">Security &amp; passkeys</Link>
           </footer>
         </main>
       </div>

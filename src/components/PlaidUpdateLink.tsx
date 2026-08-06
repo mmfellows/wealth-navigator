@@ -68,7 +68,7 @@ const PlaidUpdateLink: React.FC<PlaidUpdateLinkProps> = ({ itemId, institutionNa
     <button
       onClick={handleClick}
       disabled={isLoading}
-      className="px-3 py-1 rounded-md text-sm font-medium text-amber-700 border border-amber-300 hover:bg-amber-50 disabled:opacity-50 flex items-center"
+      className="px-3 py-1 rounded-md text-sm font-medium text-ever-orange border border-ever-line hover:bg-white/5 disabled:opacity-50 flex items-center"
     >
       <RefreshCw className={`h-3 w-3 mr-1 ${isLoading ? 'animate-spin' : ''}`} />
       Reconnect

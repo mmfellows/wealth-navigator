@@ -1,12 +1,14 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import axios from 'axios';
-import { Loader2, Quote, TrendingUp, TrendingDown, Wallet, Banknote, Building2, AlertCircle, RefreshCw } from 'lucide-react';
+import { Loader2, TrendingUp, Building2, RefreshCw } from 'lucide-react';
 import {
   PieChart, Pie, Cell, ResponsiveContainer, Tooltip,
-  LineChart, Line, XAxis, YAxis, CartesianGrid,
 } from 'recharts';
 import { useIPS } from '../hooks/usePortfolio';
+import NetWorthHistoryChart, { NetWorthPoint } from '../components/charts/NetWorthHistoryChart';
+import { Card, CardHeader, Label, Button, StatCard, fmtUSD } from '../components/ui';
+import { cn } from '../lib/cn';
 
 interface Snapshot {
   net_worth: number;
@@ -31,33 +33,19 @@ interface Snapshot {
   generated_at: string;
 }
 
-interface HistoryPoint {
-  date: string;
-  net_worth: number;
-  total_assets: number;
-  total_liabilities: number;
-}
+type HistoryPoint = NetWorthPoint;
 
+// Evergreen allocation palette: violet lead, lime, teal, orange, coral, sand.
 const ALLOCATION_COLORS: Record<string, string> = {
-  Long: '#2563eb',
-  Mid: '#10b981',
-  Short: '#f59e0b',
-  Core: '#6b7280',
-  Unallocated: '#f43f5e',
-  Cash: '#94a3b8',
+  Long: '#8b6ff0',
+  Core: '#c9f04e',
+  Mid: '#38a790',
+  Short: '#efb15b',
+  Unallocated: '#eb8f6c',
+  Cash: '#7f8a82',
 };
 
-const fmt = (n: number | null | undefined) => {
-  if (n == null || isNaN(n)) return '—';
-  return n.toLocaleString('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 });
-};
-
-const fmtCompact = (n: number | null | undefined) => {
-  if (n == null || isNaN(n)) return '—';
-  if (Math.abs(n) >= 1_000_000) return `$${(n / 1_000_000).toFixed(1)}M`;
-  if (Math.abs(n) >= 1_000) return `$${(n / 1_000).toFixed(0)}k`;
-  return `$${n.toFixed(0)}`;
-};
+const fmt = (n: number | null | undefined) => fmtUSD(n);
 
 const Dashboard: React.FC = () => {
   const { data: ips } = useIPS();
@@ -98,15 +86,6 @@ const Dashboard: React.FC = () => {
     }
   };
 
-  // Net-worth delta vs the earliest point in the visible window
-  const delta = useMemo(() => {
-    if (!snapshot || history.length < 2) return null;
-    const first = history[0];
-    const change = snapshot.net_worth - first.net_worth;
-    const pct = first.net_worth !== 0 ? (change / Math.abs(first.net_worth)) * 100 : 0;
-    return { amount: change, pct };
-  }, [snapshot, history]);
-
   const allocationData = useMemo(() => {
     if (!snapshot) return [];
     return Object.entries(snapshot.allocation)
@@ -116,170 +95,152 @@ const Dashboard: React.FC = () => {
 
   if (loading && !snapshot) {
     return (
-      <div className="flex items-center justify-center h-64">
-        <Loader2 className="h-8 w-8 animate-spin text-blue-600" />
-        <span className="ml-2 text-gray-600">Loading snapshot…</span>
+      <div className="flex items-center justify-center py-24">
+        <Loader2 className="h-8 w-8 animate-spin text-ever-lime" />
+        <span className="ml-3 text-ever-dim">Loading snapshot…</span>
       </div>
     );
   }
 
   if (!snapshot) {
     return (
-      <div className="bg-white rounded-lg border border-dashed border-gray-300 p-12 text-center">
-        <p className="text-gray-700">No data yet. Connect a Plaid account in <Link to="/investing-settings" className="text-blue-600 hover:underline">Settings</Link>.</p>
-      </div>
+      <Card className="border-dashed p-12 text-center text-ever-dim">
+        No data yet. Connect a Plaid account in{' '}
+        <Link to="/investing-settings" className="text-ever-lime hover:underline">Settings</Link>.
+      </Card>
     );
   }
 
-  const deltaColor = (delta?.amount ?? 0) >= 0 ? 'text-green-600' : 'text-red-600';
-  const DeltaIcon = (delta?.amount ?? 0) >= 0 ? TrendingUp : TrendingDown;
+  const invested = snapshot.assets.investments + snapshot.assets.manual_investments;
+  const assetsTotal = snapshot.assets.total;
+  const cashPct = assetsTotal > 0 ? (snapshot.assets.cash / assetsTotal) * 100 : 0;
+  const investedPct = assetsTotal > 0 ? (invested / assetsTotal) * 100 : 0;
+  const debtToAsset = assetsTotal > 0 ? (snapshot.liabilities.total / assetsTotal) * 100 : 0;
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
+    <div>
+      {/* Header */}
+      <div className="mb-6 flex items-start justify-between gap-3">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900">Dashboard</h1>
-          <p className="text-gray-600 mt-1">Your full balance sheet — assets, liabilities, and bet allocation, in one place.</p>
+          <h1 className="text-2xl font-extrabold tracking-tight text-ever-ink md:text-[26px]">Dashboard</h1>
+          <p className="mt-1 text-sm text-ever-dim">Your full balance sheet — assets, liabilities, and bet allocation, in one place.</p>
         </div>
-        <button
-          onClick={triggerSync}
-          disabled={syncing}
-          className="inline-flex items-center px-4 py-2 bg-white border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50 disabled:opacity-50"
-        >
-          <RefreshCw className={`h-4 w-4 mr-2 ${syncing ? 'animate-spin' : ''}`} />
-          {syncing ? 'Syncing…' : 'Sync'}
-        </button>
+        <div className="flex items-center gap-3">
+          <span className="hidden items-center gap-2 font-mono text-[11px] text-ever-dim sm:flex">
+            <span className="h-2 w-2 rounded-full bg-ever-lime" aria-hidden="true" />Live
+          </span>
+          <Button onClick={triggerSync} disabled={syncing}>
+            <RefreshCw className={cn('h-4 w-4', syncing && 'animate-spin')} />
+            {syncing ? 'Syncing…' : 'Sync'}
+          </Button>
+        </div>
       </div>
 
-      {ips?.investment_philosophy && (
-        <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg p-5 border border-blue-200">
-          <div className="flex items-start gap-3">
-            <Quote className="h-6 w-6 text-blue-500 flex-shrink-0 mt-0.5" />
-            <blockquote className="text-base text-gray-800 italic leading-relaxed">"{ips.investment_philosophy}"</blockquote>
+      {/* Hero: net worth + doctrine */}
+      <div className="mb-4 grid gap-4 lg:grid-cols-[1.05fr_0.95fr]">
+        <div className="rounded-ever bg-ever-lime p-6 text-ever-lime-ink">
+          <div className="flex items-start justify-between">
+            <span className="font-mono text-[10.5px] uppercase tracking-[0.14em] text-[#4c5a24]">Net Worth</span>
+            <span className="grid h-9 w-9 place-items-center rounded-full bg-ever-lime-ink text-ever-lime">
+              <TrendingUp className="h-4 w-4" />
+            </span>
+          </div>
+          <div className="mt-4 text-[clamp(2.4rem,6vw,3.4rem)] font-extrabold leading-none tracking-tight tabular-nums">
+            {fmt(snapshot.net_worth)}
+          </div>
+          <div className="mt-3 text-[13px] font-semibold text-[#4c5a24]">
+            Assets {fmt(assetsTotal)} · Liabilities {fmt(snapshot.liabilities.total)}
           </div>
         </div>
-      )}
 
-      {/* Top tiles */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <div className="bg-white rounded-lg p-5 shadow-sm border">
-          <div className="flex items-center gap-2 mb-1">
-            <Wallet className="h-4 w-4 text-blue-600" />
-            <span className="text-xs uppercase tracking-wide text-gray-500">Net Worth</span>
-          </div>
-          <p className="text-3xl font-bold text-gray-900">{fmt(snapshot.net_worth)}</p>
-          {delta && (
-            <div className={`flex items-center gap-1 mt-1 text-sm ${deltaColor}`}>
-              <DeltaIcon className="h-3 w-3" />
-              <span className="font-medium">{fmt(delta.amount)} ({delta.pct.toFixed(1)}%)</span>
-              <span className="text-gray-400 text-xs ml-1">over {historyDays}d</span>
-            </div>
-          )}
-        </div>
-        <div className="bg-white rounded-lg p-5 shadow-sm border">
-          <div className="flex items-center gap-2 mb-1">
-            <Banknote className="h-4 w-4 text-emerald-600" />
-            <span className="text-xs uppercase tracking-wide text-gray-500">Cash</span>
-          </div>
-          <p className="text-3xl font-bold text-gray-900">{fmt(snapshot.assets.cash)}</p>
-        </div>
-        <div className="bg-white rounded-lg p-5 shadow-sm border">
-          <div className="flex items-center gap-2 mb-1">
-            <TrendingUp className="h-4 w-4 text-green-600" />
-            <span className="text-xs uppercase tracking-wide text-gray-500">Invested</span>
-          </div>
-          <p className="text-3xl font-bold text-gray-900">{fmt(snapshot.assets.investments + snapshot.assets.manual_investments)}</p>
-          {snapshot.assets.manual_investments > 0 && (
-            <p className="text-xs text-gray-500 mt-1">incl. {fmt(snapshot.assets.manual_investments)} off-platform</p>
-          )}
-        </div>
-        <div className="bg-white rounded-lg p-5 shadow-sm border">
-          <div className="flex items-center gap-2 mb-1">
-            <AlertCircle className="h-4 w-4 text-rose-600" />
-            <span className="text-xs uppercase tracking-wide text-gray-500">Liabilities</span>
-          </div>
-          <p className="text-3xl font-bold text-gray-900">{fmt(snapshot.liabilities.total)}</p>
-          {snapshot.liabilities.total > 0 && (
-            <p className="text-xs text-gray-500 mt-1">
-              {snapshot.liabilities.credit > 0 && `${fmt(snapshot.liabilities.credit)} cards`}
-              {snapshot.liabilities.mortgage > 0 && ` · ${fmt(snapshot.liabilities.mortgage)} mortgage`}
+        {ips?.investment_philosophy ? (
+          <Card className="flex flex-col">
+            <Label>Doctrine</Label>
+            <p className="mt-3 text-[19px] font-semibold leading-snug tracking-tight text-ever-ink">
+              “{ips.investment_philosophy}”
             </p>
-          )}
-        </div>
-      </div>
-
-      {/* Net worth over time */}
-      <div className="bg-white rounded-lg p-6 shadow-sm border">
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="text-lg font-semibold text-gray-900">Net Worth Over Time</h2>
-          <div className="flex gap-1">
-            {[30, 90, 365].map(d => (
-              <button
-                key={d}
-                onClick={() => setHistoryDays(d)}
-                className={`px-3 py-1 rounded-md text-xs font-medium ${
-                  historyDays === d ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                }`}
-              >
-                {d === 365 ? '1Y' : `${d}D`}
-              </button>
-            ))}
-          </div>
-        </div>
-        {history.length === 0 ? (
-          <div className="text-center py-12 text-sm text-gray-500">
-            No history yet. The first snapshot writes after your next sync — come back tomorrow to see your line start.
-          </div>
+            <div className="mt-auto pt-4 font-mono text-[10.5px] tracking-wide text-ever-dim">Investment policy statement</div>
+          </Card>
         ) : (
-          <ResponsiveContainer width="100%" height={250}>
-            <LineChart data={history}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#f3f4f6" />
-              <XAxis dataKey="date" tick={{ fontSize: 11 }} stroke="#9ca3af" />
-              <YAxis tickFormatter={fmtCompact} tick={{ fontSize: 11 }} stroke="#9ca3af" width={70} />
-              <Tooltip formatter={(v: number) => fmt(v)} labelStyle={{ color: '#374151' }} />
-              <Line type="monotone" dataKey="net_worth" stroke="#2563eb" strokeWidth={2} dot={false} name="Net Worth" />
-            </LineChart>
-          </ResponsiveContainer>
+          <Card className="flex items-center justify-center text-center text-sm text-ever-dim">
+            Set your investment philosophy in{' '}
+            <Link to="/ips" className="ml-1 text-ever-lime hover:underline">the IPS</Link>.
+          </Card>
         )}
       </div>
 
-      {/* Allocation by bet type + accounts */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <div className="bg-white rounded-lg p-6 shadow-sm border">
-          <h2 className="text-lg font-semibold text-gray-900 mb-4">Allocation by Bet</h2>
+      {/* KPI tiles */}
+      <div className="mb-4 grid grid-cols-1 gap-4 sm:grid-cols-3">
+        <StatCard label="Cash" value={fmt(snapshot.assets.cash)} dot="var(--ever-lime)" sub={`${cashPct.toFixed(1)}% of assets`} />
+        <StatCard label="Invested" value={fmt(invested)} dot="var(--ever-violet)" sub={`${investedPct.toFixed(0)}% of assets`} />
+        <StatCard label="Liabilities" value={fmt(snapshot.liabilities.total)} dot="var(--ever-neg)" sub={`Debt-to-asset ${debtToAsset.toFixed(0)}%`} />
+      </div>
+
+      {/* Net worth over time */}
+      <Card className="mb-4">
+        <CardHeader
+          title="Net Worth Over Time"
+          right={
+            <div className="flex gap-1">
+              {[30, 90, 365].map(d => (
+                <button
+                  key={d}
+                  onClick={() => setHistoryDays(d)}
+                  className={cn(
+                    'rounded-lg px-3 py-1 font-mono text-[10.5px] tracking-wide transition',
+                    historyDays === d
+                      ? 'bg-ever-lime font-bold text-ever-lime-ink'
+                      : 'border border-ever-line text-ever-dim hover:text-ever-ink',
+                  )}
+                >
+                  {d === 365 ? '1Y' : `${d}D`}
+                </button>
+              ))}
+            </div>
+          }
+        />
+        {history.length === 0 ? (
+          <div className="py-12 text-center font-mono text-[11px] text-ever-dim">
+            No history yet. The first snapshot writes after your next sync.
+          </div>
+        ) : (
+          <NetWorthHistoryChart points={history} days={historyDays} />
+        )}
+      </Card>
+
+      {/* Allocation + accounts */}
+      <div className="mb-4 grid grid-cols-1 gap-4 lg:grid-cols-2">
+        <Card>
+          <CardHeader title="Allocation by Bet" hint={`${fmtUSD(assetsTotal, { compact: true })} invested`} />
           {allocationData.length === 0 ? (
-            <div className="text-sm text-gray-500 py-8 text-center">No allocated investments yet.</div>
+            <div className="py-8 text-center text-sm text-ever-dim">No allocated investments yet.</div>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-center">
-              <ResponsiveContainer width="100%" height={220}>
+            <div className="grid grid-cols-1 items-center gap-6 md:grid-cols-2">
+              <ResponsiveContainer width="100%" height={200}>
                 <PieChart>
-                  <Pie
-                    data={allocationData}
-                    dataKey="value"
-                    nameKey="name"
-                    innerRadius={50}
-                    outerRadius={90}
-                    paddingAngle={2}
-                  >
+                  <Pie data={allocationData} dataKey="value" nameKey="name" innerRadius={52} outerRadius={90} paddingAngle={3} stroke="none">
                     {allocationData.map((entry, idx) => (
-                      <Cell key={idx} fill={ALLOCATION_COLORS[entry.name] || '#cbd5e1'} />
+                      <Cell key={idx} fill={ALLOCATION_COLORS[entry.name] || '#7f8a82'} />
                     ))}
                   </Pie>
-                  <Tooltip formatter={(v: number) => fmt(v)} />
+                  <Tooltip
+                    formatter={(v: number) => fmt(v)}
+                    contentStyle={{ borderRadius: '10px', border: '1px solid #2c4d43', background: '#15221d', color: '#ebf2ec', fontSize: '13px' }}
+                  />
                 </PieChart>
               </ResponsiveContainer>
-              <div className="space-y-2">
+              <div className="space-y-2.5">
                 {allocationData.map(({ name, value }) => {
-                  const pct = snapshot.assets.total > 0 ? (value / snapshot.assets.total) * 100 : 0;
+                  const pct = assetsTotal > 0 ? (value / assetsTotal) * 100 : 0;
                   return (
                     <div key={name} className="flex items-center justify-between text-sm">
-                      <div className="flex items-center gap-2">
-                        <div className="w-3 h-3 rounded-full" style={{ backgroundColor: ALLOCATION_COLORS[name] }} />
-                        <span className="text-gray-700">{name}</span>
+                      <div className="flex items-center gap-2.5">
+                        <span className="h-2.5 w-2.5 rounded-[3px]" style={{ backgroundColor: ALLOCATION_COLORS[name] }} />
+                        <span className="text-ever-ink">{name}</span>
                       </div>
-                      <div className="text-right">
-                        <span className="font-medium text-gray-900">{fmt(value)}</span>
-                        <span className="text-gray-500 ml-2 text-xs">{pct.toFixed(0)}%</span>
+                      <div className="text-right tabular-nums">
+                        <span className="font-semibold text-ever-ink">{fmt(value)}</span>
+                        <span className="ml-2 font-mono text-[11px] text-ever-dim">{pct.toFixed(0)}%</span>
                       </div>
                     </div>
                   );
@@ -287,21 +248,19 @@ const Dashboard: React.FC = () => {
               </div>
             </div>
           )}
-        </div>
+        </Card>
 
-        <div className="bg-white rounded-lg p-6 shadow-sm border">
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
-              <Building2 className="h-5 w-5 text-blue-600" /> Account Balances
-            </h2>
-            <Link to="/account-snapshot" className="text-sm text-blue-600 hover:underline">View all</Link>
-          </div>
+        <Card>
+          <CardHeader
+            title={<span className="flex items-center gap-2"><Building2 className="h-4 w-4 text-ever-lime" /> Account Balances</span>}
+            right={<Link to="/account-snapshot" className="font-mono text-[10.5px] text-ever-lime hover:underline">View all</Link>}
+          />
           {snapshot.accounts.length === 0 ? (
-            <div className="text-sm text-gray-500 py-8 text-center">
-              No accounts yet. <Link to="/investing-settings" className="text-blue-600 hover:underline">Connect one</Link> to start.
+            <div className="py-8 text-center text-sm text-ever-dim">
+              No accounts yet. <Link to="/investing-settings" className="text-ever-lime hover:underline">Connect one</Link> to start.
             </div>
           ) : (
-            <div className="space-y-2">
+            <div>
               {[...snapshot.accounts]
                 .map(a => {
                   const isLiability = a.type === 'credit' || a.type === 'loan';
@@ -311,56 +270,46 @@ const Dashboard: React.FC = () => {
                 .sort((a, b) => b.signed - a.signed)
                 .slice(0, 8)
                 .map(a => (
-                  <div key={a.id} className="flex items-center justify-between text-sm py-1">
-                    <div className="flex-1 min-w-0">
-                      <div className="font-medium text-gray-900 truncate">{a.institution_name}</div>
-                      <div className="text-xs text-gray-500 truncate">
-                        {a.name}{a.mask && ` ···${a.mask}`} · <span className="capitalize">{a.subtype || a.type}</span>
+                  <div key={a.id} className="flex items-center gap-3 border-t border-ever-line py-2.5 first:border-t-0">
+                    <span className={cn('h-2 w-2 flex-none rounded-full', a.isLiability ? 'bg-ever-violet' : 'bg-ever-lime')} aria-hidden="true" />
+                    <div className="min-w-0 flex-1">
+                      <div className="truncate text-[13px] font-semibold text-ever-ink">{a.institution_name}</div>
+                      <div className="truncate font-mono text-[10px] uppercase tracking-wide text-ever-dim">
+                        {a.name}{a.mask && ` ···${a.mask}`} · {a.subtype || a.type}
                       </div>
                     </div>
-                    <div className={`font-medium tabular-nums ml-3 ${a.isLiability ? 'text-red-600' : 'text-gray-900'}`}>
+                    <div className={cn('ml-3 text-[13px] font-bold tabular-nums', a.isLiability ? 'text-ever-neg' : 'text-ever-ink')}>
                       {fmt(a.signed)}
                     </div>
                   </div>
                 ))}
               {snapshot.accounts.length > 8 && (
-                <div className="text-xs text-gray-500 pt-2 border-t mt-2">
+                <div className="mt-2 border-t border-ever-line pt-2 font-mono text-[10px] text-ever-dim">
                   +{snapshot.accounts.length - 8} more
                 </div>
               )}
             </div>
           )}
-        </div>
+        </Card>
       </div>
 
-      {/* Top holdings concentration */}
+      {/* Top holdings */}
       {(snapshot.top_holdings?.length ?? 0) > 0 && (
-        <div className="bg-white rounded-lg p-6 shadow-sm border">
-          <div className="flex items-center justify-between mb-1">
-            <h2 className="text-lg font-semibold text-gray-900">Top Holdings</h2>
-            <Link to="/holdings" className="text-sm text-blue-600 hover:underline">All holdings</Link>
-          </div>
-          <p className="text-xs text-gray-500 mb-4">Share of invested dollars, across every account.</p>
-          <div className="space-y-2.5">
+        <Card>
+          <CardHeader title="Top Holdings" hint="Share of invested dollars" />
+          <div className="space-y-3">
             {snapshot.top_holdings!.map(h => (
-              <div key={h.ticker} className="flex items-center gap-3 text-sm">
-                <div className="w-20 flex-shrink-0 font-mono font-medium text-gray-900 truncate" title={h.name}>
-                  {h.ticker}
+              <div key={h.ticker} className="grid grid-cols-[56px_1fr_52px_92px] items-center gap-3 text-sm">
+                <div className="truncate font-mono text-[12px] font-bold text-ever-ink" title={h.name}>{h.ticker}</div>
+                <div className="h-2.5 overflow-hidden rounded-full bg-ever-track">
+                  <div className="h-full rounded-full bg-ever-violet" style={{ width: `${Math.min(h.pct_invested, 100)}%` }} />
                 </div>
-                <div className="flex-1 h-4 bg-gray-100 rounded-sm overflow-hidden">
-                  <div
-                    className="h-full bg-blue-600 rounded-sm"
-                    style={{ width: `${Math.min(h.pct_invested, 100)}%` }}
-                  />
-                </div>
-                <div className="w-14 text-right tabular-nums font-medium text-gray-900">
-                  {h.pct_invested.toFixed(1)}%
-                </div>
-                <div className="w-24 text-right tabular-nums text-gray-500">{fmt(h.value)}</div>
+                <div className="text-right font-bold tabular-nums text-ever-ink">{h.pct_invested.toFixed(1)}%</div>
+                <div className="text-right tabular-nums text-ever-dim">{fmt(h.value)}</div>
               </div>
             ))}
           </div>
-        </div>
+        </Card>
       )}
     </div>
   );

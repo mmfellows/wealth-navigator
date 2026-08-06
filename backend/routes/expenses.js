@@ -5,6 +5,7 @@ const path = require('path');
 const fs = require('fs');
 const { db, docToObj } = require('../services/database');
 const { detectAndParse, extractPdfText } = require('../services/chasePdfParser');
+const { classifySpendType } = require('../services/spendType');
 const { optionalAuth } = require('../middleware/auth');
 
 router.use(optionalAuth);
@@ -378,6 +379,95 @@ router.get('/stats/summary', async (req, res) => {
   } catch (error) {
     console.error('Error fetching expense stats:', error);
     res.status(500).json({ error: 'Failed to fetch expense statistics' });
+  }
+});
+
+// Monthly spending time series, segmented for stacked charts.
+// GET /stats/timeseries?startDate&endDate&segmentBy=category|spend_type
+// → { points: [{ month: 'YYYY-MM', total, segments: { name: amount } }],
+//     segments: [names, largest total first] }
+// "category" segments by SUBcategory (Groceries, Gym, Travel & Vacation, …)
+// for granularity — the main-category scheme is too close to spend_type.
+// Same exclusions as /stats/summary (transfers, Income, Taxes), plus credit
+// card payments — the underlying purchases are already counted.
+router.get('/stats/timeseries', async (req, res) => {
+  try {
+    const { startDate, endDate } = req.query;
+    const segmentBy = req.query.segmentBy === 'spend_type' ? 'spend_type' : 'category';
+    const MAX_SEGMENTS = segmentBy === 'spend_type' ? 6 : 12;
+
+    let query = db.collection('expenses');
+    if (startDate) query = query.where('date', '>=', startDate);
+    if (endDate) query = query.where('date', '<=', endDate);
+
+    const snapshot = await query.get();
+    const expenses = snapshot.docs
+      .map(doc => doc.data())
+      .filter(e =>
+        !e.is_transfer &&
+        !e.is_credit_card_payment &&
+        e.category !== 'Income' &&
+        e.category !== 'Taxes' &&
+        e.category !== 'Credit Card Payment' &&
+        e.date
+      );
+
+    const segmentOf = e => segmentBy === 'spend_type'
+      ? classifySpendType(e)
+      : (e.subcategory || e.category || '(uncategorized)');
+
+    const monthMap = {};
+    const segmentTotals = {};
+    expenses.forEach(e => {
+      const month = e.date.substring(0, 7);
+      const seg = segmentOf(e);
+      if (!monthMap[month]) monthMap[month] = { total: 0, segments: {} };
+      monthMap[month].total += e.amount;
+      monthMap[month].segments[seg] = (monthMap[month].segments[seg] || 0) + e.amount;
+      segmentTotals[seg] = (segmentTotals[seg] || 0) + e.amount;
+    });
+
+    // Cap segment count: keep the largest, fold the tail into "Other".
+    const ranked = Object.entries(segmentTotals).sort((a, b) => b[1] - a[1]);
+    const kept = new Set(ranked.slice(0, MAX_SEGMENTS).map(([name]) => name));
+    const folded = ranked.length > MAX_SEGMENTS;
+    if (folded) {
+      Object.values(monthMap).forEach(m => {
+        let other = 0;
+        Object.keys(m.segments).forEach(seg => {
+          if (!kept.has(seg)) {
+            other += m.segments[seg];
+            delete m.segments[seg];
+          }
+        });
+        if (other > 0) m.segments.Other = (m.segments.Other || 0) + other;
+      });
+    }
+
+    // Emit a continuous month range so bars don't silently skip empty months.
+    const months = Object.keys(monthMap).sort();
+    const points = [];
+    if (months.length > 0) {
+      const first = startDate ? startDate.substring(0, 7) : months[0];
+      const last = endDate ? endDate.substring(0, 7) : months[months.length - 1];
+      let cursor = first;
+      while (cursor <= last) {
+        points.push({ month: cursor, total: 0, segments: {}, ...(monthMap[cursor] || {}) });
+        const [y, m] = cursor.split('-').map(Number);
+        cursor = m === 12 ? `${y + 1}-01` : `${y}-${String(m + 1).padStart(2, '0')}`;
+      }
+    }
+
+    res.json({
+      points,
+      segments: [
+        ...ranked.filter(([name]) => kept.has(name)).map(([name]) => name),
+        ...(folded ? ['Other'] : []),
+      ],
+    });
+  } catch (error) {
+    console.error('Error fetching expense timeseries:', error);
+    res.status(500).json({ error: 'Failed to fetch expense timeseries' });
   }
 });
 

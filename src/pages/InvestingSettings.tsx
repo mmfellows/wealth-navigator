@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Save, AlertCircle, RefreshCw, Trash2, CheckCircle, Clock, Plus, Minus, Key, Eye, EyeOff, Target, Landmark } from 'lucide-react';
 import PlaidLink from '../components/PlaidLink';
 import PlaidUpdateLink from '../components/PlaidUpdateLink';
+import { Card, Button } from '../components/ui';
 import axios from 'axios';
 
 const REQUIRED_PRODUCTS = ['investments', 'liabilities'] as const;
@@ -219,33 +220,29 @@ const InvestingSettings: React.FC = () => {
     const target = targetAllocations[category as keyof typeof targetAllocations];
     const difference = Math.abs(current - target);
 
-    if (difference <= 2) return { status: 'on-target', color: 'text-green-600' };
-    if (difference <= 5) return { status: 'close', color: 'text-yellow-600' };
-    return { status: 'off-target', color: 'text-red-600' };
+    if (difference <= 2) return { status: 'on-target', color: 'text-ever-pos' };
+    if (difference <= 5) return { status: 'close', color: 'text-ever-orange' };
+    return { status: 'off-target', color: 'text-ever-neg' };
   };
 
   const renderAllocationsTab = () => (
-    <div className="bg-white rounded-lg p-6 shadow-sm border">
+    <Card className="p-6">
       <div className="flex justify-between items-start mb-4">
         <div>
-          <h2 className="text-xl font-semibold text-gray-900">Target Investment Allocations</h2>
-          <p className="text-gray-600 mt-1">
+          <h2 className="text-xl font-semibold text-ever-ink">Target Investment Allocations</h2>
+          <p className="text-ever-dim mt-1">
             Set your target percentages for each investment category. These will be used in the dashboard
             to show how your actual allocation compares to your goals.
           </p>
         </div>
-        <button
+        <Button
           onClick={handleSave}
           disabled={!hasChanges || !isValidTotal}
-          className={`flex items-center px-4 py-2 rounded-md transition-colors flex-shrink-0 ml-4 ${
-            hasChanges && isValidTotal
-              ? 'bg-blue-600 text-white hover:bg-blue-700'
-              : 'bg-gray-100 text-gray-400 cursor-not-allowed'
-          }`}
+          className="flex-shrink-0 ml-4"
         >
-          <Save className="h-4 w-4 mr-2" />
+          <Save className="h-4 w-4" />
           {hasChanges ? 'Save Changes' : 'Saved'}
-        </button>
+        </Button>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-6">
@@ -256,7 +253,7 @@ const InvestingSettings: React.FC = () => {
           return (
             <div key={category} className="space-y-4">
               <div className="flex justify-between items-center">
-                <h3 className="text-lg font-medium text-gray-900 capitalize">
+                <h3 className="text-lg font-medium text-ever-ink capitalize">
                   {category.replace(/([A-Z])/g, ' $1').trim()}
                 </h3>
                 <span className={`text-sm font-medium ${status.color}`}>
@@ -268,7 +265,7 @@ const InvestingSettings: React.FC = () => {
 
               <div className="space-y-2">
                 <div className="flex items-center space-x-4">
-                  <label className="text-sm text-gray-600 w-16">Target:</label>
+                  <label className="text-sm text-ever-dim w-16">Target:</label>
                   <div className="flex-1 flex items-center space-x-2">
                     <input
                       type="range"
@@ -276,22 +273,22 @@ const InvestingSettings: React.FC = () => {
                       max="100"
                       value={value}
                       onChange={(e) => handleAllocationChange(category, parseInt(e.target.value))}
-                      className="flex-1"
+                      className="flex-1 accent-ever-lime"
                     />
-                    <div className="flex items-center space-x-1 bg-gray-50 rounded-md p-1">
+                    <div className="flex items-center space-x-1 bg-white/5 rounded-md p-1">
                       <button
                         onClick={() => adjustAllocation(category, -1)}
                         disabled={value <= 0}
-                        className="p-1 rounded text-gray-600 hover:bg-white hover:text-gray-800 disabled:opacity-50 disabled:cursor-not-allowed"
+                        className="p-1 rounded text-ever-dim hover:bg-white/10 hover:text-ever-ink disabled:opacity-50 disabled:cursor-not-allowed"
                         title="Decrease by 1%"
                       >
                         <Minus className="h-3 w-3" />
                       </button>
-                      <span className="text-sm font-medium text-gray-900 w-12 text-center">{value}%</span>
+                      <span className="text-sm font-medium text-ever-ink w-12 text-center">{value}%</span>
                       <button
                         onClick={() => adjustAllocation(category, 1)}
                         disabled={value >= 100}
-                        className="p-1 rounded text-gray-600 hover:bg-white hover:text-gray-800 disabled:opacity-50 disabled:cursor-not-allowed"
+                        className="p-1 rounded text-ever-dim hover:bg-white/10 hover:text-ever-ink disabled:opacity-50 disabled:cursor-not-allowed"
                         title="Increase by 1%"
                       >
                         <Plus className="h-3 w-3" />
@@ -301,19 +298,19 @@ const InvestingSettings: React.FC = () => {
                 </div>
 
                 <div className="flex items-center space-x-4">
-                  <label className="text-sm text-gray-600 w-16">Current:</label>
+                  <label className="text-sm text-ever-dim w-16">Current:</label>
                   <div className="flex-1">
-                    <div className="bg-gray-200 rounded-full h-2">
+                    <div className="bg-ever-track rounded-full h-2">
                       <div
-                        className="bg-blue-600 rounded-full h-2"
+                        className="bg-ever-lime rounded-full h-2"
                         style={{ width: `${currentValue}%` }}
                       />
                     </div>
                   </div>
-                  <span className="text-sm font-medium text-gray-900 w-12">{currentValue}%</span>
+                  <span className="text-sm font-medium text-ever-ink w-12">{currentValue}%</span>
                 </div>
 
-                <div className="text-xs text-gray-500">
+                <div className="text-xs text-ever-dim">
                   Difference: {Math.abs(currentValue - value).toFixed(1)}%
                   {currentValue > value ? ' over' : ' under'} target
                 </div>
@@ -323,45 +320,46 @@ const InvestingSettings: React.FC = () => {
         })}
       </div>
 
-      <div className="mt-8 p-4 bg-gray-50 rounded-md">
-        <h4 className="text-sm font-medium text-gray-900 mb-2">Category Descriptions:</h4>
-        <div className="text-xs text-gray-600 space-y-1">
+      <div className="mt-8 p-4 bg-white/5 rounded-md">
+        <h4 className="text-sm font-medium text-ever-ink mb-2">Category Descriptions:</h4>
+        <div className="text-xs text-ever-dim space-y-1">
           <p><strong>Low Risk:</strong> Conservative investments like bonds, dividend stocks, and CDs</p>
           <p><strong>Growth:</strong> Established companies with steady growth potential</p>
           <p><strong>Speculative:</strong> High-risk, high-reward investments like growth stocks and emerging sectors</p>
         </div>
       </div>
-    </div>
+    </Card>
   );
 
   const renderAccountsTab = () => (
     <div className="space-y-6">
       {/* Connected institutions */}
-      <div className="bg-white rounded-lg p-6 shadow-sm border">
+      <Card className="p-6">
         <div className="flex justify-between items-center mb-1">
-          <h2 className="text-xl font-semibold text-gray-900">Connected Brokerage Accounts</h2>
-          <button
+          <h2 className="text-xl font-semibold text-ever-ink">Connected Brokerage Accounts</h2>
+          <Button
+            variant="ghost"
             onClick={handleSync}
             disabled={isSyncing}
-            className="px-4 py-2 bg-white border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed flex items-center flex-shrink-0"
+            className="flex-shrink-0"
           >
-            <RefreshCw className={`h-4 w-4 mr-2 ${isSyncing ? 'animate-spin' : ''}`} />
+            <RefreshCw className={`h-4 w-4 ${isSyncing ? 'animate-spin' : ''}`} />
             {isSyncing ? 'Syncing…' : 'Sync Now'}
-          </button>
+          </Button>
         </div>
-        <p className="text-gray-600 mb-6">
+        <p className="text-ever-dim mb-6">
           Institutions currently syncing portfolio data into the app.
         </p>
 
         {isLoading ? (
-          <div className="flex items-center justify-center py-8 text-gray-500">
+          <div className="flex items-center justify-center py-8 text-ever-dim">
             <RefreshCw className="h-5 w-5 animate-spin mr-2" />
             <span>Loading connected accounts…</span>
           </div>
         ) : connectedAccounts.length === 0 ? (
-          <div className="text-center py-8 bg-gray-50 rounded-md">
-            <p className="text-gray-600">No brokerage accounts connected yet.</p>
-            <p className="text-sm text-gray-500 mt-2">
+          <div className="text-center py-8 bg-white/5 rounded-md">
+            <p className="text-ever-dim">No brokerage accounts connected yet.</p>
+            <p className="text-sm text-ever-dim mt-2">
               Connect your first account below to start automatic portfolio syncing.
             </p>
           </div>
@@ -370,13 +368,13 @@ const InvestingSettings: React.FC = () => {
             {connectedAccounts.map((account) => {
               const missing = missingProducts(account.products, account.available_products);
               return (
-                <div key={account.item_id} className="p-4 border border-gray-200 rounded-md">
+                <div key={account.item_id} className="p-4 border border-ever-line rounded-lg">
                   <div className="flex items-center justify-between gap-4">
                     <div className="flex items-center space-x-3 min-w-0">
-                      <div className={`w-2.5 h-2.5 rounded-full flex-shrink-0 ${missing.length ? 'bg-amber-400' : 'bg-green-500'}`} />
+                      <div className={`w-2.5 h-2.5 rounded-full flex-shrink-0 ${missing.length ? 'bg-ever-orange' : 'bg-ever-pos'}`} />
                       <div className="min-w-0">
-                        <h3 className="text-sm font-medium text-gray-900 truncate">{account.institution_name}</h3>
-                        <p className="text-xs text-gray-500">
+                        <h3 className="text-sm font-medium text-ever-ink truncate">{account.institution_name}</h3>
+                        <p className="text-xs text-ever-dim">
                           Connected {new Date(account.created_at).toLocaleDateString()}
                         </p>
                       </div>
@@ -391,7 +389,7 @@ const InvestingSettings: React.FC = () => {
                       )}
                       <button
                         onClick={() => handleRemoveAccount(account.item_id, account.institution_name)}
-                        className="px-3 py-1.5 rounded-md text-sm font-medium text-red-600 border border-red-200 hover:bg-red-50 flex items-center"
+                        className="px-3 py-1.5 rounded-md text-sm font-medium text-ever-neg border border-ever-line hover:bg-white/5 flex items-center"
                       >
                         <Trash2 className="h-3.5 w-3.5 mr-1.5" />
                         Remove
@@ -399,7 +397,7 @@ const InvestingSettings: React.FC = () => {
                     </div>
                   </div>
                   {missing.length > 0 && (
-                    <div className="mt-3 px-3 py-2 bg-amber-50 border border-amber-200 rounded text-xs text-amber-800">
+                    <div className="mt-3 px-3 py-2 bg-white/5 border border-ever-line rounded text-xs text-ever-orange">
                       Reconnect to enable: <strong>{missing.join(', ')}</strong>. Required for holdings, balances, and net-worth tracking.
                     </div>
                   )}
@@ -408,68 +406,63 @@ const InvestingSettings: React.FC = () => {
             })}
           </div>
         )}
-      </div>
+      </Card>
 
       {/* Connect a new institution — the Plaid consent block gets its own room */}
-      <div className="bg-white rounded-lg p-6 shadow-sm border">
-        <h2 className="text-lg font-semibold text-gray-900 mb-1">Connect a New Account</h2>
-        <p className="text-gray-600 mb-4">
+      <Card className="p-6">
+        <h2 className="text-lg font-semibold text-ever-ink mb-1">Connect a New Account</h2>
+        <p className="text-ever-dim mb-4">
           Supports E*Trade, Schwab, Chase, Fidelity, and 12,000+ other institutions via Plaid.
         </p>
         <PlaidLink onSuccess={loadConnectedAccounts} />
-      </div>
+      </Card>
 
       {/* Sync history */}
       {syncHistory.length > 0 && (
-        <div className="bg-white rounded-lg p-6 shadow-sm border">
-          <h2 className="text-lg font-semibold text-gray-900 mb-3">Recent Sync Activity</h2>
+        <Card className="p-6">
+          <h2 className="text-lg font-semibold text-ever-ink mb-3">Recent Sync Activity</h2>
           <div className="space-y-2">
             {syncHistory.slice(0, 5).map((log, index) => (
               <div key={index} className="flex items-center space-x-3 text-sm">
-                {log.status === 'completed' && <CheckCircle className="h-4 w-4 text-green-500 flex-shrink-0" />}
-                {log.status === 'error' && <AlertCircle className="h-4 w-4 text-red-500 flex-shrink-0" />}
-                {log.status === 'in_progress' && <Clock className="h-4 w-4 text-blue-500 flex-shrink-0" />}
-                <span className="text-gray-600 truncate">{log.message}</span>
-                <span className="text-gray-400 text-xs flex-shrink-0">
+                {log.status === 'completed' && <CheckCircle className="h-4 w-4 text-ever-pos flex-shrink-0" />}
+                {log.status === 'error' && <AlertCircle className="h-4 w-4 text-ever-neg flex-shrink-0" />}
+                {log.status === 'in_progress' && <Clock className="h-4 w-4 text-ever-lime flex-shrink-0" />}
+                <span className="text-ever-dim truncate">{log.message}</span>
+                <span className="text-ever-faint text-xs flex-shrink-0">
                   {new Date(log.created_at).toLocaleString()}
                 </span>
               </div>
             ))}
           </div>
-        </div>
+        </Card>
       )}
     </div>
   );
 
   const renderApiTab = () => (
-    <div className="bg-white rounded-lg p-6 shadow-sm border">
+    <Card className="p-6">
       <div className="flex justify-between items-center mb-4">
         <div className="flex items-center">
-          <Key className="h-5 w-5 text-blue-600 mr-2" />
-          <h2 className="text-xl font-semibold text-gray-900">ETrade API Configuration</h2>
+          <Key className="h-5 w-5 text-ever-lime mr-2" />
+          <h2 className="text-xl font-semibold text-ever-ink">ETrade API Configuration</h2>
         </div>
-        <button
+        <Button
           onClick={saveEtradeKeys}
           disabled={!etradeKeys.consumerKey || !etradeKeys.consumerSecret}
-          className={`px-4 py-2 rounded-md text-sm font-medium flex items-center space-x-2 ${
-            etradeKeys.consumerKey && etradeKeys.consumerSecret
-              ? 'bg-blue-600 text-white hover:bg-blue-700'
-              : 'bg-gray-100 text-gray-400 cursor-not-allowed'
-          }`}
         >
           <Save className="h-4 w-4" />
           <span>{etradeKeysSaved ? 'Saved!' : 'Save Keys'}</span>
-        </button>
+        </Button>
       </div>
 
-      <p className="text-gray-600 mb-6">
+      <p className="text-ever-dim mb-6">
         Configure your ETrade API credentials for advanced portfolio management and automated trading features.
-        Visit the <a href="https://developer.etrade.com" target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:text-blue-800">ETrade Developer Portal</a> to obtain your API keys.
+        Visit the <a href="https://developer.etrade.com" target="_blank" rel="noopener noreferrer" className="text-ever-lime hover:underline">ETrade Developer Portal</a> to obtain your API keys.
       </p>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
+          <label className="block text-sm font-medium text-ever-dim mb-2">
             Consumer Key
           </label>
           <input
@@ -477,12 +470,12 @@ const InvestingSettings: React.FC = () => {
             value={etradeKeys.consumerKey}
             onChange={(e) => handleEtradeKeyChange('consumerKey', e.target.value)}
             placeholder="Enter your ETrade consumer key"
-            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="w-full px-3 py-2 bg-ever-bg border border-ever-line text-ever-ink placeholder-ever-faint rounded-lg focus:outline-none focus:border-ever-lime"
           />
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
+          <label className="block text-sm font-medium text-ever-dim mb-2">
             Consumer Secret
           </label>
           <div className="relative">
@@ -491,7 +484,7 @@ const InvestingSettings: React.FC = () => {
               value={etradeKeys.consumerSecret}
               onChange={(e) => handleEtradeKeyChange('consumerSecret', e.target.value)}
               placeholder="Enter your ETrade consumer secret"
-              className="w-full px-3 py-2 pr-10 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full px-3 py-2 pr-10 bg-ever-bg border border-ever-line text-ever-ink placeholder-ever-faint rounded-lg focus:outline-none focus:border-ever-lime"
             />
             <button
               type="button"
@@ -499,56 +492,56 @@ const InvestingSettings: React.FC = () => {
               className="absolute inset-y-0 right-0 pr-3 flex items-center"
             >
               {showSecret ? (
-                <EyeOff className="h-4 w-4 text-gray-400" />
+                <EyeOff className="h-4 w-4 text-ever-faint" />
               ) : (
-                <Eye className="h-4 w-4 text-gray-400" />
+                <Eye className="h-4 w-4 text-ever-faint" />
               )}
             </button>
           </div>
         </div>
       </div>
 
-      <div className="mt-6 p-3 bg-green-50 rounded-md border border-green-200">
+      <div className="mt-6 p-3 bg-white/5 rounded-md border border-ever-line">
         <div className="flex items-center">
-          <CheckCircle className="h-4 w-4 text-green-500 mr-2" />
-          <span className="text-sm text-green-800 font-medium">
+          <CheckCircle className="h-4 w-4 text-ever-pos mr-2" />
+          <span className="text-sm text-ever-pos font-medium">
             Production Mode Enabled - Live trading data and real portfolio information
           </span>
         </div>
       </div>
 
-      <div className="mt-6 p-4 bg-blue-50 rounded-md border border-blue-200">
-        <h4 className="text-sm font-medium text-blue-900 mb-2">Security Note:</h4>
-        <p className="text-xs text-blue-800">
+      <div className="mt-6 p-4 bg-white/5 rounded-md border border-ever-line">
+        <h4 className="text-sm font-medium text-ever-ink mb-2">Security Note:</h4>
+        <p className="text-xs text-ever-dim">
           Your API keys are stored securely and encrypted. They are only used for authorized API calls to ETrade.
           You can revoke access at any time through your ETrade developer account.
         </p>
       </div>
 
       {(etradeKeys.consumerKey || etradeKeys.consumerSecret) && (
-        <div className="mt-4 p-3 bg-green-50 rounded-md border border-green-200">
+        <div className="mt-4 p-3 bg-white/5 rounded-md border border-ever-line">
           <div className="flex items-center">
-            <CheckCircle className="h-4 w-4 text-green-500 mr-2" />
-            <span className="text-sm text-green-800">
+            <CheckCircle className="h-4 w-4 text-ever-pos mr-2" />
+            <span className="text-sm text-ever-pos">
               API keys configured.
             </span>
           </div>
         </div>
       )}
-    </div>
+    </Card>
   );
 
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-3xl font-bold text-gray-900">Investing Settings</h1>
-        <p className="text-gray-600 mt-2">
+        <h1 className="text-2xl font-extrabold tracking-tight text-ever-ink md:text-[26px]">Investing Settings</h1>
+        <p className="text-ever-dim mt-2">
           Configure your investment allocations, connected accounts, and API settings
         </p>
       </div>
 
       {/* Tabs */}
-      <div className="border-b border-gray-200">
+      <div className="border-b border-ever-line">
         <nav className="flex gap-6 -mb-px" aria-label="Settings sections">
           {TABS.map(tab => {
             const Icon = tab.icon;
@@ -559,14 +552,14 @@ const InvestingSettings: React.FC = () => {
                 onClick={() => selectTab(tab.id)}
                 className={`inline-flex items-center gap-2 px-1 py-3 border-b-2 text-sm font-medium transition-colors ${
                   isActive
-                    ? 'border-blue-600 text-blue-600'
-                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                    ? 'border-ever-lime text-ever-lime'
+                    : 'border-transparent text-ever-dim hover:text-ever-ink hover:border-ever-line'
                 }`}
               >
                 <Icon className="h-4 w-4" />
                 {tab.label}
                 {tab.id === 'allocations' && hasChanges && (
-                  <span className="w-1.5 h-1.5 rounded-full bg-blue-600" title="Unsaved changes" />
+                  <span className="w-1.5 h-1.5 rounded-full bg-ever-lime" title="Unsaved changes" />
                 )}
               </button>
             );

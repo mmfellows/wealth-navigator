@@ -1,10 +1,13 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { authedFetch } from '../services/authRedirect';
-import { DollarSign, PlusCircle, Edit2, Trash2, Calendar, Target, X, Archive, RotateCcw, ChevronDown, ChevronRight, History, GripVertical } from 'lucide-react';
+import { PlusCircle, Edit2, Trash2, Target, X, Archive, RotateCcw, ChevronDown, ChevronRight, History, GripVertical } from 'lucide-react';
 import { fetchBudgetCategories, fetchCategoryColors, DEFAULT_CATEGORY_COLOR } from '../constants/budgetCategories';
 import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors, DragEndEvent } from '@dnd-kit/core';
 import { arrayMove, SortableContext, verticalListSortingStrategy, useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
+import { Card, Button, StatCard } from '../components/ui';
+import { cn } from '../lib/cn';
+import { everPill, everDot } from '../lib/categoryColors';
 
 // Price history entry
 interface PriceChange {
@@ -102,7 +105,7 @@ const SortableCategoryGroup: React.FC<{
   };
 
   return (
-    <tbody ref={setNodeRef} style={style} {...attributes} className="divide-y divide-gray-200">
+    <tbody ref={setNodeRef} style={style} {...attributes} className="divide-y divide-ever-line">
       {children(listeners)}
     </tbody>
   );
@@ -373,14 +376,14 @@ const Budgets: React.FC = () => {
 
   const renderItemRow = (item: BudgetItem, isArchived: boolean) => (
     <React.Fragment key={item.id}>
-      <tr className={`hover:bg-gray-50 ${isArchived ? 'opacity-60' : ''}`}>
+      <tr className={`hover:bg-white/5 ${isArchived ? 'opacity-60' : ''}`}>
         <td className="px-6 py-3 whitespace-nowrap pl-20">
           <div className="flex items-center">
-            <div className="text-sm font-medium text-gray-900">{item.itemName}</div>
+            <div className="text-sm font-medium text-ever-ink">{item.itemName}</div>
             {item.priceHistory.length > 0 && (
               <button
                 onClick={(e) => { e.stopPropagation(); setExpandedHistory(expandedHistory === item.id ? null : item.id); }}
-                className="ml-2 text-gray-400 hover:text-blue-600"
+                className="ml-2 text-ever-faint hover:text-ever-lime"
                 title="View price history"
               >
                 <History className="h-3.5 w-3.5" />
@@ -389,41 +392,42 @@ const Budgets: React.FC = () => {
           </div>
         </td>
         <td className="px-6 py-3 whitespace-nowrap">
-          <span className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${
-            item.frequency === 'monthly' ? 'bg-green-100 text-green-800' : 'bg-orange-100 text-orange-800'
-          }`}>
+          <span className={cn(
+            'inline-flex px-2 py-1 text-xs font-medium rounded-full',
+            everPill(item.frequency === 'monthly' ? 'bg-green-100' : 'bg-orange-100')
+          )}>
             {item.frequency}
           </span>
         </td>
-        <td className="px-6 py-3 whitespace-nowrap text-right text-sm font-medium text-gray-900">
+        <td className="px-6 py-3 whitespace-nowrap text-right text-sm font-medium text-ever-ink tabular-nums">
           ${item.amount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
         </td>
-        <td className="px-6 py-3 whitespace-nowrap text-right text-sm font-semibold text-blue-600">
+        <td className="px-6 py-3 whitespace-nowrap text-right text-sm font-semibold text-ever-lime tabular-nums">
           ${item.monthlyExpectedSpend.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
         </td>
-        <td className="px-6 py-3 whitespace-nowrap text-sm text-gray-600">
+        <td className="px-6 py-3 whitespace-nowrap text-sm text-ever-dim">
           {formatDate(item.startDate)} — {formatDate(item.endDate)}
         </td>
         <td className="px-6 py-3 whitespace-nowrap text-right text-sm font-medium">
           <div className="flex items-center justify-end space-x-2">
             {isArchived ? (
               <>
-                <button onClick={() => handleRestore(item.id)} className="text-green-600 hover:text-green-900" title="Restore">
+                <button onClick={() => handleRestore(item.id)} className="text-ever-pos hover:text-ever-ink" title="Restore">
                   <RotateCcw className="h-4 w-4" />
                 </button>
-                <button onClick={() => handleDelete(item.id)} className="text-red-600 hover:text-red-900" title="Delete permanently">
+                <button onClick={() => handleDelete(item.id)} className="text-ever-neg hover:text-ever-ink" title="Delete permanently">
                   <Trash2 className="h-4 w-4" />
                 </button>
               </>
             ) : (
               <>
-                <button onClick={() => openEdit(item)} className="text-blue-600 hover:text-blue-900" title="Edit">
+                <button onClick={() => openEdit(item)} className="text-ever-lime hover:text-ever-ink" title="Edit">
                   <Edit2 className="h-4 w-4" />
                 </button>
-                <button onClick={() => handleArchive(item.id)} className="text-amber-600 hover:text-amber-900" title="Archive">
+                <button onClick={() => handleArchive(item.id)} className="text-ever-orange hover:text-ever-ink" title="Archive">
                   <Archive className="h-4 w-4" />
                 </button>
-                <button onClick={() => handleDelete(item.id)} className="text-red-600 hover:text-red-900" title="Delete permanently">
+                <button onClick={() => handleDelete(item.id)} className="text-ever-neg hover:text-ever-ink" title="Delete permanently">
                   <Trash2 className="h-4 w-4" />
                 </button>
               </>
@@ -433,21 +437,21 @@ const Budgets: React.FC = () => {
       </tr>
       {expandedHistory === item.id && item.priceHistory.length > 0 && (
         <tr>
-          <td colSpan={6} className="px-6 py-3 bg-blue-50 pl-20">
-            <div className="text-xs text-gray-500 font-medium mb-2">Price History</div>
+          <td colSpan={6} className="px-6 py-3 bg-white/5 pl-20">
+            <div className="text-xs text-ever-dim font-medium mb-2">Price History</div>
             <div className="space-y-1">
               {item.priceHistory.map((entry, idx) => (
-                <div key={idx} className="flex items-center text-sm text-gray-600">
-                  <span className="w-24">${entry.amount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
-                  <span className="w-20 text-xs text-gray-400">{entry.frequency}</span>
+                <div key={idx} className="flex items-center text-sm text-ever-dim">
+                  <span className="w-24 tabular-nums">${entry.amount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                  <span className="w-20 text-xs text-ever-faint">{entry.frequency}</span>
                   <span className="text-xs">
                     {formatDate(entry.effectiveDate)} — {formatDate(entry.endDate)}
                   </span>
                 </div>
               ))}
-              <div className="flex items-center text-sm text-blue-600 font-medium">
-                <span className="w-24">${item.amount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
-                <span className="w-20 text-xs text-blue-400">{item.frequency}</span>
+              <div className="flex items-center text-sm text-ever-lime font-medium">
+                <span className="w-24 tabular-nums">${item.amount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                <span className="w-20 text-xs text-ever-lime/70">{item.frequency}</span>
                 <span className="text-xs">
                   {formatDate(item.startDate)} — Current
                 </span>
@@ -462,75 +466,56 @@ const Budgets: React.FC = () => {
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
-        <h1 className="text-3xl font-bold text-gray-900">Budgets</h1>
-        <button onClick={openAdd} className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 flex items-center">
-          <PlusCircle className="h-4 w-4 mr-2" />
+        <h1 className="text-2xl font-extrabold tracking-tight text-ever-ink md:text-[26px]">Budgets</h1>
+        <Button onClick={openAdd}>
+          <PlusCircle className="h-4 w-4" />
           Add Budget Item
-        </button>
+        </Button>
       </div>
 
       {/* Summary Cards */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-        <div className="bg-white rounded-lg p-6 shadow-sm border">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium text-gray-600">Total Monthly Budget</p>
-              <p className="text-3xl font-bold text-gray-900">${totalMonthlyBudget.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
-            </div>
-            <Target className="h-12 w-12 text-blue-400" />
-          </div>
-        </div>
-
-        <div className="bg-white rounded-lg p-6 shadow-sm border">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium text-gray-600">Active Items</p>
-              <p className="text-3xl font-bold text-gray-900">{activeItems.length}</p>
-            </div>
-            <DollarSign className="h-12 w-12 text-green-400" />
-          </div>
-        </div>
-
-        <div className="bg-white rounded-lg p-6 shadow-sm border">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium text-gray-600">Categories</p>
-              <p className="text-3xl font-bold text-gray-900">{mainCategories.length}</p>
-            </div>
-            <Calendar className="h-12 w-12 text-purple-400" />
-          </div>
-        </div>
-
-        <div className="bg-white rounded-lg p-6 shadow-sm border">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium text-gray-600">Archived Items</p>
-              <p className="text-3xl font-bold text-gray-900">{archivedItems.length}</p>
-            </div>
-            <Archive className="h-12 w-12 text-amber-400" />
-          </div>
-        </div>
+        <StatCard
+          label="Total Monthly Budget"
+          value={`$${totalMonthlyBudget.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
+          dot="var(--ever-lime)"
+        />
+        <StatCard
+          label="Active Items"
+          value={activeItems.length}
+          dot="var(--ever-pos)"
+        />
+        <StatCard
+          label="Categories"
+          value={mainCategories.length}
+          dot="var(--ever-violet)"
+        />
+        <StatCard
+          label="Archived Items"
+          value={archivedItems.length}
+          dot="var(--ever-orange)"
+        />
       </div>
 
       {/* Active Budget Items Table - Grouped by Category */}
-      <div className="bg-white rounded-lg shadow-sm border">
-        <div className="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
-          <h2 className="text-lg font-semibold text-gray-900">Active Budget Items</h2>
+      <div className="bg-ever-card rounded-ever border border-ever-line">
+        <div className="px-6 py-4 border-b border-ever-line flex items-center justify-between">
+          <h2 className="text-lg font-semibold text-ever-ink">Active Budget Items</h2>
           <div className="flex items-center space-x-2">
             <button
               onClick={() => { setCollapsedCategories(new Set()); setCollapsedSubcategories(new Set()); }}
-              className="text-xs text-blue-600 hover:text-blue-800 font-medium"
+              className="text-xs text-ever-lime hover:underline font-medium"
             >
               Expand All
             </button>
-            <span className="text-gray-300">|</span>
+            <span className="text-ever-faint">|</span>
             <button
               onClick={() => {
                 setCollapsedCategories(new Set(mainCategories));
                 const allSubKeys = activeItems.map(i => `${i.mainCategory}::${i.secondaryCategory}`);
                 setCollapsedSubcategories(new Set(allSubKeys));
               }}
-              className="text-xs text-blue-600 hover:text-blue-800 font-medium"
+              className="text-xs text-ever-lime hover:underline font-medium"
             >
               Collapse All
             </button>
@@ -538,15 +523,15 @@ const Budgets: React.FC = () => {
         </div>
 
         <div className="overflow-x-auto">
-          <table className="min-w-full divide-y divide-gray-200">
-            <thead className="bg-gray-50">
+          <table className="min-w-full divide-y divide-ever-line">
+            <thead className="bg-white/5">
               <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Item</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Frequency</th>
-                <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Amount</th>
-                <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Monthly Expected</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Dates</th>
-                <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-ever-dim uppercase tracking-wider">Item</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-ever-dim uppercase tracking-wider">Frequency</th>
+                <th className="px-6 py-3 text-right text-xs font-medium text-ever-dim uppercase tracking-wider">Amount</th>
+                <th className="px-6 py-3 text-right text-xs font-medium text-ever-dim uppercase tracking-wider">Monthly Expected</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-ever-dim uppercase tracking-wider">Dates</th>
+                <th className="px-6 py-3 text-right text-xs font-medium text-ever-dim uppercase tracking-wider">Actions</th>
               </tr>
             </thead>
             <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
@@ -560,36 +545,36 @@ const Budgets: React.FC = () => {
                         <>
                           {/* Category header row */}
                           <tr
-                            className="bg-gray-50 cursor-pointer hover:bg-gray-100"
+                            className="bg-white/5 cursor-pointer hover:bg-white/10"
                             onClick={() => toggleCategory(category)}
                           >
                             <td className="px-6 py-3">
                               <div className="flex items-center">
                                 <button
                                   {...listeners}
-                                  className="cursor-grab active:cursor-grabbing mr-2 text-gray-400 hover:text-gray-600"
+                                  className="cursor-grab active:cursor-grabbing mr-2 text-ever-faint hover:text-ever-dim"
                                   onClick={e => e.stopPropagation()}
                                 >
                                   <GripVertical className="h-4 w-4" />
                                 </button>
                                 {isCollapsed
-                                  ? <ChevronRight className="h-4 w-4 mr-2 text-gray-500" />
-                                  : <ChevronDown className="h-4 w-4 mr-2 text-gray-500" />
+                                  ? <ChevronRight className="h-4 w-4 mr-2 text-ever-dim" />
+                                  : <ChevronDown className="h-4 w-4 mr-2 text-ever-dim" />
                                 }
-                                <span className={`inline-flex px-2 py-1 text-xs font-medium rounded-full mr-2 ${getCategoryColor(category)}`}>
+                                <span className={cn('inline-flex px-2 py-1 text-xs font-medium rounded-full mr-2', everPill(getCategoryColor(category)))}>
                                   {category}
                                 </span>
-                                <span className="text-xs text-gray-500">
+                                <span className="text-xs text-ever-dim">
                                   {items.length} item{items.length !== 1 ? 's' : ''}
                                 </span>
                               </div>
                             </td>
                             <td className="px-6 py-3"></td>
                             <td className="px-6 py-3"></td>
-                            <td className="px-6 py-3 text-right text-sm font-bold text-gray-900">
+                            <td className="px-6 py-3 text-right text-sm font-bold text-ever-ink tabular-nums">
                               ${totalMonthly.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                             </td>
-                            <td className="px-6 py-3 text-left text-xs text-gray-500">
+                            <td className="px-6 py-3 text-left text-xs text-ever-dim">
                               {percentage.toFixed(1)}% of budget
                             </td>
                             <td className="px-6 py-3"></td>
@@ -614,22 +599,22 @@ const Budgets: React.FC = () => {
                                     return (
                                       <>
                                         <tr
-                                          className="bg-gray-50/60 cursor-pointer hover:bg-gray-100/60"
+                                          className="bg-white/[0.03] cursor-pointer hover:bg-white/5"
                                           onClick={() => toggleSubcategory(subKey)}
                                         >
                                           <td className="px-6 py-1.5 pl-14" colSpan={3}>
                                             <div className="flex items-center">
                                               {isSubCollapsed
-                                                ? <ChevronRight className="h-3 w-3 mr-1.5 text-gray-400" />
-                                                : <ChevronDown className="h-3 w-3 mr-1.5 text-gray-400" />
+                                                ? <ChevronRight className="h-3 w-3 mr-1.5 text-ever-faint" />
+                                                : <ChevronDown className="h-3 w-3 mr-1.5 text-ever-faint" />
                                               }
-                                              <span className="text-xs font-medium text-gray-500">{sub}</span>
-                                              <span className="text-xs text-gray-400 ml-2">
+                                              <span className="text-xs font-medium text-ever-dim">{sub}</span>
+                                              <span className="text-xs text-ever-faint ml-2">
                                                 {subItems.length} item{subItems.length !== 1 ? 's' : ''}
                                               </span>
                                             </div>
                                           </td>
-                                          <td className="px-6 py-1.5 text-right text-xs font-medium text-gray-500">
+                                          <td className="px-6 py-1.5 text-right text-xs font-medium text-ever-dim tabular-nums">
                                             ${subTotal.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                                           </td>
                                           <td colSpan={2}></td>
@@ -651,10 +636,10 @@ const Budgets: React.FC = () => {
                 })}
               </SortableContext>
             </DndContext>
-            <tfoot className="bg-gray-100">
+            <tfoot className="bg-white/5">
               <tr>
-                <td colSpan={3} className="px-6 py-4 text-sm font-bold text-gray-900">Total Monthly Budget</td>
-                <td className="px-6 py-4 text-right text-sm font-bold text-blue-600">${totalMonthlyBudget.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                <td colSpan={3} className="px-6 py-4 text-sm font-bold text-ever-ink">Total Monthly Budget</td>
+                <td className="px-6 py-4 text-right text-sm font-bold text-ever-lime tabular-nums">${totalMonthlyBudget.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
                 <td colSpan={2}></td>
               </tr>
             </tfoot>
@@ -663,41 +648,41 @@ const Budgets: React.FC = () => {
 
         {activeItems.length === 0 && (
           <div className="text-center py-12">
-            <Target className="h-12 w-12 text-gray-300 mx-auto mb-4" />
-            <p className="text-gray-500">No active budget items.</p>
-            <p className="text-sm text-gray-400 mt-2">Add your first budget item to get started.</p>
+            <Target className="h-12 w-12 text-ever-faint mx-auto mb-4" />
+            <p className="text-ever-dim">No active budget items.</p>
+            <p className="text-sm text-ever-faint mt-2">Add your first budget item to get started.</p>
           </div>
         )}
       </div>
 
       {/* Archived Items */}
       {archivedItems.length > 0 && (
-        <div className="bg-white rounded-lg shadow-sm border">
+        <div className="bg-ever-card rounded-ever border border-ever-line">
           <button
             onClick={() => setShowArchived(!showArchived)}
-            className="w-full px-6 py-4 border-b border-gray-200 flex items-center justify-between hover:bg-gray-50"
+            className="w-full px-6 py-4 border-b border-ever-line flex items-center justify-between hover:bg-white/5"
           >
             <div className="flex items-center">
-              {showArchived ? <ChevronDown className="h-4 w-4 mr-2 text-gray-500" /> : <ChevronRight className="h-4 w-4 mr-2 text-gray-500" />}
-              <h2 className="text-lg font-semibold text-gray-900">Archived Items</h2>
-              <span className="ml-2 text-sm text-gray-500">({archivedItems.length})</span>
+              {showArchived ? <ChevronDown className="h-4 w-4 mr-2 text-ever-dim" /> : <ChevronRight className="h-4 w-4 mr-2 text-ever-dim" />}
+              <h2 className="text-lg font-semibold text-ever-ink">Archived Items</h2>
+              <span className="ml-2 text-sm text-ever-dim">({archivedItems.length})</span>
             </div>
           </button>
 
           {showArchived && (
             <div className="overflow-x-auto">
-              <table className="min-w-full divide-y divide-gray-200">
-                <thead className="bg-gray-50">
+              <table className="min-w-full divide-y divide-ever-line">
+                <thead className="bg-white/5">
                   <tr>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Item</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Frequency</th>
-                    <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Amount</th>
-                    <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Monthly Expected</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Dates</th>
-                    <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-ever-dim uppercase tracking-wider">Item</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-ever-dim uppercase tracking-wider">Frequency</th>
+                    <th className="px-6 py-3 text-right text-xs font-medium text-ever-dim uppercase tracking-wider">Amount</th>
+                    <th className="px-6 py-3 text-right text-xs font-medium text-ever-dim uppercase tracking-wider">Monthly Expected</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-ever-dim uppercase tracking-wider">Dates</th>
+                    <th className="px-6 py-3 text-right text-xs font-medium text-ever-dim uppercase tracking-wider">Actions</th>
                   </tr>
                 </thead>
-                <tbody className="bg-white divide-y divide-gray-200">
+                <tbody className="divide-y divide-ever-line">
                   {archivedItems.map(item => renderItemRow(item, true))}
                 </tbody>
               </table>
@@ -707,8 +692,8 @@ const Budgets: React.FC = () => {
       )}
 
       {/* Category Summary */}
-      <div className="bg-white rounded-lg p-6 shadow-sm border">
-        <h3 className="text-lg font-semibold text-gray-900 mb-4">Budget by Category</h3>
+      <Card>
+        <h3 className="text-lg font-semibold text-ever-ink mb-4">Budget by Category</h3>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {mainCategories.map((category) => {
             const categoryTotal = activeItems
@@ -718,63 +703,63 @@ const Budgets: React.FC = () => {
             const percentage = totalMonthlyBudget > 0 ? (categoryTotal / totalMonthlyBudget) * 100 : 0;
 
             return (
-              <div key={category} className="flex items-center justify-between p-3 border border-gray-200 rounded-lg">
+              <div key={category} className="flex items-center justify-between p-3 border border-ever-line rounded-lg">
                 <div className="flex items-center">
-                  <div className={`w-3 h-3 rounded-full mr-3 ${getCategoryColor(category).split(' ')[0]}`}></div>
-                  <span className="text-sm font-medium text-gray-900">{category}</span>
+                  <div className={cn('w-3 h-3 rounded-full mr-3', everDot(getCategoryColor(category)))}></div>
+                  <span className="text-sm font-medium text-ever-ink">{category}</span>
                 </div>
                 <div className="text-right">
-                  <div className="text-sm font-semibold text-gray-900">${categoryTotal.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
-                  <div className="text-xs text-gray-500">{percentage.toFixed(1)}%</div>
+                  <div className="text-sm font-semibold text-ever-ink tabular-nums">${categoryTotal.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
+                  <div className="text-xs text-ever-dim">{percentage.toFixed(1)}%</div>
                 </div>
               </div>
             );
           })}
         </div>
-      </div>
+      </Card>
 
       {/* Add/Edit Modal */}
       {showModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg shadow-xl w-full max-w-lg mx-4">
-            <div className="flex items-center justify-between px-6 py-4 border-b">
-              <h3 className="text-lg font-semibold text-gray-900">
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-ever-card border border-ever-line rounded-ever text-ever-ink w-full max-w-lg mx-4">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-ever-line">
+              <h3 className="text-lg font-semibold text-ever-ink">
                 {editingItem ? 'Edit Budget Item' : 'Add Budget Item'}
               </h3>
-              <button onClick={() => setShowModal(false)} className="text-gray-400 hover:text-gray-600">
+              <button onClick={() => setShowModal(false)} className="text-ever-dim hover:text-ever-ink">
                 <X className="h-5 w-5" />
               </button>
             </div>
 
             <div className="px-6 py-4 space-y-4">
               {editingItem && Number(form.amount) !== editingItem.amount && (
-                <div className="bg-blue-50 border border-blue-200 rounded-md px-4 py-3 text-sm text-blue-800">
-                  <History className="h-4 w-4 inline mr-1.5 -mt-0.5" />
+                <div className="bg-white/5 border border-ever-line rounded-md px-4 py-3 text-sm text-ever-dim">
+                  <History className="h-4 w-4 inline mr-1.5 -mt-0.5 text-ever-lime" />
                   Price change detected. The previous price (${editingItem.amount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}/{editingItem.frequency}) will be saved to price history.
                 </div>
               )}
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Item Name</label>
+                <label className="block text-sm font-medium text-ever-dim mb-1">Item Name</label>
                 <input
                   type="text"
                   value={form.itemName}
                   onChange={e => setForm({ ...form, itemName: e.target.value })}
-                  className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full bg-ever-bg border border-ever-line text-ever-ink placeholder-ever-faint rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-ever-lime"
                   placeholder="e.g. Netflix Subscription"
                 />
               </div>
 
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Main Category</label>
+                  <label className="block text-sm font-medium text-ever-dim mb-1">Main Category</label>
                   <select
                     value={form.mainCategory}
                     onChange={e => {
                       const main = e.target.value;
                       setForm({ ...form, mainCategory: main, secondaryCategory: BUDGET_CATEGORIES[main][0] });
                     }}
-                    className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="w-full bg-ever-bg border border-ever-line text-ever-ink rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-ever-lime"
                   >
                     {Object.keys(BUDGET_CATEGORIES).map(cat => (
                       <option key={cat} value={cat}>{cat}</option>
@@ -782,11 +767,11 @@ const Budgets: React.FC = () => {
                   </select>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Secondary Category</label>
+                  <label className="block text-sm font-medium text-ever-dim mb-1">Secondary Category</label>
                   <select
                     value={form.secondaryCategory}
                     onChange={e => setForm({ ...form, secondaryCategory: e.target.value })}
-                    className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="w-full bg-ever-bg border border-ever-line text-ever-ink rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-ever-lime"
                   >
                     {(BUDGET_CATEGORIES[form.mainCategory] || []).map(sub => (
                       <option key={sub} value={sub}>{sub}</option>
@@ -797,25 +782,25 @@ const Budgets: React.FC = () => {
 
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Frequency</label>
+                  <label className="block text-sm font-medium text-ever-dim mb-1">Frequency</label>
                   <select
                     value={form.frequency}
                     onChange={e => setForm({ ...form, frequency: e.target.value as 'monthly' | 'annual' })}
-                    className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="w-full bg-ever-bg border border-ever-line text-ever-ink rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-ever-lime"
                   >
                     <option value="monthly">Monthly</option>
                     <option value="annual">Annual</option>
                   </select>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Amount ($)</label>
+                  <label className="block text-sm font-medium text-ever-dim mb-1">Amount ($)</label>
                   <input
                     type="number"
                     step="0.01"
                     min="0"
                     value={form.amount || ''}
                     onChange={e => setForm({ ...form, amount: parseFloat(e.target.value) || 0 })}
-                    className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="w-full bg-ever-bg border border-ever-line text-ever-ink placeholder-ever-faint rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-ever-lime"
                     placeholder="0.00"
                   />
                 </div>
@@ -823,40 +808,36 @@ const Budgets: React.FC = () => {
 
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Start Date</label>
+                  <label className="block text-sm font-medium text-ever-dim mb-1">Start Date</label>
                   <input
                     type="date"
                     value={form.startDate}
                     onChange={e => setForm({ ...form, startDate: e.target.value })}
-                    className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="w-full bg-ever-bg border border-ever-line text-ever-ink rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-ever-lime"
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">End Date (optional)</label>
+                  <label className="block text-sm font-medium text-ever-dim mb-1">End Date (optional)</label>
                   <input
                     type="date"
                     value={form.endDate}
                     onChange={e => setForm({ ...form, endDate: e.target.value })}
-                    className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="w-full bg-ever-bg border border-ever-line text-ever-ink rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-ever-lime"
                   />
                 </div>
               </div>
             </div>
 
-            <div className="flex justify-end space-x-3 px-6 py-4 border-t bg-gray-50 rounded-b-lg">
-              <button
-                onClick={() => setShowModal(false)}
-                className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50"
-              >
+            <div className="flex justify-end space-x-3 px-6 py-4 border-t border-ever-line bg-white/5 rounded-b-ever">
+              <Button variant="ghost" onClick={() => setShowModal(false)}>
                 Cancel
-              </button>
-              <button
+              </Button>
+              <Button
                 onClick={handleSave}
                 disabled={!form.itemName}
-                className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {editingItem ? 'Save Changes' : 'Add Item'}
-              </button>
+              </Button>
             </div>
           </div>
         </div>

@@ -26,21 +26,33 @@ async function computeSnapshot(userId) {
   const securitiesById = new Map(securitiesSnap.docs.map(d => [d.data().security_id, d.data()]));
   const accountsById = new Map(accountsSnap.docs.map(d => [d.data().account_id, d.data()]));
 
-  // Cash = depository balances
+  // Cash = depository balances + uninvested brokerage cash (below).
   let cash = 0;
   for (const doc of accountsSnap.docs) {
     const a = doc.data();
     if (a.type === 'depository') cash += a.balance_current || 0;
   }
 
-  // Investments: Plaid holdings (institution_value already includes idle
-  // brokerage cash as a cash-equivalent position, no double-count).
+  // Investments: Plaid holdings. Idle brokerage cash (money-market sweeps,
+  // CUR: pseudo-positions) counts as Cash rather than Investments — except
+  // inside retirement accounts, where it isn't accessible dry powder and
+  // stays with the account's Core allocation.
+  const isCashEquivalent = (h) => {
+    const sec = securitiesById.get(h.security_id);
+    const ticker = (sec?.ticker_symbol || '').toUpperCase();
+    return (sec?.type || '').toLowerCase() === 'cash' || ticker.startsWith('CUR:');
+  };
+  const isRetirementAccount = (accountId) => {
+    const acct = accountsById.get(accountId);
+    return RETIREMENT_SUBTYPES.has((acct?.subtype || '').toLowerCase());
+  };
   let investmentsPlaid = 0;
   for (const doc of holdingsSnap.docs) {
     const h = doc.data();
     const value = h.institution_value
       ?? (h.institution_price != null && h.quantity != null ? h.institution_price * h.quantity : 0);
-    investmentsPlaid += value || 0;
+    if (isCashEquivalent(h) && !isRetirementAccount(h.account_id)) cash += value || 0;
+    else investmentsPlaid += value || 0;
   }
 
   // Manual investments (off-platform). Best-effort live prices.
@@ -109,6 +121,10 @@ async function computeSnapshot(userId) {
     const value = h.institution_value
       ?? (h.institution_price != null && h.quantity != null ? h.institution_price * h.quantity : 0);
     const isRetirement = RETIREMENT_SUBTYPES.has((acct?.subtype || '').toLowerCase());
+
+    // Non-retirement cash equivalents are already counted in allocation.Cash
+    // (via the cash total above); adding them here would double-count.
+    if (isCashEquivalent(h) && !isRetirement) continue;
 
     let type;
     if (isRetirement) type = 'Core';

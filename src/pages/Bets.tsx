@@ -1,6 +1,8 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import axios from 'axios';
 import { Plus, X, CheckCircle, Edit2, Trash2, Target, Clock, Archive, AlertCircle } from 'lucide-react';
+import { Card, Button } from '../components/ui';
+import { cn } from '../lib/cn';
 
 type BetType = 'Long' | 'Mid' | 'Short' | 'Core';
 type BetStatus = 'planned' | 'active' | 'closed';
@@ -27,11 +29,12 @@ const TYPE_DESCRIPTIONS: Record<BetType, string> = {
   Core: 'Core / Long-term — auto-bucketed retirement holdings',
 };
 
+// Evergreen bet-type accents: violet lead, teal, orange, sand — distinguished by text color.
 const TYPE_COLORS: Record<BetType, string> = {
-  Long: 'bg-blue-50 text-blue-700 border-blue-200',
-  Mid: 'bg-emerald-50 text-emerald-700 border-emerald-200',
-  Short: 'bg-amber-50 text-amber-700 border-amber-200',
-  Core: 'bg-gray-50 text-gray-700 border-gray-200',
+  Long: 'bg-white/5 text-ever-violet border-ever-line',
+  Mid: 'bg-white/5 text-ever-teal border-ever-line',
+  Short: 'bg-white/5 text-ever-orange border-ever-line',
+  Core: 'bg-white/5 text-ever-dim border-ever-line',
 };
 
 const emptyForm = {
@@ -148,15 +151,12 @@ const Bets: React.FC = () => {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900">Bets</h1>
-          <p className="text-gray-600 mt-1">Your investment thesis layer — Long, Mid, and Short bets backed by holdings.</p>
+          <h1 className="text-2xl font-extrabold tracking-tight text-ever-ink md:text-[26px]">Bets</h1>
+          <p className="mt-1 text-sm text-ever-dim">Your investment thesis layer — Long, Mid, and Short bets backed by holdings.</p>
         </div>
-        <button
-          onClick={startCreate}
-          className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
-        >
-          <Plus className="h-4 w-4 mr-2" /> New Bet
-        </button>
+        <Button onClick={startCreate}>
+          <Plus className="h-4 w-4" /> New Bet
+        </Button>
       </div>
 
       <div className="flex gap-2">
@@ -164,9 +164,12 @@ const Bets: React.FC = () => {
           <button
             key={t}
             onClick={() => setTab(t)}
-            className={`px-4 py-2 rounded-md text-sm font-medium ${
-              tab === t ? 'bg-blue-600 text-white' : 'bg-white text-gray-700 border border-gray-200 hover:bg-gray-50'
-            }`}
+            className={cn(
+              'px-4 py-2 rounded-md text-sm font-medium transition',
+              tab === t
+                ? 'bg-ever-lime text-ever-lime-ink'
+                : 'border border-ever-line text-ever-dim hover:text-ever-ink',
+            )}
           >
             {t === 'active' && <Target className="h-4 w-4 mr-1 inline" />}
             {t === 'planned' && <Clock className="h-4 w-4 mr-1 inline" />}
@@ -177,24 +180,24 @@ const Bets: React.FC = () => {
       </div>
 
       {loading ? (
-        <div className="text-gray-500">Loading...</div>
+        <div className="text-ever-dim">Loading...</div>
       ) : filtered.length === 0 ? (
-        <div className="bg-white rounded-lg border border-dashed border-gray-300 p-12 text-center text-gray-500">
+        <Card className="border-dashed p-12 text-center text-ever-dim">
           No {tab} bets yet. {tab === 'active' && 'Create one to start tracking your thesis against real holdings.'}
-        </div>
+        </Card>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {filtered.map(bet => (
-            <div key={bet.id} className="bg-white rounded-lg shadow-sm border border-gray-200 p-5">
+            <Card key={bet.id}>
               <div className="flex items-start justify-between mb-3">
                 <div className="flex-1">
                   <div className="flex items-center gap-2 mb-1">
-                    <h3 className="text-lg font-semibold text-gray-900">{bet.name}</h3>
+                    <h3 className="text-lg font-semibold text-ever-ink">{bet.name}</h3>
                     <span className={`text-xs px-2 py-0.5 rounded-full border ${TYPE_COLORS[bet.type]}`}>
                       {bet.type}
                     </span>
                     {bet.is_synthetic && (
-                      <span className="text-xs px-2 py-0.5 rounded-full bg-purple-50 text-purple-700 border border-purple-200">
+                      <span className="text-xs px-2 py-0.5 rounded-full bg-white/5 text-ever-violet border border-ever-line">
                         Auto
                       </span>
                     )}
@@ -202,82 +205,82 @@ const Bets: React.FC = () => {
                   {bet.tickers.length > 0 && (
                     <div className="flex flex-wrap gap-1 mt-2">
                       {bet.tickers.map(t => (
-                        <span key={t} className="text-xs font-mono bg-gray-100 px-2 py-0.5 rounded">{t}</span>
+                        <span key={t} className="text-xs font-mono bg-ever-track text-ever-dim px-2 py-0.5 rounded">{t}</span>
                       ))}
                     </div>
                   )}
                 </div>
                 <div className="flex gap-1 ml-2">
-                  <button onClick={() => startEdit(bet)} title="Edit" className="p-1.5 text-gray-400 hover:text-gray-600">
+                  <button onClick={() => startEdit(bet)} title="Edit" className="p-1.5 text-ever-faint hover:text-ever-ink">
                     <Edit2 className="h-4 w-4" />
                   </button>
                   {!bet.is_synthetic && bet.status !== 'closed' && (
-                    <button onClick={() => closeBet(bet)} title="Close" className="p-1.5 text-gray-400 hover:text-green-600">
+                    <button onClick={() => closeBet(bet)} title="Close" className="p-1.5 text-ever-faint hover:text-ever-pos">
                       <CheckCircle className="h-4 w-4" />
                     </button>
                   )}
                   {!bet.is_synthetic && (
-                    <button onClick={() => deleteBet(bet)} title="Delete" className="p-1.5 text-gray-400 hover:text-red-600">
+                    <button onClick={() => deleteBet(bet)} title="Delete" className="p-1.5 text-ever-faint hover:text-ever-neg">
                       <Trash2 className="h-4 w-4" />
                     </button>
                   )}
                 </div>
               </div>
 
-              {bet.thesis && <p className="text-sm text-gray-600 mb-3">{bet.thesis}</p>}
+              {bet.thesis && <p className="text-sm text-ever-dim mb-3">{bet.thesis}</p>}
 
-              <div className="text-xs text-gray-500 space-y-0.5">
+              <div className="text-xs text-ever-dim space-y-0.5">
                 {bet.buy_date && <div>Bought: {bet.buy_date}</div>}
                 {bet.target_sell_date && <div>Target sell: {bet.target_sell_date}</div>}
                 {bet.actual_sell_date && <div>Closed: {bet.actual_sell_date}</div>}
               </div>
-            </div>
+            </Card>
           ))}
         </div>
       )}
 
       {showForm && (
-        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-lg shadow-xl w-full max-w-lg max-h-[90vh] overflow-y-auto">
-            <div className="flex items-center justify-between p-5 border-b">
-              <h2 className="text-lg font-semibold">{editing ? 'Edit Bet' : 'New Bet'}</h2>
-              <button onClick={() => setShowForm(false)} className="text-gray-400 hover:text-gray-600">
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-ever-card border border-ever-line rounded-ever text-ever-ink w-full max-w-lg max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between p-5 border-b border-ever-line">
+              <h2 className="text-lg font-semibold text-ever-ink">{editing ? 'Edit Bet' : 'New Bet'}</h2>
+              <button onClick={() => setShowForm(false)} className="text-ever-dim hover:text-ever-ink">
                 <X className="h-5 w-5" />
               </button>
             </div>
 
             <form onSubmit={submit} className="p-5 space-y-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Name</label>
+                <label className="block text-sm font-medium text-ever-dim mb-1">Name</label>
                 <input
                   type="text"
                   required
                   value={form.name}
                   onChange={e => setForm({ ...form, name: e.target.value })}
                   placeholder="e.g. AI Infrastructure"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-3 py-2 bg-ever-bg border border-ever-line text-ever-ink placeholder-ever-faint rounded-lg focus:outline-none focus:border-ever-lime"
                 />
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Type</label>
+                <label className="block text-sm font-medium text-ever-dim mb-1">Type</label>
                 <select
                   value={form.type}
                   onChange={e => setForm({ ...form, type: e.target.value as BetType })}
                   disabled={editing?.is_synthetic}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-3 py-2 bg-ever-bg border border-ever-line text-ever-ink rounded-lg focus:outline-none focus:border-ever-lime"
                 >
                   <option value="Long">Long</option>
                   <option value="Mid">Mid</option>
                   <option value="Short">Short / Speculative</option>
                   {editing?.is_synthetic && <option value="Core">Core</option>}
                 </select>
-                <p className="text-xs text-gray-500 mt-1">{TYPE_DESCRIPTIONS[form.type]}</p>
+                <p className="text-xs text-ever-dim mt-1">{TYPE_DESCRIPTIONS[form.type]}</p>
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Tickers <span className="text-gray-400 font-normal">(comma- or space-separated)</span>
+                <label className="block text-sm font-medium text-ever-dim mb-1">
+                  Tickers <span className="text-ever-faint font-normal">(comma- or space-separated)</span>
                 </label>
                 <input
                   type="text"
@@ -285,37 +288,37 @@ const Bets: React.FC = () => {
                   onChange={e => setForm({ ...form, tickers: e.target.value })}
                   placeholder="NVDA, AVGO, AMD"
                   disabled={editing?.is_synthetic}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 font-mono"
+                  className="w-full px-3 py-2 bg-ever-bg border border-ever-line text-ever-ink placeholder-ever-faint rounded-lg focus:outline-none focus:border-ever-lime font-mono"
                 />
               </div>
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Buy date</label>
+                  <label className="block text-sm font-medium text-ever-dim mb-1">Buy date</label>
                   <input
                     type="date"
                     value={form.buy_date}
                     onChange={e => setForm({ ...form, buy_date: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500"
+                    className="w-full px-3 py-2 bg-ever-bg border border-ever-line text-ever-ink rounded-lg focus:outline-none focus:border-ever-lime"
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Target sell date</label>
+                  <label className="block text-sm font-medium text-ever-dim mb-1">Target sell date</label>
                   <input
                     type="date"
                     value={form.target_sell_date}
                     onChange={e => setForm({ ...form, target_sell_date: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500"
+                    className="w-full px-3 py-2 bg-ever-bg border border-ever-line text-ever-ink rounded-lg focus:outline-none focus:border-ever-lime"
                   />
                 </div>
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Status</label>
+                <label className="block text-sm font-medium text-ever-dim mb-1">Status</label>
                 <select
                   value={form.status}
                   onChange={e => setForm({ ...form, status: e.target.value as BetStatus })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-3 py-2 bg-ever-bg border border-ever-line text-ever-ink rounded-lg focus:outline-none focus:border-ever-lime"
                 >
                   <option value="active">Active — I hold positions for this</option>
                   <option value="planned">Planned — committed thesis, not yet bought</option>
@@ -323,37 +326,30 @@ const Bets: React.FC = () => {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Thesis</label>
+                <label className="block text-sm font-medium text-ever-dim mb-1">Thesis</label>
                 <textarea
                   rows={4}
                   value={form.thesis}
                   onChange={e => setForm({ ...form, thesis: e.target.value })}
                   placeholder="Why this bet? What's the catalyst, time horizon, exit condition?"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-3 py-2 bg-ever-bg border border-ever-line text-ever-ink placeholder-ever-faint rounded-lg focus:outline-none focus:border-ever-lime"
                 />
               </div>
 
               {submitError && (
-                <div className="flex items-start gap-2 p-3 bg-red-50 border border-red-200 rounded text-sm text-red-700">
+                <div className="flex items-start gap-2 p-3 bg-white/5 border border-ever-line rounded text-sm text-ever-neg">
                   <AlertCircle className="h-4 w-4 mt-0.5 shrink-0" />
                   <span>{submitError}</span>
                 </div>
               )}
 
               <div className="flex justify-end gap-2 pt-2">
-                <button
-                  type="button"
-                  onClick={() => setShowForm(false)}
-                  className="px-4 py-2 rounded-md border border-gray-300 text-gray-700 hover:bg-gray-50"
-                >
+                <Button type="button" variant="ghost" onClick={() => setShowForm(false)}>
                   Cancel
-                </button>
-                <button
-                  type="submit"
-                  className="px-4 py-2 rounded-md bg-blue-600 text-white hover:bg-blue-700"
-                >
+                </Button>
+                <Button type="submit">
                   {editing ? 'Save' : 'Create Bet'}
-                </button>
+                </Button>
               </div>
             </form>
           </div>

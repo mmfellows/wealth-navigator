@@ -1,9 +1,12 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { authedFetch } from '../services/authRedirect';
 import { useQuery } from '@tanstack/react-query';
-import { CreditCard, Search, PlusCircle, Tag, DollarSign, Info, Upload, Download, Eye, X, ArrowLeftRight, FileText, BarChart3 } from 'lucide-react';
+import { CreditCard, Search, PlusCircle, Info, Upload, Download, Eye, X, ArrowLeftRight, FileText, BarChart3 } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine, Cell } from 'recharts';
 import { fetchBudgetCategories } from '../constants/budgetCategories';
+import { Card, StatCard, Button } from '../components/ui';
+import { everPill } from '../lib/categoryColors';
+import { cn } from '../lib/cn';
 
 interface Expense {
   id: number;
@@ -747,7 +750,7 @@ const Expenses: React.FC = () => {
   if (isLoading) {
     return (
       <div className="flex justify-center items-center h-64">
-        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-600"></div>
+        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-ever-lime"></div>
       </div>
     );
   }
@@ -755,13 +758,10 @@ const Expenses: React.FC = () => {
   if (error) {
     return (
       <div className="text-center py-12">
-        <p className="text-red-600">Error loading expenses. Please try again.</p>
-        <button
-          onClick={() => refetch()}
-          className="mt-4 bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700"
-        >
+        <p className="text-ever-neg">Error loading expenses. Please try again.</p>
+        <Button onClick={() => refetch()} className="mt-4">
           Retry
-        </button>
+        </Button>
       </div>
     );
   }
@@ -769,10 +769,10 @@ const Expenses: React.FC = () => {
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
-        <h1 className="text-3xl font-bold text-gray-900">Expenses</h1>
+        <h1 className="text-3xl font-bold text-ever-ink">Expenses</h1>
         <div className="flex space-x-3">
           <div className="relative group">
-            <label className="bg-green-600 text-white px-4 py-2 rounded-md hover:bg-green-700 flex items-center cursor-pointer">
+            <label className="border border-ever-line text-ever-ink hover:bg-white/5 px-4 py-2 rounded-[11px] flex items-center cursor-pointer text-sm transition">
               <Upload className="h-4 w-4 mr-2" />
               Import CSV
               <input
@@ -784,17 +784,17 @@ const Expenses: React.FC = () => {
             </label>
 
             {/* Hover dropdown for template options */}
-            <div className="absolute left-0 top-full mt-1 bg-white border border-gray-200 rounded-md shadow-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-10 w-48">
+            <div className="absolute left-0 top-full mt-1 bg-ever-card border border-ever-line rounded-ever shadow-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-10 w-48">
               <button
                 onClick={downloadCsvTemplate}
-                className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-50 flex items-center"
+                className="w-full px-4 py-2 text-left text-sm text-ever-dim hover:bg-white/5 flex items-center"
               >
                 <Download className="h-3 w-3 mr-2" />
                 Download Template
               </button>
               <button
                 onClick={() => setShowTemplate(!showTemplate)}
-                className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-50 flex items-center border-t border-gray-100"
+                className="w-full px-4 py-2 text-left text-sm text-ever-dim hover:bg-white/5 flex items-center border-t border-ever-line"
               >
                 <Eye className="h-3 w-3 mr-2" />
                 View Template
@@ -802,7 +802,10 @@ const Expenses: React.FC = () => {
             </div>
           </div>
 
-          <label className={`${isPdfUploading ? 'bg-gray-400' : 'bg-purple-600 hover:bg-purple-700'} text-white px-4 py-2 rounded-md flex items-center cursor-pointer`}>
+          <label className={cn(
+            'border border-ever-line text-ever-ink px-4 py-2 rounded-[11px] flex items-center cursor-pointer text-sm transition',
+            isPdfUploading ? 'opacity-50 pointer-events-none' : 'hover:bg-white/5',
+          )}>
             <FileText className="h-4 w-4 mr-2" />
             {isPdfUploading ? 'Processing...' : 'Import Chase PDF'}
             <input
@@ -815,28 +818,28 @@ const Expenses: React.FC = () => {
             />
           </label>
 
-          <button className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 flex items-center">
-            <PlusCircle className="h-4 w-4 mr-2" />
+          <Button>
+            <PlusCircle className="h-4 w-4" />
             Add Expense
-          </button>
+          </Button>
         </div>
       </div>
 
       {/* Filters */}
-      <div className="bg-white rounded-lg p-6 shadow-sm border">
+      <Card className="p-6">
         {availableColumns.length > displayColumns.length && showColumnAlert && (
-          <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+          <div className="mb-4 p-3 bg-white/5 border border-ever-line rounded-lg">
             <div className="flex items-center justify-between">
               <div className="flex items-center">
-                <Info className="h-4 w-4 text-blue-600 mr-2" />
-                <span className="text-sm text-blue-800">
+                <Info className="h-4 w-4 text-ever-lime mr-2" />
+                <span className="text-sm text-ever-dim">
                   Additional columns detected from imported data.
                   <button
                     onClick={() => {
                       setDisplayColumns(availableColumns.filter(col => col !== 'id'));
                       setShowColumnAlert(false);
                     }}
-                    className="ml-2 text-blue-600 hover:text-blue-800 underline"
+                    className="ml-2 text-ever-lime hover:underline"
                   >
                     Show all columns
                   </button>
@@ -844,7 +847,7 @@ const Expenses: React.FC = () => {
               </div>
               <button
                 onClick={() => setShowColumnAlert(false)}
-                className="text-blue-600 hover:text-blue-800 ml-4"
+                className="text-ever-dim hover:text-ever-ink ml-4"
                 aria-label="Dismiss alert"
               >
                 <X className="h-4 w-4" />
@@ -861,17 +864,18 @@ const Expenses: React.FC = () => {
                 <button
                   key={range}
                   onClick={() => setDateRange(range)}
-                  className={`px-4 py-2 rounded-md font-medium transition-colors ${
+                  className={cn(
+                    'px-4 py-2 rounded-md font-medium transition-colors',
                     dateRange === range
-                      ? 'bg-blue-600 text-white'
-                      : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                  }`}
+                      ? 'bg-ever-lime text-ever-lime-ink font-semibold'
+                      : 'border border-ever-line text-ever-dim hover:text-ever-ink',
+                  )}
                 >
                   {range === 'all' ? 'All' : range === 'month' ? 'This Month' : range === 'quarter' ? 'This Quarter' : 'This Year'}
                 </button>
               ))}
 
-              <div className="border-l pl-3 ml-1 flex gap-2">
+              <div className="border-l border-ever-line pl-3 ml-1 flex gap-2">
                 <select
                   value={selectedYear}
                   onChange={e => {
@@ -880,11 +884,12 @@ const Expenses: React.FC = () => {
                     setDateRange(dateRange === 'custom-month' ? 'custom-month' : 'custom-year');
                   }}
                   onClick={() => { if (dateRange !== 'custom-month') setDateRange('custom-year'); }}
-                  className={`px-3 py-2 rounded-md text-sm border transition-colors cursor-pointer ${
+                  className={cn(
+                    'px-3 py-2 rounded-lg text-sm border transition-colors cursor-pointer bg-ever-bg focus:outline-none',
                     dateRange === 'custom-year' || dateRange === 'custom-month'
-                      ? 'border-blue-600 bg-blue-50 text-blue-800'
-                      : 'border-gray-300 text-gray-700 hover:border-gray-400'
-                  }`}
+                      ? 'border-ever-lime text-ever-ink'
+                      : 'border-ever-line text-ever-dim hover:border-ever-lime',
+                  )}
                 >
                   {Array.from({ length: 5 }, (_, i) => new Date().getFullYear() - i).map(y => (
                     <option key={y} value={y}>{y}</option>
@@ -901,11 +906,12 @@ const Expenses: React.FC = () => {
                       setDateRange('custom-month');
                     }
                   }}
-                  className={`px-3 py-2 rounded-md text-sm border transition-colors cursor-pointer ${
+                  className={cn(
+                    'px-3 py-2 rounded-lg text-sm border transition-colors cursor-pointer bg-ever-bg focus:outline-none',
                     dateRange === 'custom-month' || dateRange === 'custom-year'
-                      ? 'border-blue-600 bg-blue-50 text-blue-800'
-                      : 'border-gray-300 text-gray-700 hover:border-gray-400'
-                  }`}
+                      ? 'border-ever-lime text-ever-ink'
+                      : 'border-ever-line text-ever-dim hover:border-ever-lime',
+                  )}
                 >
                   <option value="all">All Months</option>
                   {['01','02','03','04','05','06','07','08','09','10','11','12'].map(m => (
@@ -916,31 +922,31 @@ const Expenses: React.FC = () => {
                 </select>
               </div>
 
-              <div className="border-l pl-3 ml-1 flex items-center gap-3">
+              <div className="border-l border-ever-line pl-3 ml-1 flex items-center gap-3">
                 <label className="flex items-center gap-2 cursor-pointer">
                   <input
                     type="checkbox"
                     checked={uncategorizedOnly}
                     onChange={(e) => setUncategorizedOnly(e.target.checked)}
-                    className="w-4 h-4 text-amber-600 border-gray-300 rounded focus:ring-amber-500"
+                    className="w-4 h-4 accent-ever-orange border-ever-line rounded"
                   />
-                  <span className="text-sm text-gray-700">Uncategorized</span>
+                  <span className="text-sm text-ever-dim">Uncategorized</span>
                 </label>
                 <label className="flex items-center gap-2 cursor-pointer">
                   <input
                     type="checkbox"
                     checked={includeTransfers}
                     onChange={(e) => setIncludeTransfers(e.target.checked)}
-                    className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                    className="w-4 h-4 accent-ever-lime border-ever-line rounded"
                   />
-                  <span className="text-sm text-gray-700">Include Transfers</span>
+                  <span className="text-sm text-ever-dim">Include Transfers</span>
                 </label>
               </div>
             </div>
             <div className="flex items-center gap-4">
               <div className="text-right">
-                <div className="text-sm text-gray-600">Total {includeTransfers ? '(with transfers)' : 'Spending'}</div>
-                <div className="text-2xl font-bold text-gray-900">
+                <div className="text-sm text-ever-dim">Total {includeTransfers ? '(with transfers)' : 'Spending'}</div>
+                <div className="text-2xl font-bold text-ever-ink tabular-nums">
                   ${(expensesData?.totalAmount || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                 </div>
               </div>
@@ -950,13 +956,13 @@ const Expenses: React.FC = () => {
           {/* Search and Filters */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div className="relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-ever-faint h-4 w-4" />
               <input
                 type="text"
                 placeholder="Search expenses..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-10 pr-4 py-2 border border-gray-300 rounded-md w-full focus:ring-blue-500 focus:border-blue-500"
+                className="pl-10 pr-4 py-2 bg-ever-bg border border-ever-line text-ever-ink placeholder-ever-faint rounded-lg w-full focus:outline-none focus:border-ever-lime"
               />
             </div>
 
@@ -969,7 +975,7 @@ const Expenses: React.FC = () => {
                   setSelectedSubcategory('all');
                 }
               }}
-              className="border border-gray-300 rounded-md px-3 py-2 focus:ring-blue-500 focus:border-blue-500"
+              className="bg-ever-bg border border-ever-line text-ever-ink rounded-lg px-3 py-2 focus:outline-none focus:border-ever-lime"
             >
               {categories.map(category => (
                 <option key={category} value={category}>
@@ -981,7 +987,7 @@ const Expenses: React.FC = () => {
             <select
               value={selectedSubcategory}
               onChange={(e) => setSelectedSubcategory(e.target.value)}
-              className="border border-gray-300 rounded-md px-3 py-2 focus:ring-blue-500 focus:border-blue-500"
+              className="bg-ever-bg border border-ever-line text-ever-ink rounded-lg px-3 py-2 focus:outline-none focus:border-ever-lime"
             >
               {subcategories.map(subcategory => (
                 <option key={subcategory} value={subcategory}>
@@ -991,143 +997,129 @@ const Expenses: React.FC = () => {
             </select>
           </div>
         </div>
-      </div>
+      </Card>
 
       {/* CSV Template Preview Modal */}
       {showTemplate && (
-        <div className="bg-white rounded-lg p-6 shadow-sm border">
+        <Card className="p-6">
           <div className="flex justify-between items-center mb-4">
-            <h2 className="text-lg font-semibold text-gray-900">
+            <h2 className="text-lg font-semibold text-ever-ink">
               CSV Template Format
             </h2>
             <div className="flex space-x-2">
-              <button
-                onClick={downloadCsvTemplate}
-                className="bg-green-600 text-white px-4 py-2 rounded-md hover:bg-green-700 flex items-center"
-              >
-                <Download className="h-4 w-4 mr-2" />
+              <Button onClick={downloadCsvTemplate}>
+                <Download className="h-4 w-4" />
                 Download
-              </button>
-              <button
-                onClick={() => setShowTemplate(false)}
-                className="bg-gray-600 text-white px-4 py-2 rounded-md hover:bg-gray-700"
-              >
+              </Button>
+              <Button variant="ghost" onClick={() => setShowTemplate(false)}>
                 Close
-              </button>
+              </Button>
             </div>
           </div>
 
           <div className="mb-4">
-            <p className="text-sm text-gray-600 mb-2">
+            <p className="text-sm text-ever-dim mb-2">
               Your CSV file should have the following columns in this exact order:
             </p>
-            <div className="bg-blue-50 p-3 rounded-md">
-              <code className="text-sm font-mono text-blue-800">
+            <div className="bg-white/5 p-3 rounded-md">
+              <code className="text-sm font-mono text-ever-lime">
                 date,merchant,amount,statement,category,subcategory,account
               </code>
             </div>
           </div>
 
           <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-gray-200">
-              <thead className="bg-gray-50">
+            <table className="min-w-full divide-y divide-ever-line">
+              <thead>
                 <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Merchant</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Amount</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Statement</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Category</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Subcategory</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Account</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-ever-dim uppercase tracking-wider">Date</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-ever-dim uppercase tracking-wider">Merchant</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-ever-dim uppercase tracking-wider">Amount</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-ever-dim uppercase tracking-wider">Statement</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-ever-dim uppercase tracking-wider">Category</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-ever-dim uppercase tracking-wider">Subcategory</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-ever-dim uppercase tracking-wider">Account</th>
                 </tr>
               </thead>
-              <tbody className="bg-white divide-y divide-gray-200">
+              <tbody className="divide-y divide-ever-line">
                 <tr>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">2024-01-15</td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">Whole Foods</td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">125.43</td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">Weekly grocery shopping</td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">Food & Dining</td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">Groceries</td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">Checking</td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-ever-ink">2024-01-15</td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-ever-ink">Whole Foods</td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-ever-ink">125.43</td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-ever-ink">Weekly grocery shopping</td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-ever-ink">Food & Dining</td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-ever-ink">Groceries</td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-ever-ink">Checking</td>
                 </tr>
                 <tr>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">2024-01-14</td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">Shell</td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">45.20</td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">Gas fill-up</td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">Transportation</td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">Fuel</td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">Credit Card</td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-ever-ink">2024-01-14</td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-ever-ink">Shell</td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-ever-ink">45.20</td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-ever-ink">Gas fill-up</td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-ever-ink">Transportation</td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-ever-ink">Fuel</td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-ever-ink">Credit Card</td>
                 </tr>
                 <tr>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">2024-01-13</td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">Netflix</td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">15.99</td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">Monthly subscription</td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">Entertainment</td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">Streaming</td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">Credit Card</td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-ever-ink">2024-01-13</td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-ever-ink">Netflix</td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-ever-ink">15.99</td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-ever-ink">Monthly subscription</td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-ever-ink">Entertainment</td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-ever-ink">Streaming</td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-ever-ink">Credit Card</td>
                 </tr>
               </tbody>
             </table>
           </div>
 
-          <div className="mt-4 text-xs text-gray-500">
+          <div className="mt-4 text-xs text-ever-dim">
             <p><strong>Required fields:</strong> date, amount</p>
             <p><strong>Date format:</strong> YYYY-MM-DD (e.g., 2024-01-15)</p>
             <p><strong>Amount format:</strong> Numbers only, no currency symbols (e.g., 125.43)</p>
             <p><strong>Duplicate detection:</strong> Entries with identical date, merchant, amount, and statement will be automatically skipped</p>
           </div>
-        </div>
+        </Card>
       )}
 
       {/* CSV Preview Modal */}
       {showCsvPreview && (
-        <div className="bg-white rounded-lg p-6 shadow-sm border">
+        <Card className="p-6">
           <div className="flex justify-between items-center mb-4">
             <div>
-              <h2 className="text-lg font-semibold text-gray-900">
+              <h2 className="text-lg font-semibold text-ever-ink">
                 CSV Import Preview ({csvData.length} rows)
               </h2>
-              <p className="text-sm text-gray-600 mt-1">
+              <p className="text-sm text-ever-dim mt-1">
                 Duplicates will be automatically detected and skipped
               </p>
             </div>
             <div className="flex space-x-2">
-              <button
-                onClick={applyCsvImport}
-                disabled={isUploading}
-                className="bg-green-600 text-white px-4 py-2 rounded-md hover:bg-green-700 disabled:opacity-50"
-              >
+              <Button onClick={applyCsvImport} disabled={isUploading}>
                 {isUploading ? 'Importing...' : 'Import'}
-              </button>
-              <button
-                onClick={cancelCsvImport}
-                disabled={isUploading}
-                className="bg-gray-600 text-white px-4 py-2 rounded-md hover:bg-gray-700 disabled:opacity-50"
-              >
+              </Button>
+              <Button variant="ghost" onClick={cancelCsvImport} disabled={isUploading}>
                 Cancel
-              </button>
+              </Button>
             </div>
           </div>
 
           <div className="overflow-x-auto max-h-64">
-            <table className="min-w-full divide-y divide-gray-200">
-              <thead className="bg-gray-50">
+            <table className="min-w-full divide-y divide-ever-line">
+              <thead>
                 <tr>
                   {csvData[0] && Object.keys(csvData[0]).map(header => (
-                    <th key={header} className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th key={header} className="px-6 py-3 text-left text-xs font-medium text-ever-dim uppercase tracking-wider">
                       {header}
                     </th>
                   ))}
                 </tr>
               </thead>
-              <tbody className="bg-white divide-y divide-gray-200">
+              <tbody className="divide-y divide-ever-line">
                 {csvData.slice(0, 5).map((row, index) => (
                   <tr key={index}>
                     {Object.values(row).map((value: any, cellIndex) => (
-                      <td key={cellIndex} className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                      <td key={cellIndex} className="px-6 py-4 whitespace-nowrap text-sm text-ever-ink">
                         {value?.toString() || '-'}
                       </td>
                     ))}
@@ -1136,140 +1128,118 @@ const Expenses: React.FC = () => {
               </tbody>
             </table>
             {csvData.length > 5 && (
-              <p className="text-sm text-gray-500 mt-2">
+              <p className="text-sm text-ever-dim mt-2">
                 Showing first 5 rows of {csvData.length} total rows
               </p>
             )}
           </div>
-        </div>
+        </Card>
       )}
 
       {/* PDF Preview Modal */}
       {pdfPreview && (
-        <div className="bg-white rounded-lg shadow-sm border p-6">
+        <Card className="p-6">
           <div className="flex justify-between items-center mb-4">
             <div>
-              <h3 className="text-lg font-semibold text-gray-900">
+              <h3 className="text-lg font-semibold text-ever-ink">
                 Chase PDF Import Preview
               </h3>
               {pdfImportStats && (
-                <p className="text-sm text-gray-600 mt-1">
+                <p className="text-sm text-ever-dim mt-1">
                   {pdfImportStats.total} transactions found —{' '}
-                  <span className="text-green-600 font-medium">{pdfImportStats.newTransactions} new</span>
+                  <span className="text-ever-pos font-medium">{pdfImportStats.newTransactions} new</span>
                   {pdfImportStats.duplicates > 0 && (
-                    <span className="text-amber-600 font-medium"> — {pdfImportStats.duplicates} duplicates (will be skipped)</span>
+                    <span className="text-ever-orange font-medium"> — {pdfImportStats.duplicates} duplicates (will be skipped)</span>
                   )}
                 </p>
               )}
             </div>
             <div className="flex space-x-3">
-              <button
-                onClick={cancelPdfImport}
-                className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50"
-              >
+              <Button variant="ghost" onClick={cancelPdfImport}>
                 Cancel
-              </button>
-              <button
+              </Button>
+              <Button
                 onClick={applyPdfImport}
                 disabled={isPdfUploading || !pdfImportStats?.newTransactions}
-                className="px-4 py-2 text-sm font-medium text-white bg-purple-600 rounded-md hover:bg-purple-700 disabled:opacity-50"
               >
                 {isPdfUploading ? 'Importing...' : `Import ${pdfImportStats?.newTransactions || 0} Transactions`}
-              </button>
+              </Button>
             </div>
           </div>
 
           <div className="overflow-x-auto max-h-96 overflow-y-auto">
-            <table className="min-w-full divide-y divide-gray-200 text-sm">
-              <thead className="bg-gray-50 sticky top-0">
+            <table className="min-w-full divide-y divide-ever-line text-sm">
+              <thead className="bg-ever-card sticky top-0">
                 <tr>
-                  <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
-                  <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Date</th>
-                  <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Merchant</th>
-                  <th className="px-4 py-2 text-right text-xs font-medium text-gray-500 uppercase">Amount</th>
-                  <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Account</th>
-                  <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Type</th>
-                  <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Source</th>
+                  <th className="px-4 py-2 text-left text-xs font-medium text-ever-dim uppercase">Status</th>
+                  <th className="px-4 py-2 text-left text-xs font-medium text-ever-dim uppercase">Date</th>
+                  <th className="px-4 py-2 text-left text-xs font-medium text-ever-dim uppercase">Merchant</th>
+                  <th className="px-4 py-2 text-right text-xs font-medium text-ever-dim uppercase">Amount</th>
+                  <th className="px-4 py-2 text-left text-xs font-medium text-ever-dim uppercase">Account</th>
+                  <th className="px-4 py-2 text-left text-xs font-medium text-ever-dim uppercase">Type</th>
+                  <th className="px-4 py-2 text-left text-xs font-medium text-ever-dim uppercase">Source</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-200">
+              <tbody className="divide-y divide-ever-line">
                 {pdfPreview.map((tx, idx) => (
                   <tr
                     key={idx}
                     className={
-                      tx.is_duplicate ? 'bg-amber-50 opacity-60' :
-                      tx.is_transfer ? 'bg-gray-50 opacity-60' :
-                      'bg-white'
+                      tx.is_duplicate ? 'bg-white/5 opacity-60' :
+                      tx.is_transfer ? 'bg-white/5 opacity-60' :
+                      ''
                     }
                   >
                     <td className="px-4 py-2 whitespace-nowrap">
                       {tx.is_duplicate ? (
-                        <span className="inline-flex px-2 py-0.5 text-xs font-medium rounded-full bg-amber-100 text-amber-800">Duplicate</span>
+                        <span className={cn('inline-flex px-2 py-0.5 text-xs font-medium rounded-full', everPill('bg-amber-100'))}>Duplicate</span>
                       ) : tx.is_transfer ? (
-                        <span className="inline-flex px-2 py-0.5 text-xs font-medium rounded-full bg-gray-100 text-gray-800">Transfer</span>
+                        <span className={cn('inline-flex px-2 py-0.5 text-xs font-medium rounded-full', everPill('bg-gray-100'))}>Transfer</span>
                       ) : (
-                        <span className="inline-flex px-2 py-0.5 text-xs font-medium rounded-full bg-green-100 text-green-800">New</span>
+                        <span className={cn('inline-flex px-2 py-0.5 text-xs font-medium rounded-full', everPill('bg-green-100'))}>New</span>
                       )}
                     </td>
-                    <td className="px-4 py-2 whitespace-nowrap text-gray-900">{tx.date}</td>
-                    <td className="px-4 py-2 text-gray-900 max-w-xs truncate" title={tx.statement}>{tx.merchant}</td>
-                    <td className="px-4 py-2 whitespace-nowrap text-right font-medium text-gray-900">
+                    <td className="px-4 py-2 whitespace-nowrap text-ever-ink">{tx.date}</td>
+                    <td className="px-4 py-2 text-ever-ink max-w-xs truncate" title={tx.statement}>{tx.merchant}</td>
+                    <td className="px-4 py-2 whitespace-nowrap text-right font-medium text-ever-ink tabular-nums">
                       ${tx.amount?.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                     </td>
-                    <td className="px-4 py-2 whitespace-nowrap text-gray-600 text-xs">{tx.account}</td>
-                    <td className="px-4 py-2 whitespace-nowrap text-gray-600 text-xs">{tx.source_type}</td>
-                    <td className="px-4 py-2 whitespace-nowrap text-gray-600 text-xs">{tx.source_file}</td>
+                    <td className="px-4 py-2 whitespace-nowrap text-ever-dim text-xs">{tx.account}</td>
+                    <td className="px-4 py-2 whitespace-nowrap text-ever-dim text-xs">{tx.source_type}</td>
+                    <td className="px-4 py-2 whitespace-nowrap text-ever-dim text-xs">{tx.source_file}</td>
                   </tr>
                 ))}
               </tbody>
             </table>
           </div>
-        </div>
+        </Card>
       )}
 
       {/* Expense Summary Cards */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <div className="bg-white rounded-lg p-6 shadow-sm border">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium text-gray-600">Total Expenses</p>
-              <p className="text-2xl font-bold text-gray-900">
-                ${(expensesData?.totalAmount || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-              </p>
-            </div>
-            <DollarSign className="h-10 w-10 text-gray-400" />
-          </div>
-        </div>
-
-        <div className="bg-white rounded-lg p-6 shadow-sm border">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium text-gray-600">Transactions</p>
-              <p className="text-2xl font-bold text-gray-900">{expensesData?.pagination.total || 0}</p>
-            </div>
-            <CreditCard className="h-10 w-10 text-gray-400" />
-          </div>
-        </div>
-
-        <div className="bg-white rounded-lg p-6 shadow-sm border">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium text-gray-600">Average</p>
-              <p className="text-2xl font-bold text-gray-900">
-                ${expensesData?.pagination.total && expensesData?.totalAmount
-                  ? ((expensesData.totalAmount / expensesData.pagination.total).toFixed(2))
-                  : '0.00'}
-              </p>
-            </div>
-            <Tag className="h-10 w-10 text-gray-400" />
-          </div>
-        </div>
+        <StatCard
+          label="Total Expenses"
+          dot="var(--ever-neg)"
+          value={`$${(expensesData?.totalAmount || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
+        />
+        <StatCard
+          label="Transactions"
+          dot="var(--ever-violet)"
+          value={expensesData?.pagination.total || 0}
+        />
+        <StatCard
+          label="Average"
+          dot="var(--ever-lime)"
+          value={`$${expensesData?.pagination.total && expensesData?.totalAmount
+            ? ((expensesData.totalAmount / expensesData.pagination.total).toFixed(2))
+            : '0.00'}`}
+        />
       </div>
 
       {/* Bulk Action Bar */}
       {selectedIds.size > 0 && (
-        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 flex items-center gap-4">
-          <span className="text-sm font-medium text-blue-800">
+        <div className="bg-ever-lime/15 border border-ever-line rounded-lg p-4 flex items-center gap-4">
+          <span className="text-sm font-medium text-ever-ink">
             {selectedIds.size} selected
           </span>
           <div className="relative">
@@ -1304,7 +1274,7 @@ const Expenses: React.FC = () => {
                 }
               }}
               placeholder="Set subcategory..."
-              className="border border-blue-300 rounded px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 w-[220px]"
+              className="bg-ever-bg border border-ever-line text-ever-ink placeholder-ever-faint rounded px-3 py-1.5 text-sm focus:outline-none focus:border-ever-lime w-[220px]"
             />
             {showBulkDropdown && (() => {
               const filtered = allSubcategories.filter(s =>
@@ -1312,21 +1282,22 @@ const Expenses: React.FC = () => {
               );
               const safeIdx = Math.min(bulkHighlightedIndex, filtered.length - 1);
               return (
-                <div className="absolute z-50 mt-1 w-[280px] max-h-48 overflow-y-auto bg-white border border-gray-200 rounded-md shadow-lg">
+                <div className="absolute z-50 mt-1 w-[280px] max-h-48 overflow-y-auto bg-ever-card border border-ever-line rounded-md shadow-lg">
                   {filtered.map((opt, idx) => (
                     <div
                       key={opt}
-                      className={`px-3 py-1.5 text-sm cursor-pointer ${
-                        idx === safeIdx ? 'bg-blue-100 text-blue-800' : 'text-gray-800 hover:bg-gray-50'
-                      }`}
+                      className={cn(
+                        'px-3 py-1.5 text-sm cursor-pointer',
+                        idx === safeIdx ? 'bg-white/5 text-ever-ink' : 'text-ever-dim hover:bg-white/5',
+                      )}
                       onMouseDown={() => bulkUpdateCategory(opt)}
                     >
                       <span className="font-medium">{opt}</span>
-                      <span className="text-gray-400 ml-2 text-xs">{subToMain[opt]}</span>
+                      <span className="text-ever-faint ml-2 text-xs">{subToMain[opt]}</span>
                     </div>
                   ))}
                   {filtered.length === 0 && (
-                    <div className="px-3 py-2 text-sm text-gray-400">No matches</div>
+                    <div className="px-3 py-2 text-sm text-ever-faint">No matches</div>
                   )}
                 </div>
               );
@@ -1334,7 +1305,7 @@ const Expenses: React.FC = () => {
           </div>
           <button
             onClick={() => setSelectedIds(new Set())}
-            className="text-sm text-blue-600 hover:text-blue-800"
+            className="text-sm text-ever-lime hover:underline"
           >
             Clear selection
           </button>
@@ -1343,18 +1314,18 @@ const Expenses: React.FC = () => {
 
       {/* Weekly Spending Chart */}
       {weeklyData.weeks.length > 1 && (
-        <div className="bg-white rounded-lg shadow-sm border">
-          <div className="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
+        <div className="bg-ever-card rounded-ever border border-ever-line">
+          <div className="px-6 py-4 border-b border-ever-line flex items-center justify-between">
             <div className="flex items-center">
-              <BarChart3 className="h-5 w-5 text-blue-600 mr-2" />
-              <h2 className="text-lg font-semibold text-gray-900">Weekly Spending</h2>
-              <span className="ml-3 text-sm text-gray-500">
+              <BarChart3 className="h-5 w-5 text-ever-lime mr-2" />
+              <h2 className="text-lg font-semibold text-ever-ink">Weekly Spending</h2>
+              <span className="ml-3 text-sm text-ever-dim">
                 Avg: ${weeklyData.weeklyAvg.toLocaleString()}/week
               </span>
             </div>
             <button
               onClick={() => setShowChart(!showChart)}
-              className="text-sm text-gray-500 hover:text-gray-700"
+              className="text-sm text-ever-dim hover:text-ever-ink"
             >
               {showChart ? 'Hide' : 'Show'}
             </button>
@@ -1373,15 +1344,15 @@ const Expenses: React.FC = () => {
                   }}
                   style={{ cursor: 'pointer' }}
                 >
-                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f0f0f0" />
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#313d4d" />
                   <XAxis
                     dataKey="label"
-                    tick={{ fontSize: 12, fill: '#6b7280' }}
+                    tick={{ fontSize: 12, fill: '#9db3a7' }}
                     tickLine={false}
-                    axisLine={{ stroke: '#e5e7eb' }}
+                    axisLine={{ stroke: '#313d4d' }}
                   />
                   <YAxis
-                    tick={{ fontSize: 12, fill: '#6b7280' }}
+                    tick={{ fontSize: 12, fill: '#9db3a7' }}
                     tickLine={false}
                     axisLine={false}
                     tickFormatter={(v) => `$${v >= 1000 ? `${(v / 1000).toFixed(1)}k` : v}`}
@@ -1389,24 +1360,25 @@ const Expenses: React.FC = () => {
                   <Tooltip
                     formatter={(value: number) => [`$${value.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, '']}
                     labelFormatter={(label) => `Week of ${label}`}
-                    contentStyle={{ borderRadius: '8px', border: '1px solid #e5e7eb', fontSize: '13px' }}
+                    contentStyle={{ borderRadius: '10px', border: '1px solid #313d4d', background: '#1b2330', color: '#ebf2ec', fontSize: '13px' }}
+                    cursor={{ fill: 'rgba(255,255,255,0.04)' }}
                   />
                   <ReferenceLine
                     y={weeklyData.weeklyAvg}
-                    stroke="#9ca3af"
+                    stroke="#5f7b70"
                     strokeDasharray="4 4"
-                    label={{ value: 'Avg', position: 'right', fill: '#9ca3af', fontSize: 11 }}
+                    label={{ value: 'Avg', position: 'right', fill: '#5f7b70', fontSize: 11 }}
                   />
                   <Bar dataKey="total" name="Spent" radius={[4, 4, 0, 0]} maxBarSize={40}>
                     {weeklyData.weeks.map((week) => {
-                      const baseColor = week.total > weeklyData.weeklyAvg * 1.25 ? '#ef4444' : week.total > weeklyData.weeklyAvg ? '#f59e0b' : '#3b82f6';
+                      const baseColor = week.total > weeklyData.weeklyAvg * 1.25 ? '#eb8f6c' : week.total > weeklyData.weeklyAvg ? '#efb15b' : '#8b6ff0';
                       const isSelected = selectedWeek === week.key;
                       return (
                         <Cell
                           key={week.key}
                           fill={baseColor}
                           opacity={selectedWeek && !isSelected ? 0.3 : 1}
-                          stroke={isSelected ? '#1e3a5f' : 'none'}
+                          stroke={isSelected ? '#c9f04e' : 'none'}
                           strokeWidth={isSelected ? 2 : 0}
                         />
                       );
@@ -1414,10 +1386,10 @@ const Expenses: React.FC = () => {
                   </Bar>
                 </BarChart>
               </ResponsiveContainer>
-              <div className="flex items-center justify-center gap-6 mt-2 text-xs text-gray-500">
-                <span className="flex items-center"><span className="w-3 h-3 rounded-sm bg-blue-500 mr-1.5" />Under avg</span>
-                <span className="flex items-center"><span className="w-3 h-3 rounded-sm bg-amber-500 mr-1.5" />Above avg</span>
-                <span className="flex items-center"><span className="w-3 h-3 rounded-sm bg-red-500 mr-1.5" />25%+ over avg</span>
+              <div className="flex items-center justify-center gap-6 mt-2 text-xs text-ever-dim">
+                <span className="flex items-center"><span className="w-3 h-3 rounded-sm bg-ever-violet mr-1.5" />Under avg</span>
+                <span className="flex items-center"><span className="w-3 h-3 rounded-sm bg-ever-orange mr-1.5" />Above avg</span>
+                <span className="flex items-center"><span className="w-3 h-3 rounded-sm bg-ever-neg mr-1.5" />25%+ over avg</span>
               </div>
             </div>
           )}
@@ -1431,14 +1403,14 @@ const Expenses: React.FC = () => {
         weekEnd.setDate(weekEnd.getDate() + 6);
         const fmt = (d: Date) => d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
         return (
-          <div className="bg-blue-50 border border-blue-200 rounded-lg px-4 py-3 flex items-center justify-between">
-            <span className="text-sm text-blue-800">
+          <div className="bg-ever-lime/15 border border-ever-line rounded-lg px-4 py-3 flex items-center justify-between">
+            <span className="text-sm text-ever-ink">
               Showing expenses for week of <strong>{fmt(weekStart)} - {fmt(weekEnd)}</strong>
-              <span className="ml-2 text-blue-600">({filteredExpenses.length} expenses, ${totalAmount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })})</span>
+              <span className="ml-2 text-ever-dim">({filteredExpenses.length} expenses, ${totalAmount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })})</span>
             </span>
             <button
               onClick={() => setSelectedWeek(null)}
-              className="text-blue-600 hover:text-blue-800 text-sm flex items-center"
+              className="text-ever-lime hover:underline text-sm flex items-center"
             >
               <X className="h-3.5 w-3.5 mr-1" />
               Clear
@@ -1448,63 +1420,69 @@ const Expenses: React.FC = () => {
       })()}
 
       {/* Expenses List */}
-      <div className="bg-white rounded-lg shadow-sm border">
-        <div className="px-6 py-4 border-b border-gray-200">
-          <h2 className="text-lg font-semibold text-gray-900">Recent Expenses</h2>
+      <div className="bg-ever-card rounded-ever border border-ever-line">
+        <div className="px-6 py-4 border-b border-ever-line">
+          <h2 className="text-lg font-semibold text-ever-ink">Recent Expenses</h2>
         </div>
 
         <div className="overflow-x-auto">
-          <table className="min-w-full divide-y divide-gray-200">
-            <thead className="bg-gray-50">
+          <table className="min-w-full divide-y divide-ever-line">
+            <thead>
               <tr>
                 <th className="px-3 py-3 w-10">
                   <input
                     type="checkbox"
                     checked={filteredExpenses.length > 0 && selectedIds.size === filteredExpenses.length}
                     onChange={toggleSelectAll}
-                    className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                    className="w-4 h-4 accent-ever-lime border-ever-line rounded"
                   />
                 </th>
                 {displayColumns.filter(col => col !== 'id').map((column) => (
                   <th
                     key={column}
                     onClick={() => handleColumnSort(column)}
-                    className={`px-6 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:text-gray-700 select-none ${
-                      column.toLowerCase().includes('amount') ? 'text-right' : 'text-left'
-                    }`}
+                    className={cn(
+                      'px-6 py-3 text-xs font-medium text-ever-dim uppercase tracking-wider cursor-pointer hover:text-ever-ink select-none',
+                      column.toLowerCase().includes('amount') ? 'text-right' : 'text-left',
+                    )}
                   >
                     <span className="inline-flex items-center gap-1">
                       {formatColumnName(column)}
                       {sortColumn === column ? (
-                        <span className="text-blue-600">{sortDirection === 'asc' ? '\u25B2' : '\u25BC'}</span>
+                        <span className="text-ever-lime">{sortDirection === 'asc' ? '\u25B2' : '\u25BC'}</span>
                       ) : (
-                        <span className="text-gray-300">{'\u25BC'}</span>
+                        <span className="text-ever-faint">{'\u25BC'}</span>
                       )}
                     </span>
                   </th>
                 ))}
-                <th className="px-6 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider text-center">
+                <th className="px-6 py-3 text-xs font-medium text-ever-dim uppercase tracking-wider text-center">
                   Actions
                 </th>
               </tr>
             </thead>
-            <tbody className="bg-white divide-y divide-gray-200">
+            <tbody className="divide-y divide-ever-line">
               {filteredExpenses.map((expense, index) => (
-                <tr key={expense.id || index} className={`${expense.is_transfer ? 'bg-gray-50' : ''} ${selectedIds.has(expense.id) ? 'bg-blue-50' : ''} hover:bg-gray-100`}>
+                <tr key={expense.id || index} className={cn(
+                  'hover:bg-white/5',
+                  expense.is_transfer && 'bg-white/5',
+                  selectedIds.has(expense.id) && 'bg-ever-lime/15',
+                )}>
                   <td className="px-3 py-4 w-10">
                     <input
                       type="checkbox"
                       checked={selectedIds.has(expense.id)}
                       onChange={() => toggleSelect(expense.id)}
-                      className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                      className="w-4 h-4 accent-ever-lime border-ever-line rounded"
                     />
                   </td>
                   {displayColumns.filter(col => col !== 'id').map((column) => (
                     <td
                       key={column}
-                      className={`px-6 py-4 whitespace-nowrap text-sm ${
-                        column.toLowerCase().includes('amount') ? 'text-right font-medium text-gray-900' : 'text-gray-900'
-                      }`}
+                      className={cn(
+                        'px-6 py-4 whitespace-nowrap text-sm',
+                        column.toLowerCase().includes('amount') ? 'text-right font-medium text-ever-ink tabular-nums' : 'text-ever-ink',
+                      )}
                     >
                       {/* Inline editable category cell */}
                       {(column.toLowerCase() === 'category' || column.toLowerCase() === 'subcategory') ? (() => {
@@ -1559,11 +1537,11 @@ const Expenses: React.FC = () => {
                                   }, 150);
                                 }}
                                 placeholder={`Search ${field}...`}
-                                className="border border-blue-400 rounded px-2 py-1 text-xs focus:outline-none focus:ring-2 focus:ring-blue-500 w-[180px]"
+                                className="bg-ever-bg border border-ever-lime text-ever-ink placeholder-ever-faint rounded px-2 py-1 text-xs focus:outline-none w-[180px]"
                               />
-                              <div className="absolute z-50 mt-1 w-[220px] max-h-48 overflow-y-auto bg-white border border-gray-200 rounded-md shadow-lg">
+                              <div className="absolute z-50 mt-1 w-[220px] max-h-48 overflow-y-auto bg-ever-card border border-ever-line rounded-md shadow-lg">
                                 <div
-                                  className="px-3 py-1.5 text-xs text-gray-400 cursor-pointer hover:bg-gray-50"
+                                  className="px-3 py-1.5 text-xs text-ever-faint cursor-pointer hover:bg-white/5"
                                   onMouseDown={() => {
                                     saveInlineEdit(expense.id, field, '');
                                     setSearchFilter('');
@@ -1574,9 +1552,10 @@ const Expenses: React.FC = () => {
                                 {filtered.map((opt, idx) => (
                                   <div
                                     key={opt}
-                                    className={`px-3 py-1.5 text-xs cursor-pointer ${
-                                      idx === safeIndex ? 'bg-blue-100 text-blue-800' : 'text-gray-800 hover:bg-gray-50'
-                                    }`}
+                                    className={cn(
+                                      'px-3 py-1.5 text-xs cursor-pointer',
+                                      idx === safeIndex ? 'bg-white/5 text-ever-ink' : 'text-ever-dim hover:bg-white/5',
+                                    )}
                                     onMouseDown={() => {
                                       saveInlineEdit(expense.id, field, opt);
                                       setSearchFilter('');
@@ -1586,7 +1565,7 @@ const Expenses: React.FC = () => {
                                   </div>
                                 ))}
                                 {filtered.length === 0 && (
-                                  <div className="px-3 py-2 text-xs text-gray-400">No matches</div>
+                                  <div className="px-3 py-2 text-xs text-ever-faint">No matches</div>
                                 )}
                               </div>
                             </div>
@@ -1596,7 +1575,7 @@ const Expenses: React.FC = () => {
                         // Display mode
                         if (field === 'category' && expense.is_transfer) {
                           return (
-                            <span className="inline-flex px-2 py-1 text-xs font-medium rounded-full bg-gray-200 text-gray-700">
+                            <span className={cn('inline-flex px-2 py-1 text-xs font-medium rounded-full', everPill('bg-gray-100'))}>
                               <ArrowLeftRight className="h-3 w-3 mr-1 inline" />
                               Transfer
                             </span>
@@ -1616,28 +1595,26 @@ const Expenses: React.FC = () => {
                           >
                             {(expense as any)[column] ? (
                               field === 'category' ? (
-                                <span className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${
-                                  categoryColors[(expense as any)[column]] || 'bg-gray-100 text-gray-800'
-                                }`}>
+                                <span className={cn('inline-flex px-2 py-1 text-xs font-medium rounded-full', everPill(categoryColors[(expense as any)[column]]))}>
                                   {(expense as any)[column]}
                                 </span>
                               ) : (
-                                <span className="text-gray-900">{(expense as any)[column]}</span>
+                                <span className="text-ever-ink">{(expense as any)[column]}</span>
                               )
                             ) : (
-                              <span className="inline-flex px-2 py-1 text-xs font-medium rounded-full bg-gray-50 text-gray-400 border border-dashed border-gray-300 hover:border-blue-400 hover:text-blue-500">
+                              <span className="inline-flex px-2 py-1 text-xs font-medium rounded-full bg-transparent text-ever-faint border border-dashed border-ever-line hover:border-ever-lime hover:text-ever-lime">
                                 + {field}
                               </span>
                             )}
                           </div>
                         );
                       })() : column.toLowerCase() === 'merchant' && expense.is_transfer ? (
-                        <div className="flex items-center gap-1 font-medium text-gray-600">
+                        <div className="flex items-center gap-1 font-medium text-ever-dim">
                           <ArrowLeftRight className="h-4 w-4" />
                           {formatCellValue((expense as any)[column], column)}
                         </div>
                       ) : (
-                        <div className={`${column.toLowerCase() === 'merchant' ? 'font-medium' : ''} ${expense.is_transfer ? 'text-gray-600' : ''}`}>
+                        <div className={cn(column.toLowerCase() === 'merchant' && 'font-medium', expense.is_transfer && 'text-ever-dim')}>
                           {formatCellValue((expense as any)[column], column)}
                         </div>
                       )}
@@ -1659,11 +1636,12 @@ const Expenses: React.FC = () => {
                           console.error('Error toggling transfer:', error);
                         }
                       }}
-                      className={`px-3 py-1 rounded text-xs font-medium transition-colors ${
+                      className={cn(
+                        'px-3 py-1 rounded text-xs font-medium transition-colors border',
                         expense.is_transfer
-                          ? 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-                          : 'bg-blue-100 text-blue-700 hover:bg-blue-200'
-                      }`}
+                          ? 'bg-white/5 text-ever-dim border-ever-line hover:bg-white/10'
+                          : 'bg-ever-lime/15 text-ever-lime border-ever-lime/25 hover:bg-ever-lime/25',
+                      )}
                       title={expense.is_transfer ? 'Mark as Expense' : 'Mark as Transfer'}
                     >
                       {expense.is_transfer ? 'Transfer' : 'Mark Transfer'}
@@ -1677,14 +1655,14 @@ const Expenses: React.FC = () => {
 
         {filteredExpenses.length === 0 && (
           <div className="text-center py-12">
-            <CreditCard className="h-12 w-12 text-gray-300 mx-auto mb-4" />
-            <p className="text-gray-500">No expenses found matching your criteria.</p>
+            <CreditCard className="h-12 w-12 text-ever-faint mx-auto mb-4" />
+            <p className="text-ever-dim">No expenses found matching your criteria.</p>
           </div>
         )}
 
         {/* Pagination */}
         {expensesData?.pagination && expensesData.pagination.total > 0 && (
-          <div className="px-6 py-3 border-t border-gray-200 flex items-center justify-between text-sm text-gray-600">
+          <div className="px-6 py-3 border-t border-ever-line flex items-center justify-between text-sm text-ever-dim">
             <span>
               Showing {currentPage * limit + 1}–{Math.min((currentPage + 1) * limit, expensesData.pagination.total)} of {expensesData.pagination.total}
             </span>
@@ -1693,14 +1671,14 @@ const Expenses: React.FC = () => {
                 <button
                   onClick={() => setCurrentPage(p => p - 1)}
                   disabled={currentPage === 0}
-                  className="px-3 py-1 rounded border border-gray-300 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed"
+                  className="px-3 py-1 rounded border border-ever-line text-ever-ink hover:bg-white/5 disabled:opacity-40 disabled:cursor-not-allowed"
                 >
                   Previous
                 </button>
                 <button
                   onClick={() => setCurrentPage(p => p + 1)}
                   disabled={!expensesData.pagination.hasMore}
-                  className="px-3 py-1 rounded border border-gray-300 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed"
+                  className="px-3 py-1 rounded border border-ever-line text-ever-ink hover:bg-white/5 disabled:opacity-40 disabled:cursor-not-allowed"
                 >
                   Next
                 </button>

@@ -4,6 +4,9 @@ import { Link } from 'react-router-dom';
 import { Trash2, Plus, Edit2, Tag, X, ChevronDown, ChevronRight, Upload, Download, GripVertical, Link as LinkIcon, RefreshCw, Loader2, Unlink } from 'lucide-react';
 import { usePlaidLink } from 'react-plaid-link';
 import { CONSENT_TEXT, logPlaidLinkConsent } from '../lib/consent';
+import { Card, Button } from '../components/ui';
+import { cn } from '../lib/cn';
+import { everPill } from '../lib/categoryColors';
 
 interface SubCategory {
   id: number;
@@ -499,8 +502,8 @@ const PersonalFinanceSettings: React.FC = () => {
   if (loading) {
     return (
       <div className="flex items-center justify-center py-12">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-        <span className="ml-3 text-gray-600">Loading categories...</span>
+        <Loader2 className="h-8 w-8 animate-spin text-ever-lime" />
+        <span className="ml-3 text-ever-dim">Loading categories…</span>
       </div>
     );
   }
@@ -508,87 +511,75 @@ const PersonalFinanceSettings: React.FC = () => {
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
-        <h1 className="text-3xl font-bold text-gray-900">Personal Finance Settings</h1>
+        <h1 className="text-2xl font-extrabold tracking-tight text-ever-ink md:text-[26px]">Personal Finance Settings</h1>
       </div>
 
       {error && (
-        <div className="bg-red-50 border border-red-200 rounded-md px-4 py-3 text-sm text-red-800">
+        <div className="rounded-ever border border-ever-line bg-white/5 px-4 py-3 text-sm text-ever-neg">
           {error}
         </div>
       )}
 
       {/* Category Management */}
-      <div className="bg-white rounded-lg shadow-sm border">
-        <div className="px-6 py-4 border-b border-gray-200">
+      <Card className="p-0">
+        <div className="px-6 py-4 border-b border-ever-line">
           <div className="flex items-center justify-between">
             <div className="flex items-center">
-              <Tag className="h-5 w-5 text-blue-600 mr-2" />
-              <h2 className="text-lg font-semibold text-gray-900">Budget Categories</h2>
-              <span className="ml-3 text-sm text-gray-500">
+              <Tag className="h-5 w-5 text-ever-lime mr-2" />
+              <h2 className="text-lg font-semibold text-ever-ink">Budget Categories</h2>
+              <span className="ml-3 text-sm text-ever-dim">
                 {mainCategoryOrder.length} categories, {totalSubcategories} subcategories
               </span>
             </div>
             <div className="flex items-center space-x-2">
-              <label className="cursor-pointer px-3 py-1.5 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 flex items-center">
+              <label className="cursor-pointer inline-flex items-center rounded-[11px] border border-ever-line px-3 py-1.5 text-sm text-ever-ink hover:bg-white/5">
                 <Upload className="h-3.5 w-3.5 mr-1.5" />
                 Import CSV
                 <input type="file" accept=".csv" onChange={handleCsvUpload} className="hidden" />
               </label>
-              <button
-                onClick={handleExportCsv}
-                className="px-3 py-1.5 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 flex items-center"
-              >
+              <Button variant="ghost" onClick={handleExportCsv} className="px-3 py-1.5">
                 <Download className="h-3.5 w-3.5 mr-1.5" />
                 Export CSV
-              </button>
-              <button
-                onClick={() => { setAddingMainCategory(true); setNewMainName(''); }}
-                className="px-3 py-1.5 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700 flex items-center"
-              >
+              </Button>
+              <Button onClick={() => { setAddingMainCategory(true); setNewMainName(''); }} className="px-3 py-1.5">
                 <Plus className="h-3.5 w-3.5 mr-1.5" />
                 Add Category
-              </button>
+              </Button>
             </div>
           </div>
         </div>
 
         {/* CSV Preview */}
         {csvPreview && (
-          <div className="px-6 py-4 bg-yellow-50 border-b border-yellow-200">
+          <div className="px-6 py-4 bg-white/5 border-b border-ever-line">
             <div className="flex items-center justify-between mb-3">
-              <h3 className="text-sm font-semibold text-yellow-800">CSV Preview ({csvPreview.length} rows)</h3>
+              <h3 className="text-sm font-semibold text-ever-ink">CSV Preview ({csvPreview.length} rows)</h3>
               <div className="flex space-x-2">
-                <button
-                  onClick={() => setCsvPreview(null)}
-                  className="px-3 py-1.5 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50"
-                >
+                <Button variant="ghost" onClick={() => setCsvPreview(null)} className="px-3 py-1.5">
                   Cancel
-                </button>
-                <button
-                  onClick={handleImportCsv}
-                  className="px-3 py-1.5 text-sm font-medium text-white bg-green-600 rounded-md hover:bg-green-700"
-                >
+                </Button>
+                <Button onClick={handleImportCsv} className="px-3 py-1.5">
                   Import All
-                </button>
+                </Button>
               </div>
             </div>
             <div className="max-h-48 overflow-y-auto">
               <table className="min-w-full text-sm">
                 <thead>
-                  <tr className="text-left text-xs text-yellow-700">
+                  <tr className="text-left text-xs text-ever-dim">
                     <th className="pr-4 py-1">Main Category</th>
                     <th className="pr-4 py-1">Sub Category</th>
                   </tr>
                 </thead>
                 <tbody>
                   {csvPreview.slice(0, 20).map((row, i) => (
-                    <tr key={i} className="text-yellow-900">
+                    <tr key={i} className="text-ever-ink">
                       <td className="pr-4 py-0.5">{row.mainCategory}</td>
                       <td className="pr-4 py-0.5">{row.subCategory || '—'}</td>
                     </tr>
                   ))}
                   {csvPreview.length > 20 && (
-                    <tr><td colSpan={2} className="text-yellow-600 py-1">...and {csvPreview.length - 20} more</td></tr>
+                    <tr><td colSpan={2} className="text-ever-dim py-1">...and {csvPreview.length - 20} more</td></tr>
                   )}
                 </tbody>
               </table>
@@ -598,27 +589,27 @@ const PersonalFinanceSettings: React.FC = () => {
 
         {/* Add Main Category Input */}
         {addingMainCategory && (
-          <div className="px-6 py-3 bg-blue-50 border-b border-blue-200 flex items-center space-x-2">
+          <div className="px-6 py-3 bg-white/5 border-b border-ever-line flex items-center space-x-2">
             <input
               type="text"
               value={newMainName}
               onChange={e => setNewMainName(e.target.value)}
               onKeyDown={e => { if (e.key === 'Enter') handleAddMainCategory(); if (e.key === 'Escape') setAddingMainCategory(false); }}
               placeholder="New category name..."
-              className="flex-1 border border-gray-300 rounded-md px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="flex-1 bg-ever-bg border border-ever-line text-ever-ink placeholder-ever-faint rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:border-ever-lime"
               autoFocus
             />
-            <button onClick={handleAddMainCategory} className="px-3 py-1.5 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700">
+            <Button onClick={handleAddMainCategory} className="px-3 py-1.5">
               Add
-            </button>
-            <button onClick={() => setAddingMainCategory(false)} className="px-3 py-1.5 text-sm font-medium text-gray-600 hover:text-gray-800">
+            </Button>
+            <button onClick={() => setAddingMainCategory(false)} className="px-3 py-1.5 text-sm font-medium text-ever-dim hover:text-ever-ink">
               <X className="h-4 w-4" />
             </button>
           </div>
         )}
 
         {/* Category List */}
-        <div className="divide-y divide-gray-100">
+        <div className="divide-y divide-ever-line">
           {mainCategoryOrder.map(mainCat => {
             const subs = categories[mainCat] || [];
             const isCollapsed = collapsedCategories.has(mainCat);
@@ -628,9 +619,10 @@ const PersonalFinanceSettings: React.FC = () => {
               <div key={mainCat}>
                 {/* Main category header */}
                 <div
-                  className={`px-6 py-3 bg-gray-50 flex items-center justify-between hover:bg-gray-100 group transition-colors ${
-                    dropTarget === mainCat ? 'bg-blue-50 ring-2 ring-inset ring-blue-300' : ''
-                  }`}
+                  className={cn(
+                    'px-6 py-3 bg-white/5 flex items-center justify-between hover:bg-white/10 group transition-colors',
+                    dropTarget === mainCat && 'ring-2 ring-inset ring-ever-lime',
+                  )}
                   onDragOver={e => { e.preventDefault(); setDropTarget(mainCat); }}
                   onDragLeave={() => setDropTarget(null)}
                   onDrop={e => { e.preventDefault(); handleDrop(mainCat); }}
@@ -638,8 +630,8 @@ const PersonalFinanceSettings: React.FC = () => {
                   <div className="flex items-center flex-1">
                     <button onClick={() => toggleCategory(mainCat)} className="mr-2">
                       {isCollapsed
-                        ? <ChevronRight className="h-4 w-4 text-gray-400" />
-                        : <ChevronDown className="h-4 w-4 text-gray-400" />}
+                        ? <ChevronRight className="h-4 w-4 text-ever-faint" />
+                        : <ChevronDown className="h-4 w-4 text-ever-faint" />}
                     </button>
 
                     {isEditingThis ? (
@@ -649,40 +641,40 @@ const PersonalFinanceSettings: React.FC = () => {
                         onChange={e => setEditingValue(e.target.value)}
                         onKeyDown={e => { if (e.key === 'Enter') handleRenameMainCategory(); if (e.key === 'Escape') { setEditingMain(null); setEditingValue(''); } }}
                         onBlur={handleRenameMainCategory}
-                        className="border border-blue-300 rounded px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        className="bg-ever-bg border border-ever-line text-ever-ink rounded px-2 py-1 text-sm focus:outline-none focus:border-ever-lime"
                         autoFocus
                       />
                     ) : (
                       <button
                         onClick={(e) => { e.stopPropagation(); setEditingColor(editingColor === mainCat ? null : mainCat); }}
-                        className={`inline-flex px-2 py-1 text-xs font-medium rounded-full transition-transform hover:scale-105 ${categoryColors[mainCat] || 'bg-gray-100 text-gray-800'}`}
+                        className={cn('inline-flex px-2 py-1 text-xs font-medium rounded-full transition-transform hover:scale-105', everPill(categoryColors[mainCat]))}
                         title="Change color"
                       >
                         {mainCat}
                       </button>
                     )}
 
-                    <span className="ml-2 text-xs text-gray-400">{subs.length} subcategories</span>
+                    <span className="ml-2 text-xs text-ever-faint">{subs.length} subcategories</span>
                   </div>
 
                   <div className="flex items-center space-x-1 opacity-0 group-hover:opacity-100 transition-opacity">
                     <button
                       onClick={() => { setEditingMain({ oldName: mainCat }); setEditingValue(mainCat); }}
-                      className="p-1 text-gray-400 hover:text-blue-600"
+                      className="p-1 text-ever-faint hover:text-ever-lime"
                       title="Rename category"
                     >
                       <Edit2 className="h-3.5 w-3.5" />
                     </button>
                     <button
                       onClick={() => { setAddingSubTo(mainCat); setNewSubName(''); }}
-                      className="p-1 text-gray-400 hover:text-green-600"
+                      className="p-1 text-ever-faint hover:text-ever-pos"
                       title="Add subcategory"
                     >
                       <Plus className="h-3.5 w-3.5" />
                     </button>
                     <button
                       onClick={() => setConfirmDelete({ type: 'main', mainCategory: mainCat })}
-                      className="p-1 text-gray-400 hover:text-red-600"
+                      className="p-1 text-ever-faint hover:text-ever-neg"
                       title="Delete category"
                     >
                       <Trash2 className="h-3.5 w-3.5" />
@@ -692,10 +684,10 @@ const PersonalFinanceSettings: React.FC = () => {
 
                 {/* Color Picker */}
                 {editingColor === mainCat && (
-                  <div className="px-6 py-3 bg-purple-50 border-b border-purple-200">
+                  <div className="px-6 py-3 bg-white/5 border-b border-ever-line">
                     <div className="flex items-center justify-between mb-2">
-                      <span className="text-xs font-medium text-purple-700">Choose color for {mainCat}</span>
-                      <button onClick={() => setEditingColor(null)} className="text-gray-400 hover:text-gray-600">
+                      <span className="text-xs font-medium text-ever-dim">Choose color for {mainCat}</span>
+                      <button onClick={() => setEditingColor(null)} className="text-ever-dim hover:text-ever-ink">
                         <X className="h-3.5 w-3.5" />
                       </button>
                     </div>
@@ -706,9 +698,11 @@ const PersonalFinanceSettings: React.FC = () => {
                           <button
                             key={opt.value}
                             onClick={() => handleColorChange(mainCat, opt.value)}
-                            className={`inline-flex px-2.5 py-1 text-xs font-medium rounded-full transition-all ${opt.value} ${
-                              isSelected ? 'ring-2 ring-offset-1 ring-purple-500 scale-110' : 'hover:scale-105'
-                            }`}
+                            className={cn(
+                              'inline-flex px-2.5 py-1 text-xs font-medium rounded-full transition-all',
+                              everPill(opt.value),
+                              isSelected ? 'ring-2 ring-offset-1 ring-offset-ever-card ring-ever-lime scale-110' : 'hover:scale-105',
+                            )}
                             title={opt.label}
                           >
                             {opt.label}
@@ -728,20 +722,20 @@ const PersonalFinanceSettings: React.FC = () => {
                   >
                     {/* Add subcategory input */}
                     {addingSubTo === mainCat && (
-                      <div className="px-6 py-2 pl-14 bg-green-50 flex items-center space-x-2">
+                      <div className="px-6 py-2 pl-14 bg-white/5 flex items-center space-x-2">
                         <input
                           type="text"
                           value={newSubName}
                           onChange={e => setNewSubName(e.target.value)}
                           onKeyDown={e => { if (e.key === 'Enter') handleAddSubCategory(mainCat); if (e.key === 'Escape') setAddingSubTo(null); }}
                           placeholder="New subcategory name..."
-                          className="flex-1 border border-gray-300 rounded-md px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+                          className="flex-1 bg-ever-bg border border-ever-line text-ever-ink placeholder-ever-faint rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:border-ever-lime"
                           autoFocus
                         />
-                        <button onClick={() => handleAddSubCategory(mainCat)} className="px-3 py-1.5 text-sm font-medium text-white bg-green-600 rounded-md hover:bg-green-700">
+                        <Button onClick={() => handleAddSubCategory(mainCat)} className="px-3 py-1.5">
                           Add
-                        </button>
-                        <button onClick={() => setAddingSubTo(null)} className="text-gray-400 hover:text-gray-600">
+                        </Button>
+                        <button onClick={() => setAddingSubTo(null)} className="text-ever-dim hover:text-ever-ink">
                           <X className="h-4 w-4" />
                         </button>
                       </div>
@@ -756,12 +750,13 @@ const PersonalFinanceSettings: React.FC = () => {
                           draggable
                           onDragStart={() => setDragItem({ id: sub.id, name: sub.name, fromCategory: mainCat })}
                           onDragEnd={() => { setDragItem(null); setDropTarget(null); }}
-                          className={`px-6 py-2 pl-10 flex items-center justify-between hover:bg-gray-50 group cursor-grab active:cursor-grabbing ${
-                            isDragging ? 'opacity-40' : ''
-                          }`}
+                          className={cn(
+                            'px-6 py-2 pl-10 flex items-center justify-between hover:bg-white/5 group cursor-grab active:cursor-grabbing',
+                            isDragging && 'opacity-40',
+                          )}
                         >
                           <div className="flex items-center">
-                            <GripVertical className="h-3.5 w-3.5 text-gray-300 mr-2 flex-shrink-0" />
+                            <GripVertical className="h-3.5 w-3.5 text-ever-faint mr-2 flex-shrink-0" />
                           {isEditingSub ? (
                             <input
                               type="text"
@@ -769,24 +764,24 @@ const PersonalFinanceSettings: React.FC = () => {
                               onChange={e => setEditingValue(e.target.value)}
                               onKeyDown={e => { if (e.key === 'Enter') handleRenameSubCategory(); if (e.key === 'Escape') { setEditingSub(null); setEditingValue(''); } }}
                               onBlur={handleRenameSubCategory}
-                              className="border border-blue-300 rounded px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                              className="bg-ever-bg border border-ever-line text-ever-ink rounded px-2 py-1 text-sm focus:outline-none focus:border-ever-lime"
                               autoFocus
                             />
                           ) : (
-                            <span className="text-sm text-gray-700">{sub.name}</span>
+                            <span className="text-sm text-ever-ink">{sub.name}</span>
                           )}
                           </div>
                           <div className="flex items-center space-x-1 opacity-0 group-hover:opacity-100 transition-opacity">
                             <button
                               onClick={() => { setEditingSub({ id: sub.id, mainCategory: mainCat }); setEditingValue(sub.name); }}
-                              className="p-1 text-gray-400 hover:text-blue-600"
+                              className="p-1 text-ever-faint hover:text-ever-lime"
                               title="Rename"
                             >
                               <Edit2 className="h-3 w-3" />
                             </button>
                             <button
                               onClick={() => setConfirmDelete({ type: 'sub', mainCategory: mainCat, subId: sub.id, subName: sub.name })}
-                              className="p-1 text-gray-400 hover:text-red-600"
+                              className="p-1 text-ever-faint hover:text-ever-neg"
                               title="Delete"
                             >
                               <Trash2 className="h-3 w-3" />
@@ -797,7 +792,7 @@ const PersonalFinanceSettings: React.FC = () => {
                     })}
 
                     {subs.length === 0 && (
-                      <div className="px-6 py-2 pl-14 text-sm text-gray-400 italic">No subcategories</div>
+                      <div className="px-6 py-2 pl-14 text-sm text-ever-faint italic">No subcategories</div>
                     )}
                   </div>
                 )}
@@ -806,26 +801,26 @@ const PersonalFinanceSettings: React.FC = () => {
           })}
 
           {mainCategoryOrder.length === 0 && !loading && (
-            <div className="px-6 py-12 text-center text-gray-500">
-              <Tag className="h-8 w-8 mx-auto mb-3 text-gray-300" />
+            <div className="px-6 py-12 text-center text-ever-dim">
+              <Tag className="h-8 w-8 mx-auto mb-3 text-ever-faint" />
               <p>No categories yet. Add your first category or import from CSV.</p>
             </div>
           )}
         </div>
-      </div>
+      </Card>
 
       {/* Plaid Bank Connection */}
-      <div className="bg-white rounded-lg shadow-sm border">
-        <div className="px-6 py-4 border-b border-gray-200">
+      <Card className="p-0">
+        <div className="px-6 py-4 border-b border-ever-line">
           <div className="flex items-center justify-between">
             <div className="flex items-center">
-              <LinkIcon className="h-5 w-5 text-green-600 mr-2" />
-              <h2 className="text-lg font-semibold text-gray-900">Connected Accounts</h2>
-              <span className="ml-3 text-sm text-gray-500">
+              <LinkIcon className="h-5 w-5 text-ever-lime mr-2" />
+              <h2 className="text-lg font-semibold text-ever-ink">Connected Accounts</h2>
+              <span className="ml-3 text-sm text-ever-dim">
                 {plaidAccounts.length} connected
               </span>
             </div>
-            <button
+            <Button
               onClick={async () => {
                 if (!plaidConsentAcknowledged) return;
                 setPlaidError(null);
@@ -839,7 +834,7 @@ const PersonalFinanceSettings: React.FC = () => {
                 }
               }}
               disabled={!plaidReady || plaidLoading || !plaidConsentAcknowledged}
-              className="px-3 py-1.5 text-sm font-medium text-white bg-green-600 rounded-md hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center"
+              className="px-3 py-1.5"
               title={plaidConsentAcknowledged ? undefined : 'Read and acknowledge the consent statement below first'}
             >
               {plaidLoading ? (
@@ -847,25 +842,25 @@ const PersonalFinanceSettings: React.FC = () => {
               ) : (
                 <><Plus className="h-3.5 w-3.5 mr-1.5" />Connect Bank Account</>
               )}
-            </button>
+            </Button>
           </div>
         </div>
 
         {/* Consent gate (Q10): user must read + acknowledge before the
             Connect button is enabled. Click logs an audit row server-side
             via /api/plaid/consent before Plaid Link opens. */}
-        <div className="px-6 py-4 bg-blue-50 border-b border-blue-100 text-sm text-gray-800">
+        <div className="px-6 py-4 bg-white/5 border-b border-ever-line text-sm text-ever-dim">
           <p className="mb-3">{CONSENT_TEXT}</p>
           <label className="flex items-start gap-2 cursor-pointer select-none">
             <input
               type="checkbox"
               checked={plaidConsentAcknowledged}
               onChange={(e) => setPlaidConsentAcknowledged(e.target.checked)}
-              className="mt-1"
+              className="mt-1 accent-ever-lime"
             />
             <span>
               I have read and agree to the{' '}
-              <Link to="/privacy" className="text-blue-600 hover:underline" target="_blank" rel="noopener noreferrer">
+              <Link to="/privacy" className="text-ever-lime hover:underline" target="_blank" rel="noopener noreferrer">
                 Privacy Policy
               </Link>
               .
@@ -874,32 +869,32 @@ const PersonalFinanceSettings: React.FC = () => {
         </div>
 
         {plaidError && (
-          <div className="px-6 py-3 bg-red-50 border-b border-red-200 text-sm text-red-800">
+          <div className="px-6 py-3 bg-white/5 border-b border-ever-line text-sm text-ever-neg">
             {plaidError}
-            <button onClick={() => setPlaidError(null)} className="ml-2 text-red-600 hover:text-red-800">
+            <button onClick={() => setPlaidError(null)} className="ml-2 text-ever-neg hover:text-ever-ink">
               <X className="h-3.5 w-3.5 inline" />
             </button>
           </div>
         )}
 
         {plaidSyncStatus && (
-          <div className="px-6 py-3 bg-green-50 border-b border-green-200 text-sm text-green-800">
+          <div className="px-6 py-3 bg-white/5 border-b border-ever-line text-sm text-ever-pos">
             {plaidSyncStatus}
           </div>
         )}
 
-        <div className="divide-y divide-gray-100">
+        <div className="divide-y divide-ever-line">
           {plaidAccounts.map(account => (
-            <div key={account.item_id} className="px-6 py-3 flex items-center justify-between hover:bg-gray-50 group">
+            <div key={account.item_id} className="px-6 py-3 flex items-center justify-between hover:bg-white/5 group">
               <div>
-                <span className="text-sm font-medium text-gray-900">{account.institution_name}</span>
-                <span className="ml-2 text-xs text-gray-400">
+                <span className="text-sm font-medium text-ever-ink">{account.institution_name}</span>
+                <span className="ml-2 text-xs text-ever-faint">
                   Connected {new Date(account.created_at).toLocaleDateString()}
                 </span>
               </div>
               <button
                 onClick={() => handleRemovePlaidAccount(account.item_id)}
-                className="p-1 text-gray-400 hover:text-red-600 opacity-0 group-hover:opacity-100 transition-opacity"
+                className="p-1 text-ever-faint hover:text-ever-neg opacity-0 group-hover:opacity-100 transition-opacity"
                 title="Disconnect"
               >
                 <Unlink className="h-4 w-4" />
@@ -908,64 +903,64 @@ const PersonalFinanceSettings: React.FC = () => {
           ))}
 
           {plaidAccounts.length === 0 && (
-            <div className="px-6 py-8 text-center text-gray-500">
-              <LinkIcon className="h-8 w-8 mx-auto mb-3 text-gray-300" />
+            <div className="px-6 py-8 text-center text-ever-dim">
+              <LinkIcon className="h-8 w-8 mx-auto mb-3 text-ever-faint" />
               <p className="text-sm">No bank accounts connected yet.</p>
-              <p className="text-xs text-gray-400 mt-1">Connect your Chase or other bank account to automatically import transactions.</p>
+              <p className="text-xs text-ever-faint mt-1">Connect your Chase or other bank account to automatically import transactions.</p>
             </div>
           )}
         </div>
 
         {/* Sync Controls */}
         {plaidAccounts.length > 0 && (
-          <div className="px-6 py-4 border-t border-gray-200 bg-gray-50">
+          <div className="px-6 py-4 border-t border-ever-line bg-white/5">
             <div className="flex items-center space-x-3">
               <div className="flex items-center space-x-2 text-sm">
-                <label className="text-gray-600">From</label>
+                <label className="text-ever-dim">From</label>
                 <input
                   type="date"
                   value={syncStartDate}
                   onChange={e => setSyncStartDate(e.target.value)}
-                  className="border border-gray-300 rounded px-2 py-1 text-sm"
+                  className="bg-ever-bg border border-ever-line text-ever-ink rounded px-2 py-1 text-sm focus:outline-none focus:border-ever-lime"
                 />
-                <label className="text-gray-600">To</label>
+                <label className="text-ever-dim">To</label>
                 <input
                   type="date"
                   value={syncEndDate}
                   onChange={e => setSyncEndDate(e.target.value)}
-                  className="border border-gray-300 rounded px-2 py-1 text-sm"
+                  className="bg-ever-bg border border-ever-line text-ever-ink rounded px-2 py-1 text-sm focus:outline-none focus:border-ever-lime"
                 />
               </div>
-              <button
+              <Button
                 onClick={handleSyncTransactions}
                 disabled={plaidLoading}
-                className="px-3 py-1.5 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700 disabled:opacity-50 flex items-center"
+                className="px-3 py-1.5"
               >
                 {plaidLoading ? (
                   <><Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />Syncing...</>
                 ) : (
                   <><RefreshCw className="h-3.5 w-3.5 mr-1.5" />Sync Transactions</>
                 )}
-              </button>
+              </Button>
             </div>
           </div>
         )}
 
         {/* Recent Sync Activity */}
         {syncLogs.length > 0 && (
-          <div className="px-6 py-4 border-t border-gray-200">
-            <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Recent Activity</h3>
+          <div className="px-6 py-4 border-t border-ever-line">
+            <h3 className="text-xs font-semibold text-ever-dim uppercase tracking-wide mb-2">Recent Activity</h3>
             <div className="space-y-1.5 max-h-40 overflow-y-auto">
               {syncLogs.map((log, i) => (
                 <div key={i} className="flex items-center justify-between text-xs">
                   <div className="flex items-center">
-                    <span className={`w-1.5 h-1.5 rounded-full mr-2 ${
-                      log.status === 'completed' || log.status === 'success' ? 'bg-green-500' :
-                      log.status === 'error' ? 'bg-red-500' : 'bg-yellow-500'
-                    }`} />
-                    <span className="text-gray-700">{log.message}</span>
+                    <span className={cn('w-1.5 h-1.5 rounded-full mr-2',
+                      log.status === 'completed' || log.status === 'success' ? 'bg-ever-pos' :
+                      log.status === 'error' ? 'bg-ever-neg' : 'bg-ever-orange'
+                    )} />
+                    <span className="text-ever-ink">{log.message}</span>
                   </div>
-                  <span className="text-gray-400 ml-4 flex-shrink-0">
+                  <span className="text-ever-faint ml-4 flex-shrink-0">
                     {new Date(log.created_at).toLocaleDateString()}
                   </span>
                 </div>
@@ -973,35 +968,32 @@ const PersonalFinanceSettings: React.FC = () => {
             </div>
           </div>
         )}
-      </div>
+      </Card>
 
       {/* Confirm Delete Modal */}
       {confirmDelete && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg shadow-xl w-full max-w-md mx-4">
-            <div className="px-6 py-4 border-b">
-              <h3 className="text-lg font-semibold text-gray-900">
+          <div className="bg-ever-card border border-ever-line rounded-ever text-ever-ink w-full max-w-md mx-4">
+            <div className="px-6 py-4 border-b border-ever-line">
+              <h3 className="text-lg font-semibold text-ever-ink">
                 Delete {confirmDelete.type === 'main' ? 'Category' : 'Subcategory'}
               </h3>
             </div>
             <div className="px-6 py-4">
               {confirmDelete.type === 'main' ? (
-                <p className="text-sm text-gray-600">
+                <p className="text-sm text-ever-dim">
                   Are you sure you want to delete <strong>{confirmDelete.mainCategory}</strong> and all its subcategories? This cannot be undone.
                 </p>
               ) : (
-                <p className="text-sm text-gray-600">
+                <p className="text-sm text-ever-dim">
                   Are you sure you want to delete <strong>{confirmDelete.subName}</strong> from {confirmDelete.mainCategory}? This cannot be undone.
                 </p>
               )}
             </div>
-            <div className="flex justify-end space-x-3 px-6 py-4 border-t bg-gray-50 rounded-b-lg">
-              <button
-                onClick={() => setConfirmDelete(null)}
-                className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50"
-              >
+            <div className="flex justify-end space-x-3 px-6 py-4 border-t border-ever-line bg-white/5 rounded-b-ever">
+              <Button variant="ghost" onClick={() => setConfirmDelete(null)}>
                 Cancel
-              </button>
+              </Button>
               <button
                 onClick={() => {
                   if (confirmDelete.type === 'main') {
@@ -1010,7 +1002,7 @@ const PersonalFinanceSettings: React.FC = () => {
                     handleDeleteSubCategory(confirmDelete.subId);
                   }
                 }}
-                className="px-4 py-2 text-sm font-medium text-white bg-red-600 rounded-md hover:bg-red-700"
+                className="inline-flex items-center justify-center rounded-[11px] bg-ever-neg px-4 py-2 text-sm font-semibold text-ever-bg transition hover:brightness-95"
               >
                 Delete
               </button>

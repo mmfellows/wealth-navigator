@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Search, Plus, TrendingUp, Loader2, Sparkles, AlertCircle } from 'lucide-react';
 import axios from 'axios';
+import { Card, Button } from '../components/ui';
 
 interface ChatTurn {
   role: 'user' | 'assistant';
@@ -120,22 +121,22 @@ const Research: React.FC = () => {
   return (
     <div className="space-y-8">
       <div className="flex justify-between items-center">
-        <h1 className="text-3xl font-bold text-gray-900">Research</h1>
+        <h1 className="text-2xl font-extrabold tracking-tight text-ever-ink md:text-[26px]">Research</h1>
       </div>
 
       {configError && (
-        <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 flex items-start gap-3">
-          <AlertCircle className="h-5 w-5 text-amber-600 flex-shrink-0 mt-0.5" />
-          <div className="text-sm text-amber-800">{configError}</div>
-        </div>
+        <Card className="flex items-start gap-3 p-4">
+          <AlertCircle className="h-5 w-5 text-ever-orange flex-shrink-0 mt-0.5" />
+          <div className="text-sm text-ever-orange">{configError}</div>
+        </Card>
       )}
 
       {/* AI research chat */}
-      <div className="bg-white rounded-lg p-6 shadow-sm border">
-        <h2 className="text-xl font-semibold text-gray-900 mb-1 flex items-center gap-2">
-          <Sparkles className="h-5 w-5 text-blue-600" /> Research Assistant
+      <Card className="p-6">
+        <h2 className="text-[15px] font-semibold tracking-tight text-ever-ink mb-1 flex items-center gap-2">
+          <Sparkles className="h-5 w-5 text-ever-lime" /> Research Assistant
         </h2>
-        <p className="text-sm text-gray-500 mb-4">
+        <p className="text-sm text-ever-dim mb-4">
           Ask about tickers, theses, or your own exposure — it sees your live portfolio and bets.
         </p>
 
@@ -146,20 +147,20 @@ const Research: React.FC = () => {
                 <div
                   className={
                     turn.role === 'user'
-                      ? 'bg-blue-600 text-white rounded-lg px-4 py-2 max-w-[80%] text-sm'
-                      : 'bg-gray-50 border rounded-lg px-4 py-3 max-w-[95%]'
+                      ? 'bg-ever-lime text-ever-lime-ink rounded-lg px-4 py-2 max-w-[80%] text-sm'
+                      : 'bg-white/5 border border-ever-line rounded-lg px-4 py-3 max-w-[95%]'
                   }
                 >
                   {turn.role === 'user' ? (
                     turn.content
                   ) : (
-                    <pre className="whitespace-pre-wrap text-sm text-gray-800 font-sans">{turn.content}</pre>
+                    <pre className="whitespace-pre-wrap text-sm text-ever-ink font-sans">{turn.content}</pre>
                   )}
                 </div>
               </div>
             ))}
             {isSearching && (
-              <div className="flex items-center gap-2 text-sm text-gray-500">
+              <div className="flex items-center gap-2 text-sm text-ever-dim">
                 <Loader2 className="h-4 w-4 animate-spin" /> Thinking…
               </div>
             )}
@@ -174,37 +175,33 @@ const Research: React.FC = () => {
             onChange={(e) => setQuery(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
             placeholder={thread.length ? 'Ask a follow-up…' : 'Ask about stocks, your exposure, or a thesis…'}
-            className="flex-1 px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            className="flex-1 px-4 py-2 bg-ever-bg border border-ever-line text-ever-ink placeholder-ever-faint rounded-lg focus:outline-none focus:border-ever-lime"
           />
-          <button
-            onClick={handleSearch}
-            disabled={isSearching}
-            className="px-6 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center"
-          >
+          <Button onClick={handleSearch} disabled={isSearching} className="px-6">
             {isSearching ? (
               <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Researching…</>
             ) : (
               <><Search className="h-4 w-4 mr-2" /> Ask</>
             )}
-          </button>
+          </Button>
           {thread.length > 0 && (
             <button
               onClick={() => setThread([])}
-              className="px-3 py-2 text-sm text-gray-500 hover:text-gray-800"
+              className="px-3 py-2 text-sm text-ever-dim hover:text-ever-ink"
               title="Start a new conversation"
             >
               Clear
             </button>
           )}
         </div>
-        <div className="text-sm text-gray-500 mt-2">
+        <div className="text-sm text-ever-dim mt-2">
           Try: "How concentrated am I in solar?" or "What would change your view on my IIPR thesis?"
         </div>
-      </div>
+      </Card>
 
       {/* Single-ticker analysis */}
-      <div className="bg-white rounded-lg p-6 shadow-sm border">
-        <h2 className="text-xl font-semibold text-gray-900 mb-4">Stock Analysis</h2>
+      <Card className="p-6">
+        <h2 className="text-[15px] font-semibold tracking-tight text-ever-ink mb-4">Stock Analysis</h2>
         <div className="space-y-4">
           <div className="flex space-x-4">
             <input
@@ -213,31 +210,27 @@ const Research: React.FC = () => {
               onChange={(e) => setSelectedTicker(e.target.value.toUpperCase())}
               onKeyDown={(e) => e.key === 'Enter' && handleAnalyze()}
               placeholder="Enter stock ticker (e.g., AAPL, MSFT)"
-              className="flex-1 px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              className="flex-1 px-4 py-2 bg-ever-bg border border-ever-line text-ever-ink placeholder-ever-faint rounded-lg focus:outline-none focus:border-ever-lime"
             />
-            <button
-              onClick={handleAnalyze}
-              disabled={isAnalyzing}
-              className="px-6 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center"
-            >
+            <Button onClick={handleAnalyze} disabled={isAnalyzing} className="px-6">
               {isAnalyzing ? (
                 <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Analyzing…</>
               ) : (
                 <><TrendingUp className="h-4 w-4 mr-2" /> Analyze</>
               )}
-            </button>
+            </Button>
           </div>
 
           {selectedTicker && stockAnalysis && (
-            <div className="mt-6 p-4 border border-gray-200 rounded-md bg-gray-50">
+            <div className="mt-6 p-4 border border-ever-line rounded-lg bg-white/5">
               <div className="flex justify-between items-center mb-4">
-                <h3 className="text-lg font-medium">{selectedTicker} Analysis</h3>
+                <h3 className="text-lg font-medium text-ever-ink">{selectedTicker} Analysis</h3>
                 <div className="flex space-x-2">
                   {['Low Risk', 'Growth', 'Speculative'].map((category) => (
                     <button
                       key={category}
                       onClick={() => handleAddToIdeas(selectedTicker, category)}
-                      className="px-3 py-1 bg-blue-100 text-blue-700 rounded-md hover:bg-blue-200 text-sm flex items-center"
+                      className="px-3 py-1 border border-ever-line text-ever-lime rounded-lg hover:bg-white/5 text-sm flex items-center"
                     >
                       <Plus className="h-3 w-3 mr-1" />
                       Add to {category}
@@ -246,39 +239,39 @@ const Research: React.FC = () => {
                 </div>
               </div>
               <div className="prose prose-sm max-w-none">
-                <pre className="whitespace-pre-wrap text-sm text-gray-700 font-sans">{stockAnalysis}</pre>
+                <pre className="whitespace-pre-wrap text-sm text-ever-dim font-sans">{stockAnalysis}</pre>
               </div>
             </div>
           )}
         </div>
-      </div>
+      </Card>
 
       {/* Research history — real, persisted server-side */}
-      <div className="bg-white rounded-lg p-6 shadow-sm border">
-        <h2 className="text-xl font-semibold text-gray-900 mb-4">Research History</h2>
+      <Card className="p-6">
+        <h2 className="text-[15px] font-semibold tracking-tight text-ever-ink mb-4">Research History</h2>
         {history.length === 0 ? (
-          <div className="text-sm text-gray-500">No research queries yet.</div>
+          <div className="text-sm text-ever-dim">No research queries yet.</div>
         ) : (
           <div className="space-y-3">
             {history.map((item, index) => (
-              <div key={index} className="bg-gray-50 rounded-md">
+              <div key={index} className="bg-white/5 rounded-lg">
                 <button
                   className="w-full flex items-center justify-between p-3 text-left"
                   onClick={() => setExpandedHistory(expandedHistory === index ? null : index)}
                 >
-                  <span className="text-gray-900 truncate pr-4">{item.query}</span>
-                  <span className="text-sm text-gray-500 flex-shrink-0">{relTime(item.created_at)}</span>
+                  <span className="text-ever-ink truncate pr-4">{item.query}</span>
+                  <span className="text-sm text-ever-dim flex-shrink-0">{relTime(item.created_at)}</span>
                 </button>
                 {expandedHistory === index && (
                   <div className="px-3 pb-3">
-                    <pre className="whitespace-pre-wrap text-sm text-gray-700 font-sans border-t pt-3">{item.response}</pre>
+                    <pre className="whitespace-pre-wrap text-sm text-ever-dim font-sans border-t border-ever-line pt-3">{item.response}</pre>
                   </div>
                 )}
               </div>
             ))}
           </div>
         )}
-      </div>
+      </Card>
     </div>
   );
 };

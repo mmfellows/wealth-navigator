@@ -43,6 +43,8 @@ router.get('/history', optionalAuth, async (req, res) => {
         net_worth: d.net_worth,
         total_assets: d.total_assets,
         total_liabilities: d.total_liabilities,
+        cash: d.cash ?? 0,
+        investments: d.investments ?? 0,
       }));
 
     res.json({ points });

@@ -5,7 +5,7 @@ import {
   OptionTrade, OptionStrategy, CloseMethod,
   computeMetrics, realizedPnl, fmtUsd, fmtPctFrac,
 } from '../lib/options';
-import { Card, CardHeader, Button, StatCard } from '../components/ui';
+import { Card, CardHeader, Button, StatCard, toast } from '../components/ui';
 
 const inputCls = 'w-full px-3 py-2 rounded-lg bg-ever-bg border border-ever-line text-ever-ink placeholder-ever-faint focus:outline-none focus:border-ever-lime';
 
@@ -121,7 +121,7 @@ const Options: React.FC = () => {
       await load();
     } catch (err) {
       console.error('Failed to save trade:', err);
-      alert('Failed to save trade.');
+      toast.error('Failed to save trade.');
     } finally {
       setSaving(false);
     }
@@ -150,7 +150,7 @@ const Options: React.FC = () => {
       await load();
     } catch (err) {
       console.error('Failed to close trade:', err);
-      alert('Failed to close trade.');
+      toast.error('Failed to close trade.');
     }
   };
 

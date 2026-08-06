@@ -26,6 +26,7 @@ import Options from './pages/Options';
 import Login from './pages/Login';
 import Security from './pages/Security';
 import Privacy from './pages/Privacy';
+import { Toaster } from './components/ui';
 
 // Create a query client
 const queryClient = new QueryClient({
@@ -41,6 +42,7 @@ function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <AuthProvider>
+        <Toaster />
         <Router>
           <Routes>
             {/* Public routes. Everything else requires auth. */}

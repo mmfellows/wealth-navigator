@@ -2,6 +2,7 @@ import React, { useState, useCallback, useEffect } from 'react';
 import { usePlaidLink } from 'react-plaid-link';
 import { RefreshCw } from 'lucide-react';
 import axios from 'axios';
+import { toast } from './ui';
 
 interface PlaidUpdateLinkProps {
   itemId: string;
@@ -26,7 +27,7 @@ const PlaidUpdateLink: React.FC<PlaidUpdateLinkProps> = ({ itemId, institutionNa
       onSuccess();
     } catch (error) {
       console.error('Failed to finalize reconnect:', error);
-      alert(`Reconnected to ${institutionName} but the follow-up sync failed. Try clicking Sync Now.`);
+      toast.error(`Reconnected to ${institutionName} but the follow-up sync failed. Try clicking Sync Now.`);
     } finally {
       setIsLoading(false);
       setLinkToken(null);
@@ -58,7 +59,7 @@ const PlaidUpdateLink: React.FC<PlaidUpdateLinkProps> = ({ itemId, institutionNa
       setLinkToken(data.link_token);
     } catch (error) {
       console.error('Failed to create update token:', error);
-      alert(`Couldn't start reconnect for ${institutionName}. Please try again.`);
+      toast.error(`Couldn't start reconnect for ${institutionName}. Please try again.`);
     } finally {
       setIsLoading(false);
     }

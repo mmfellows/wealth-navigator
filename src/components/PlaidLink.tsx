@@ -4,7 +4,7 @@ import { usePlaidLink, PlaidLinkOnSuccessMetadata, PlaidLinkOnExitMetadata, Plai
 import { Loader2, Link as LinkIcon } from 'lucide-react';
 import axios from 'axios';
 import { CONSENT_TEXT, logPlaidLinkConsent } from '../lib/consent';
-import { Button } from './ui';
+import { Button, toast } from './ui';
 import type {
   PlaidApiError,
   LinkTokenResponse,
@@ -81,7 +81,7 @@ Once configured, you'll be able to connect E*Trade, Schwab, Chase, and 12,000+ o
       // Show success message
       const accountCount = metadata.accounts.length;
       const accountText = accountCount === 1 ? 'account' : 'accounts';
-      alert(`🎉 Successfully connected ${metadata.institution?.name || 'your account'}!
+      toast.success(`🎉 Successfully connected ${metadata.institution?.name || 'your account'}!
 
 📊 Found ${accountCount} ${accountText}
 🔄 Your portfolio is being synced automatically

@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import axios from 'axios';
 import { Wallet, TrendingUp, Banknote, PieChart, ArrowUp, ArrowDown, AlertCircle, RefreshCw, CreditCard, GraduationCap, Home } from 'lucide-react';
-import { Card, Button } from '../components/ui';
+import { Card, Button, toast } from '../components/ui';
 
 interface Account {
   id: string;
@@ -94,7 +94,7 @@ const AccountSnapshot: React.FC = () => {
       await load();
     } catch (err) {
       console.error(err);
-      alert('Sync failed.');
+      toast.error('Sync failed.');
     } finally {
       setSyncing(false);
     }

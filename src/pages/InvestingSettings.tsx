@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Save, AlertCircle, RefreshCw, Trash2, CheckCircle, Clock, Plus, Minus, Key, Eye, EyeOff, Target, Landmark } from 'lucide-react';
 import PlaidLink from '../components/PlaidLink';
 import PlaidUpdateLink from '../components/PlaidUpdateLink';
-import { Card, Button } from '../components/ui';
+import { Card, Button, toast } from '../components/ui';
 import axios from 'axios';
 
 const REQUIRED_PRODUCTS = ['investments', 'liabilities'] as const;
@@ -141,13 +141,13 @@ const InvestingSettings: React.FC = () => {
     setIsSyncing(true);
     try {
       const response = await axios.post('/api/plaid/sync');
-      alert(response.data.message);
+      toast.success(response.data.message);
       loadSyncHistory(); // Refresh history
       // Optionally refresh portfolio data
       window.location.reload();
     } catch (error) {
       console.error('Sync failed:', error);
-      alert('Portfolio sync failed. Please try again.');
+      toast.error('Portfolio sync failed. Please try again.');
     } finally {
       setIsSyncing(false);
     }
@@ -157,12 +157,12 @@ const InvestingSettings: React.FC = () => {
     if (window.confirm(`Are you sure you want to remove ${institutionName}? This will delete all associated portfolio data.`)) {
       try {
         await axios.delete(`/api/plaid/accounts/${itemId}`);
-        alert('Account removed successfully');
+        toast.success('Account removed successfully');
         loadConnectedAccounts();
         loadSyncHistory();
       } catch (error) {
         console.error('Failed to remove account:', error);
-        alert('Failed to remove account. Please try again.');
+        toast.error('Failed to remove account. Please try again.');
       }
     }
   };
@@ -173,7 +173,7 @@ const InvestingSettings: React.FC = () => {
       setHasChanges(false);
     } catch (error) {
       console.error('Failed to save target allocations:', error);
-      alert('Failed to save settings. Please try again.');
+      toast.error('Failed to save settings. Please try again.');
     }
   };
 
@@ -193,7 +193,7 @@ const InvestingSettings: React.FC = () => {
       }
     } catch (error) {
       console.error('Failed to save ETrade keys:', error);
-      alert('Failed to save ETrade API keys. Please try again.');
+      toast.error('Failed to save ETrade API keys. Please try again.');
     }
   };
 

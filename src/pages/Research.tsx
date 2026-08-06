@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Search, Plus, TrendingUp, Loader2, Sparkles, AlertCircle } from 'lucide-react';
 import axios from 'axios';
-import { Card, Button } from '../components/ui';
+import { Card, Button, toast } from '../components/ui';
 
 interface ChatTurn {
   role: 'user' | 'assistant';
@@ -111,10 +111,10 @@ const Research: React.FC = () => {
         category: category.toLowerCase().replace(' ', '-'),
         notes: `Added from research analysis. Category: ${category}`,
       });
-      alert(`${ticker} has been added to your ${category} ideas!`);
+      toast.success(`${ticker} has been added to your ${category} ideas!`);
     } catch (error) {
       console.error('Failed to add to ideas:', error);
-      alert('Failed to add to ideas. Please try again.');
+      toast.error('Failed to add to ideas. Please try again.');
     }
   };
 

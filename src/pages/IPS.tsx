@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { FileText, Save, Loader2, CheckCircle } from 'lucide-react';
 import { useIPS, useSaveIPS } from '../hooks/usePortfolio';
 import { InvestmentPolicyStatement } from '../types';
-import { Card, Button } from '../components/ui';
+import { Card, Button, toast } from '../components/ui';
 
 const textareaCls =
   'w-full px-3 py-2 bg-ever-bg border border-ever-line rounded-lg text-ever-ink placeholder-ever-faint focus:outline-none focus:border-ever-lime resize-none';
@@ -50,7 +50,7 @@ const IPS: React.FC = () => {
       setTimeout(() => setShowSaved(false), 3000);
     } catch (error) {
       console.error('Failed to save IPS:', error);
-      alert('Failed to save Investment Policy Statement');
+      toast.error('Failed to save Investment Policy Statement');
     }
   };
 

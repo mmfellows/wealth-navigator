@@ -4,7 +4,7 @@ import { useQuery } from '@tanstack/react-query';
 import { CreditCard, Search, PlusCircle, Info, Upload, Download, Eye, X, ArrowLeftRight, FileText, BarChart3 } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine, Cell } from 'recharts';
 import { fetchBudgetCategories } from '../constants/budgetCategories';
-import { Card, StatCard, Button } from '../components/ui';
+import { Card, StatCard, Button, toast } from '../components/ui';
 import { everPill } from '../lib/categoryColors';
 import { cn } from '../lib/cn';
 
@@ -302,13 +302,13 @@ const Expenses: React.FC = () => {
       try {
         const text = e.target?.result as string;
         if (!text.trim()) {
-          alert('CSV file appears to be empty');
+          toast.error('CSV file appears to be empty');
           return;
         }
 
         const rows = text.split('\n').filter(row => row.trim());
         if (rows.length < 2) {
-          alert('CSV file must have at least a header row and one data row');
+          toast.error('CSV file must have at least a header row and one data row');
           return;
         }
 
@@ -367,7 +367,7 @@ const Expenses: React.FC = () => {
         setShowCsvPreview(true);
       } catch (error) {
         console.error('Error parsing CSV:', error);
-        alert('Error parsing CSV file. Please check the file format.');
+        toast.error('Error parsing CSV file. Please check the file format.');
       }
     };
     reader.readAsText(file);
@@ -375,7 +375,7 @@ const Expenses: React.FC = () => {
 
   const applyCsvImport = async () => {
     if (!csvData.length) {
-      alert('No CSV data to import');
+      toast.error('No CSV data to import');
       return;
     }
 
@@ -470,10 +470,10 @@ const Expenses: React.FC = () => {
         message += `, ${result.errorCount} errors`;
       }
 
-      alert(message);
+      toast.success(message);
     } catch (error) {
       console.error('Error importing CSV:', error);
-      alert('Failed to import CSV. Please try again.');
+      toast.error('Failed to import CSV. Please try again.');
     } finally {
       setIsUploading(false);
     }
@@ -513,7 +513,7 @@ const Expenses: React.FC = () => {
       });
     } catch (error) {
       console.error('Error parsing PDFs:', error);
-      alert('Failed to parse PDF files. Make sure they are Chase statements.');
+      toast.error('Failed to parse PDF files. Make sure they are Chase statements.');
     } finally {
       setIsPdfUploading(false);
       // Reset the file input
@@ -526,7 +526,7 @@ const Expenses: React.FC = () => {
 
     const newTransactions = pdfPreview.filter(t => !t.is_duplicate && !t.error);
     if (newTransactions.length === 0) {
-      alert('No new transactions to import.');
+      toast.info('No new transactions to import.');
       return;
     }
 
@@ -557,10 +557,10 @@ const Expenses: React.FC = () => {
 
       let message = `Imported ${result.successCount} transactions`;
       if (result.duplicateCount > 0) message += `, ${result.duplicateCount} duplicates skipped`;
-      alert(message);
+      toast.success(message);
     } catch (error) {
       console.error('Error importing PDF transactions:', error);
-      alert('Failed to import transactions.');
+      toast.error('Failed to import transactions.');
     } finally {
       setIsPdfUploading(false);
     }

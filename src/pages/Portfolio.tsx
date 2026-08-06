@@ -2,7 +2,7 @@ import React, { useEffect, useState, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import axios from 'axios';
 import { TrendingUp, TrendingDown, ChevronDown, ChevronRight, Plus, RefreshCw, Target } from 'lucide-react';
-import { Card, Button } from '../components/ui';
+import { Card, Button, toast } from '../components/ui';
 
 type BetType = 'Long' | 'Mid' | 'Short' | 'Core' | 'Unallocated';
 
@@ -106,7 +106,7 @@ const Portfolio: React.FC = () => {
       await load();
     } catch (err) {
       console.error('Sync failed:', err);
-      alert('Sync failed. Check Plaid connections in Settings.');
+      toast.error('Sync failed. Check Plaid connections in Settings.');
     } finally {
       setSyncing(false);
     }

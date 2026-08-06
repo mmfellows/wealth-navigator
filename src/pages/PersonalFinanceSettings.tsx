@@ -4,7 +4,7 @@ import { Link } from 'react-router-dom';
 import { Trash2, Plus, Edit2, Tag, X, ChevronDown, ChevronRight, Upload, Download, GripVertical, Link as LinkIcon, RefreshCw, Loader2, Unlink } from 'lucide-react';
 import { usePlaidLink } from 'react-plaid-link';
 import { CONSENT_TEXT, logPlaidLinkConsent } from '../lib/consent';
-import { Card, Button } from '../components/ui';
+import { Card, Button, toast } from '../components/ui';
 import { cn } from '../lib/cn';
 import { everPill } from '../lib/categoryColors';
 
@@ -71,7 +71,7 @@ const PersonalFinanceSettings: React.FC = () => {
       if (!res.ok) throw new Error('Failed to move subcategory');
       await fetchCategories();
     } catch (err: any) {
-      alert(err.message);
+      toast.error(err.message);
     } finally {
       setDragItem(null);
       setDropTarget(null);
@@ -316,7 +316,7 @@ const PersonalFinanceSettings: React.FC = () => {
       setNewMainName('');
       await fetchCategories();
     } catch (err: any) {
-      alert(err.message);
+      toast.error(err.message);
     }
   };
 
@@ -337,7 +337,7 @@ const PersonalFinanceSettings: React.FC = () => {
       setNewSubName('');
       await fetchCategories();
     } catch (err: any) {
-      alert(err.message);
+      toast.error(err.message);
     }
   };
 
@@ -360,7 +360,7 @@ const PersonalFinanceSettings: React.FC = () => {
       setEditingValue('');
       await fetchCategories();
     } catch (err: any) {
-      alert(err.message);
+      toast.error(err.message);
     }
   };
 
@@ -383,7 +383,7 @@ const PersonalFinanceSettings: React.FC = () => {
       setEditingValue('');
       await fetchCategories();
     } catch (err: any) {
-      alert(err.message);
+      toast.error(err.message);
     }
   };
 
@@ -396,7 +396,7 @@ const PersonalFinanceSettings: React.FC = () => {
       setConfirmDelete(null);
       await fetchCategories();
     } catch (err: any) {
-      alert(err.message);
+      toast.error(err.message);
     }
   };
 
@@ -409,7 +409,7 @@ const PersonalFinanceSettings: React.FC = () => {
       setConfirmDelete(null);
       await fetchCategories();
     } catch (err: any) {
-      alert(err.message);
+      toast.error(err.message);
     }
   };
 
@@ -441,7 +441,7 @@ const PersonalFinanceSettings: React.FC = () => {
       const text = e.target?.result as string;
       const lines = text.split('\n').filter(l => l.trim());
       if (lines.length < 2) {
-        alert('CSV file appears empty or has no data rows');
+        toast.error('CSV file appears empty or has no data rows');
         return;
       }
 
@@ -450,7 +450,7 @@ const PersonalFinanceSettings: React.FC = () => {
       const subIdx = headers.findIndex(h => /sub|secondary/i.test(h));
 
       if (mainIdx === -1) {
-        alert('Could not find a Main Category column in the CSV');
+        toast.error('Could not find a Main Category column in the CSV');
         return;
       }
 
@@ -489,11 +489,11 @@ const PersonalFinanceSettings: React.FC = () => {
           added++;
         }
       }
-      alert(`Import complete: ${added} added, ${skipped} already existed`);
+      toast.success(`Import complete: ${added} added, ${skipped} already existed`);
       setCsvPreview(null);
       await fetchCategories();
     } catch (err: any) {
-      alert('Import failed: ' + err.message);
+      toast.error('Import failed: ' + err.message);
     }
   };
 

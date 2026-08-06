@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Plus, Edit, Trash2, TrendingUp, Shield, Dice1, Loader2, ChevronDown, ChevronRight, CheckCircle, MoreHorizontal, ArrowUpDown, ArrowUp, ArrowDown, Building, Target } from 'lucide-react';
 import { useIdeas, useAddIdea, useUpdateIdea, useDeleteIdea, useInvestments } from '../hooks/usePortfolio';
-import { Card, Button } from '../components/ui';
+import { Card, Button, toast } from '../components/ui';
 import axios from 'axios';
 
 const Ideas: React.FC = () => {
@@ -183,7 +183,7 @@ const Ideas: React.FC = () => {
       if (!choice) return;
       const normalized = choice.trim().charAt(0).toUpperCase() + choice.trim().slice(1).toLowerCase();
       if (!['Long', 'Mid', 'Short'].includes(normalized)) {
-        alert('Bet type must be Long, Mid, or Short.');
+        toast.error('Bet type must be Long, Mid, or Short.');
         return;
       }
       betType = normalized;
@@ -199,7 +199,7 @@ const Ideas: React.FC = () => {
       window.location.href = '/bets';
     } catch (err: any) {
       const msg = err.response?.data?.error || 'Failed to promote idea';
-      alert(msg);
+      toast.error(msg);
     }
   };
 
@@ -207,7 +207,7 @@ const Ideas: React.FC = () => {
     e.preventDefault();
 
     if (!formData.ticker || !formData.notes) {
-      alert('Ticker and notes are required');
+      toast.error('Ticker and notes are required');
       return;
     }
 
@@ -241,7 +241,7 @@ const Ideas: React.FC = () => {
       resetForm();
     } catch (error) {
       console.error('Failed to save idea:', error);
-      alert(`Failed to ${editingIdea ? 'update' : 'add'} investment idea`);
+      toast.error(`Failed to ${editingIdea ? 'update' : 'add'} investment idea`);
     }
   };
 
@@ -251,7 +251,7 @@ const Ideas: React.FC = () => {
         await deleteIdeaMutation.mutateAsync(ideaId);
       } catch (error) {
         console.error('Failed to delete idea:', error);
-        alert('Failed to delete investment idea');
+        toast.error('Failed to delete investment idea');
       }
     }
   };

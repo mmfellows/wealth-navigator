@@ -7,7 +7,7 @@ import {
 } from 'recharts';
 import { useIPS } from '../hooks/usePortfolio';
 import NetWorthHistoryChart, { NetWorthPoint } from '../components/charts/NetWorthHistoryChart';
-import { Card, CardHeader, Label, Button, StatCard, fmtUSD } from '../components/ui';
+import { Card, CardHeader, Label, Button, StatCard, fmtUSD, toast } from '../components/ui';
 import { cn } from '../lib/cn';
 
 interface Snapshot {
@@ -80,7 +80,7 @@ const Dashboard: React.FC = () => {
       await load();
     } catch (err) {
       console.error('Sync failed:', err);
-      alert('Sync failed. Check Plaid connections in Settings.');
+      toast.error('Sync failed. Check Plaid connections in Settings.');
     } finally {
       setSyncing(false);
     }

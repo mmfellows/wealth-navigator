@@ -13,6 +13,7 @@ const { db, docToObj } = require('./database');
 const { computeSnapshot } = require('./snapshotService');
 const { buildPortfolioContext } = require('./aiResearchService');
 const { getCategoryEnvelopes } = require('./budgetEnvelopes');
+const { detectRecurringCosts } = require('./recurringCosts');
 
 const MODEL = process.env.ANTHROPIC_MODEL || 'claude-opus-5';
 const MAX_ITERATIONS = 8;
@@ -201,7 +202,14 @@ function buildTools(userId) {
     },
   });
 
-  return [queryTransactions, getCategoryStats, getBudgets, getSnapshot, getBets];
+  const getRecurringCosts = betaTool({
+    name: 'get_recurring_costs',
+    description: 'Detected recurring costs (subscriptions, bills, rent): merchant, category, median charge, estimated monthly cost, first/last seen, and whether it appeared recently (is_new). Sorted by monthly cost.',
+    inputSchema: { type: 'object', properties: {}, additionalProperties: false },
+    run: async () => JSON.stringify(await detectRecurringCosts()),
+  });
+
+  return [queryTransactions, getCategoryStats, getBudgets, getSnapshot, getBets, getRecurringCosts];
 }
 
 // Run one chat turn with streaming. onEvent receives:

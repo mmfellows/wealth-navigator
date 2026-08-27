@@ -2,7 +2,7 @@ const { PlaidApi, Configuration, PlaidEnvironments } = require('plaid');
 const { db } = require('./database');
 const { encrypt, decrypt } = require('./encryption');
 const { mapPlaidCategory } = require('./categoryMapper');
-const { loadMerchantRules, lookupMerchantRule } = require('./merchantRules');
+const { loadMerchantRules, lookupMerchantRule, normalizeMerchant } = require('./merchantRules');
 const aiCategorization = require('./aiCategorizationService');
 
 // Structured Plaid logger - captures key identifiers for troubleshooting
@@ -430,6 +430,22 @@ class PlaidService {
     // the Plaid-category mapping. Manual edits are never touched here.
     const merchantRules = await loadMerchantRules();
 
+    // Known merchants over the last 6 months (all institutions) — a plain
+    // spending row whose normalized merchant isn't in here gets flagged
+    // is_new_merchant for the radar.
+    const lookback = new Date();
+    lookback.setMonth(lookback.getMonth() - 6);
+    const lookbackDate = lookback.toISOString().substring(0, 10);
+    const knownSnapshot = await db.collection('expenses')
+      .where('date', '>=', lookbackDate)
+      .get();
+    const knownMerchants = new Set();
+    knownSnapshot.docs.forEach(doc => {
+      const d = doc.data();
+      const key = normalizeMerchant(d.merchant || d.description);
+      if (key) knownMerchants.add(key);
+    });
+
     for (const txn of allTransactions) {
       if (txn.pending) { skipped++; continue; }
 
@@ -482,6 +498,10 @@ class PlaidService {
         : merchantRule ? 'merchant_rule'
         : null;
 
+      const merchantKey = normalizeMerchant(txn.merchant_name || txn.name);
+      const isNewMerchant = isPlainSpending && Boolean(merchantKey) && !knownMerchants.has(merchantKey);
+      if (merchantKey) knownMerchants.add(merchantKey);
+
       batchOps.push({
         date: txn.date,
         merchant: txn.merchant_name || txn.name || 'Unknown',
@@ -496,6 +516,8 @@ class PlaidService {
         categorization_source: category ? categorizationSource : null,
         needs_review: false,
         ai_confidence: null,
+        is_new_merchant: isNewMerchant,
+        new_merchant_ack: false,
         plaid_transaction_id: txn.transaction_id,
         plaid_account_id: txn.account_id || null,
         plaid_item_id: item.item_id,

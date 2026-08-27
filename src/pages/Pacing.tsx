@@ -1,9 +1,9 @@
 import { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { authedFetch } from '../services/authRedirect';
 import { BurnStrip } from '../components/BurnStrip';
-import { Inbox, ChevronDown, ChevronRight } from 'lucide-react';
+import { Inbox, ChevronDown, ChevronRight, Radar, Repeat, X } from 'lucide-react';
 
 const fmt = (n: number) =>
   n.toLocaleString('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 });
@@ -116,6 +116,12 @@ function CategoryPacing({
   );
 }
 
+interface RadarData {
+  new_merchants: Array<{ id: string; date: string; merchant: string; amount: number; category: string | null; account: string | null }>;
+  recurring: Array<{ merchant: string; merchant_key: string; median_amount: number; monthly_cost: number; is_new: boolean; first_date: string }>;
+  new_recurring: Array<{ merchant: string; median_amount: number; first_date: string }>;
+}
+
 const Pacing: React.FC = () => {
   const now = new Date();
   const month = ymLocal(now);
@@ -150,6 +156,39 @@ const Pacing: React.FC = () => {
       if (!res.ok) throw new Error('Failed to fetch review queue');
       return res.json();
     },
+  });
+
+  const queryClient = useQueryClient();
+  const { data: radar } = useQuery<RadarData>({
+    queryKey: ['radar'],
+    queryFn: async () => {
+      const res = await authedFetch('/api/expenses/radar');
+      if (!res.ok) throw new Error('Failed to fetch radar');
+      return res.json();
+    },
+  });
+
+  const ackNewMerchant = useMutation({
+    mutationFn: async (id: string) => {
+      const res = await authedFetch(`/api/expenses/${id}/ack-new-merchant`, { method: 'POST' });
+      if (!res.ok) throw new Error('Failed to acknowledge');
+      return res.json();
+    },
+    onMutate: async (id: string) => {
+      await queryClient.cancelQueries({ queryKey: ['radar'] });
+      const prev = queryClient.getQueryData<RadarData>(['radar']);
+      if (prev) {
+        queryClient.setQueryData(['radar'], {
+          ...prev,
+          new_merchants: prev.new_merchants.filter(m => m.id !== id),
+        });
+      }
+      return { prev };
+    },
+    onError: (_e, _id, ctx) => {
+      if (ctx?.prev) queryClient.setQueryData(['radar'], ctx.prev);
+    },
+    onSettled: () => queryClient.invalidateQueries({ queryKey: ['radar'] }),
   });
 
   const totalSpend = stats?.totals?.total_amount || 0;
@@ -222,7 +261,7 @@ const Pacing: React.FC = () => {
         )}
       </div>
 
-      {/* Radar strip */}
+      {/* Radar */}
       {reviewCount > 0 && (
         <Link
           to="/review"
@@ -234,6 +273,41 @@ const Pacing: React.FC = () => {
           </span>
           <ChevronRight className="h-4 w-4" />
         </Link>
+      )}
+
+      {radar && (radar.new_recurring.length > 0 || radar.new_merchants.length > 0) && (
+        <div className="bg-white rounded-lg shadow-sm border p-4 space-y-3">
+          <h2 className="text-sm font-semibold text-gray-900 flex items-center gap-2">
+            <Radar className="h-4 w-4 text-blue-600" /> New on the radar
+          </h2>
+          {radar.new_recurring.map(r => (
+            <div key={r.merchant} className="flex items-center gap-2 text-sm bg-red-50 border border-red-200 rounded-md p-2.5 text-red-800">
+              <Repeat className="h-4 w-4 shrink-0" />
+              <span className="flex-1 min-w-0">
+                <span className="font-medium">{r.merchant}</span> looks like a new recurring cost
+                (~{fmt(r.median_amount)}/charge, since {r.first_date}).
+              </span>
+            </div>
+          ))}
+          {radar.new_merchants.map(m => (
+            <div key={m.id} className="flex items-center gap-2 text-sm border-b last:border-0 border-gray-50 pb-2 last:pb-0">
+              <div className="flex-1 min-w-0">
+                <span className="block truncate text-gray-800">
+                  {m.merchant} <span className="text-gray-400">· first time seen</span>
+                </span>
+                <span className="text-xs text-gray-400">{m.date} · {m.category || 'Uncategorized'}</span>
+              </div>
+              <span className="font-medium whitespace-nowrap">{fmt(m.amount)}</span>
+              <button
+                onClick={() => ackNewMerchant.mutate(m.id)}
+                className="p-1 text-gray-300 hover:text-gray-600"
+                title="Got it — remove from radar"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+          ))}
+        </div>
       )}
 
       <BurnStrip />

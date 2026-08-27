@@ -8,6 +8,7 @@ const { detectAndParse, extractPdfText } = require('../services/chasePdfParser')
 const { optionalAuth } = require('../middleware/auth');
 const { upsertMerchantRule, normalizeMerchant } = require('../services/merchantRules');
 const aiCategorization = require('../services/aiCategorizationService');
+const { detectRecurringCosts } = require('../services/recurringCosts');
 
 router.use(optionalAuth);
 
@@ -273,6 +274,59 @@ router.get('/review-queue', async (req, res) => {
   } catch (error) {
     console.error('Error fetching review queue:', error);
     res.status(500).json({ error: 'Failed to fetch review queue' });
+  }
+});
+
+// Radar: unacknowledged new-merchant transactions (flagged at sync time)
+// plus recurring costs, with new recurring costs called out.
+router.get('/radar', async (req, res) => {
+  try {
+    const [flaggedSnap, recurring] = await Promise.all([
+      db.collection('expenses').where('is_new_merchant', '==', true).get(),
+      detectRecurringCosts(),
+    ]);
+    const newMerchants = flaggedSnap.docs.map(docToObj)
+      .filter(e => !e.new_merchant_ack && !e.is_transfer)
+      .sort((a, b) => String(b.date).localeCompare(String(a.date)))
+      .slice(0, 50)
+      .map(e => ({
+        id: e.id, date: e.date, merchant: e.merchant, amount: e.amount,
+        category: e.category, account: e.account,
+      }));
+    res.json({
+      new_merchants: newMerchants,
+      recurring,
+      new_recurring: recurring.filter(r => r.is_new),
+    });
+  } catch (error) {
+    console.error('Error fetching radar:', error);
+    res.status(500).json({ error: 'Failed to fetch radar' });
+  }
+});
+
+// Recurring costs on their own (also used by the finance chat tool).
+router.get('/recurring', async (req, res) => {
+  try {
+    res.json({ recurring: await detectRecurringCosts() });
+  } catch (error) {
+    console.error('Error detecting recurring costs:', error);
+    res.status(500).json({ error: 'Failed to detect recurring costs' });
+  }
+});
+
+// Dismiss a new-merchant flag from the radar.
+router.post('/:id/ack-new-merchant', async (req, res) => {
+  try {
+    const ref = db.collection('expenses').doc(req.params.id);
+    const doc = await ref.get();
+    if (!doc.exists) {
+      return res.status(404).json({ error: 'Expense not found' });
+    }
+    await ref.update({ new_merchant_ack: true, updated_at: new Date().toISOString() });
+    res.json({ message: 'Acknowledged' });
+  } catch (error) {
+    console.error('Error acknowledging new merchant:', error);
+    res.status(500).json({ error: 'Failed to acknowledge' });
   }
 });
 

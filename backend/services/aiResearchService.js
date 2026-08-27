@@ -9,7 +9,7 @@ const Anthropic = require('@anthropic-ai/sdk');
 const { db } = require('./database');
 const { computeSnapshot } = require('./snapshotService');
 
-const MODEL = process.env.ANTHROPIC_MODEL || 'claude-opus-4-8';
+const MODEL = process.env.ANTHROPIC_MODEL || 'claude-opus-5';
 
 let client = null;
 function getClient() {

@@ -26,7 +26,8 @@ import {
   CalendarCheck,
   Menu,
   X,
-  Gauge
+  Gauge,
+  MessageCircle
 } from 'lucide-react';
 
 interface LayoutProps {
@@ -44,7 +45,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
     const path = location.pathname;
 
     // Personal Finance routes
-    if (path.startsWith('/budgets') || path.startsWith('/expenses') || path.startsWith('/accounts') || path.startsWith('/reports') || path.startsWith('/carrots') || path.startsWith('/review') || path.startsWith('/close') || path.startsWith('/pacing') || path === '/personal-finance-settings') {
+    if (path.startsWith('/budgets') || path.startsWith('/expenses') || path.startsWith('/accounts') || path.startsWith('/reports') || path.startsWith('/carrots') || path.startsWith('/review') || path.startsWith('/close') || path.startsWith('/pacing') || path.startsWith('/chat') || path === '/personal-finance-settings') {
       localStorage.setItem('lastActiveSection', 'personal-finance');
       return 'personal-finance';
     }
@@ -136,6 +137,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
   const personalFinanceNavItems = [
     { path: '/reports', icon: PieChart, label: 'Dashboard' },
     { path: '/pacing', icon: Gauge, label: 'Pacing' },
+    { path: '/chat', icon: MessageCircle, label: 'Chat' },
     { path: '/budgets', icon: DollarSign, label: 'Budgets' },
     { path: '/expenses', icon: CreditCard, label: 'Expenses' },
     { path: '/review', icon: Inbox, label: 'Review' },

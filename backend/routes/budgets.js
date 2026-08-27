@@ -1,10 +1,23 @@
 const express = require('express');
 const { db, docToObj } = require('../services/database');
 const { optionalAuth } = require('../middleware/auth');
+const { getCategoryEnvelopes } = require('../services/budgetEnvelopes');
 
 const router = express.Router();
 
 router.use(optionalAuth);
+
+// Derived monthly budget per category (sum of active line items).
+// ?month=YYYY-MM scopes to items active in that month.
+router.get('/envelopes', async (req, res) => {
+  try {
+    const envelopes = await getCategoryEnvelopes(req.query.month);
+    res.json(envelopes);
+  } catch (error) {
+    console.error('Error computing envelopes:', error);
+    res.status(500).json({ error: 'Failed to compute budget envelopes' });
+  }
+});
 
 // Get all budget items
 router.get('/', async (req, res) => {

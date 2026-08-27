@@ -6,7 +6,7 @@ const fs = require('fs');
 const { db, docToObj } = require('../services/database');
 const { detectAndParse, extractPdfText } = require('../services/chasePdfParser');
 const { optionalAuth } = require('../middleware/auth');
-const { upsertMerchantRule } = require('../services/merchantRules');
+const { upsertMerchantRule, normalizeMerchant } = require('../services/merchantRules');
 const aiCategorization = require('../services/aiCategorizationService');
 
 router.use(optionalAuth);
@@ -273,6 +273,77 @@ router.get('/review-queue', async (req, res) => {
   } catch (error) {
     console.error('Error fetching review queue:', error);
     res.status(500).json({ error: 'Failed to fetch review queue' });
+  }
+});
+
+// Month anomalies for the close flow: merchants never seen in the prior
+// six months, transactions far above their category's history, and
+// suspected duplicates. All computed on the fly — nothing is persisted.
+router.get('/anomalies', async (req, res) => {
+  try {
+    const { month } = req.query;
+    if (!month || !/^\d{4}-\d{2}$/.test(month)) {
+      return res.status(400).json({ error: 'month (YYYY-MM) is required' });
+    }
+
+    const [y, m] = month.split('-').map(Number);
+    const priorStart = new Date(Date.UTC(y, m - 1 - 6, 1)).toISOString().substring(0, 10);
+    const monthStart = `${month}-01`;
+    const monthEnd = `${month}-31`;
+
+    const [monthSnap, priorSnap] = await Promise.all([
+      db.collection('expenses').where('date', '>=', monthStart).where('date', '<=', monthEnd).get(),
+      db.collection('expenses').where('date', '>=', priorStart).where('date', '<', monthStart).get(),
+    ]);
+
+    const isSpending = e => !e.is_transfer && e.category !== 'Income'
+      && e.category !== 'Taxes' && e.category !== 'Credit Card Payment';
+    const monthRows = monthSnap.docs.map(docToObj).filter(isSpending);
+    const priorRows = priorSnap.docs.map(d => d.data()).filter(isSpending);
+
+    // New merchants: normalized key absent from the prior window.
+    const priorMerchants = new Set(priorRows.map(e => normalizeMerchant(e.merchant || e.description)).filter(Boolean));
+    const seenThisMonth = new Set();
+    const newMerchants = [];
+    for (const e of monthRows) {
+      const key = normalizeMerchant(e.merchant || e.description);
+      if (!key || priorMerchants.has(key) || seenThisMonth.has(key)) continue;
+      seenThisMonth.add(key);
+      newMerchants.push(e);
+    }
+
+    // Large transactions: well above the category's prior-window profile.
+    const byCategory = {};
+    priorRows.forEach(e => {
+      if (!e.category) return;
+      (byCategory[e.category] = byCategory[e.category] || []).push(e.amount);
+    });
+    const largeTransactions = monthRows.filter(e => {
+      if (!e.category || e.amount < 100) return false;
+      const prior = byCategory[e.category];
+      if (!prior || prior.length < 5) return false;
+      const mean = prior.reduce((s, a) => s + a, 0) / prior.length;
+      const sd = Math.sqrt(prior.reduce((s, a) => s + (a - mean) ** 2, 0) / prior.length);
+      return e.amount > mean + 2 * sd;
+    });
+
+    // Duplicate suspects: same day, same amount, same normalized merchant.
+    const dupGroups = new Map();
+    monthRows.forEach(e => {
+      const key = `${e.date}|${Number(e.amount).toFixed(2)}|${normalizeMerchant(e.merchant || e.description)}`;
+      (dupGroups.get(key) || dupGroups.set(key, []).get(key)).push(e);
+    });
+    const duplicateSuspects = [...dupGroups.values()].filter(g => g.length > 1);
+
+    res.json({
+      month,
+      new_merchants: newMerchants.sort((a, b) => b.amount - a.amount),
+      large_transactions: largeTransactions.sort((a, b) => b.amount - a.amount),
+      duplicate_suspects: duplicateSuspects,
+    });
+  } catch (error) {
+    console.error('Error computing anomalies:', error);
+    res.status(500).json({ error: 'Failed to compute anomalies' });
   }
 });
 

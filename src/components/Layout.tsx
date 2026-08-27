@@ -22,7 +22,8 @@ import {
   PanelLeftOpen,
   ChevronDown,
   Check,
-  Inbox
+  Inbox,
+  CalendarCheck
 } from 'lucide-react';
 
 interface LayoutProps {
@@ -128,6 +129,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
     { path: '/budgets', icon: DollarSign, label: 'Budgets' },
     { path: '/expenses', icon: CreditCard, label: 'Expenses' },
     { path: '/review', icon: Inbox, label: 'Review' },
+    { path: '/close', icon: CalendarCheck, label: 'Close' },
     { path: '/accounts', icon: PiggyBank, label: 'Accounts' },
     { path: '/carrots', icon: Carrot, label: 'Carrots' },
     { path: '/personal-finance-settings', icon: Settings, label: 'Settings' },

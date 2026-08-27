@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { authedFetch } from '../services/authRedirect';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { AlertTriangle, ChevronDown, ChevronRight } from 'lucide-react';
 
 interface CategoryStat {
@@ -68,31 +68,69 @@ const Reports: React.FC = () => {
     });
   };
 
-  // Closed months for pacing (persisted per year)
-  const [closedMonths, setClosedMonths] = useState<Set<number>>(() => {
-    try {
-      const stored = localStorage.getItem(`closedMonths-${now.getFullYear()}`);
-      return stored ? new Set(JSON.parse(stored)) : new Set();
-    } catch { return new Set(); }
+  // Closed months for pacing — server-side month_closes records (shared
+  // with the /close wizard). The old per-year localStorage set can be
+  // imported once below.
+  const queryClient = useQueryClient();
+  const { data: closesData } = useQuery({
+    queryKey: ['month-closes', selectedYear],
+    queryFn: async () => {
+      const res = await authedFetch(`/api/month-closes?year=${selectedYear}`);
+      if (!res.ok) throw new Error('Failed to fetch month closes');
+      return res.json() as Promise<Array<{ month: string }>>;
+    },
+  });
+  const closedMonths = useMemo(
+    () => new Set((closesData || []).map(c => Number(c.month.split('-')[1]))),
+    [closesData],
+  );
+
+  const setClosed = useMutation({
+    mutationFn: async ({ month, closed }: { month: number; closed: boolean }) => {
+      const key = `${selectedYear}-${String(month).padStart(2, '0')}`;
+      const res = closed
+        ? await authedFetch('/api/month-closes', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ month: key }),
+          })
+        : await authedFetch(`/api/month-closes/${key}`, { method: 'DELETE' });
+      if (!res.ok) {
+        const body = await res.json().catch(() => null);
+        throw new Error(body?.error || 'Failed to update month close');
+      }
+      return res.json();
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['month-closes'] }),
   });
 
   const toggleClosedMonth = (month: number) => {
-    setClosedMonths(prev => {
-      const next = new Set(prev);
-      if (next.has(month)) next.delete(month);
-      else next.add(month);
-      localStorage.setItem(`closedMonths-${selectedYear}`, JSON.stringify([...next]));
-      return next;
-    });
+    setClosed.mutate({ month, closed: !closedMonths.has(month) });
   };
 
-  // Reload closed months when year changes
-  React.useEffect(() => {
+  // One-time migration: months marked closed in the old localStorage set
+  // but not yet on the server.
+  const legacyClosed = useMemo(() => {
     try {
       const stored = localStorage.getItem(`closedMonths-${selectedYear}`);
-      setClosedMonths(stored ? new Set(JSON.parse(stored)) : new Set());
-    } catch { setClosedMonths(new Set()); }
+      return stored ? (JSON.parse(stored) as number[]) : [];
+    } catch { return []; }
   }, [selectedYear]);
+  const importableLegacy = closesData
+    ? legacyClosed.filter(m => !closedMonths.has(m))
+    : [];
+  const importLegacy = async () => {
+    for (const m of importableLegacy) {
+      const key = `${selectedYear}-${String(m).padStart(2, '0')}`;
+      await authedFetch('/api/month-closes', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ month: key }),
+      });
+    }
+    localStorage.removeItem(`closedMonths-${selectedYear}`);
+    queryClient.invalidateQueries({ queryKey: ['month-closes'] });
+  };
 
   const startDate = viewMode === 'month'
     ? `${selectedYear}-${selectedMonth}-01`
@@ -375,21 +413,23 @@ const Reports: React.FC = () => {
             <div className="flex gap-1">
               {['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'].map((label, i) => {
                 const month = i + 1;
-                const isFuture = pacing.isFutureMonth(month);
+                // Only fully completed months can be closed (server enforces this too).
+                const isLocked = pacing.isFutureMonth(month)
+                  || (Number(selectedYear) === now.getFullYear() && month >= now.getMonth() + 1);
                 const isClosed = closedMonths.has(month);
                 return (
                   <button
                     key={month}
-                    onClick={() => !isFuture && toggleClosedMonth(month)}
-                    disabled={isFuture}
+                    onClick={() => !isLocked && toggleClosedMonth(month)}
+                    disabled={isLocked}
                     className={`px-2 py-1 text-xs rounded font-medium transition-colors ${
-                      isFuture
+                      isLocked
                         ? 'bg-gray-100 text-gray-300 cursor-not-allowed'
                         : isClosed
                           ? 'bg-green-100 text-green-700 hover:bg-green-200'
                           : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
                     }`}
-                    title={isFuture ? 'Future month' : isClosed ? `${label} closed (using actuals)` : `${label} open (using budget)`}
+                    title={isLocked ? 'Month not completed yet' : isClosed ? `${label} closed (using actuals)` : `${label} open (using budget)`}
                   >
                     {label}
                   </button>
@@ -397,6 +437,14 @@ const Reports: React.FC = () => {
               })}
             </div>
           </div>
+          {importableLegacy.length > 0 && (
+            <div className="mb-4 flex items-center justify-between gap-3 text-sm bg-blue-50 text-blue-800 rounded-md p-3">
+              <span>{importableLegacy.length} month{importableLegacy.length === 1 ? '' : 's'} marked closed in this browser haven't been saved to the server yet.</span>
+              <button onClick={importLegacy} className="px-3 py-1.5 rounded-md bg-blue-600 text-white font-medium whitespace-nowrap">
+                Import
+              </button>
+            </div>
+          )}
           <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-4">
             <div>
               <p className="text-sm text-gray-500">Actual ({pacing.completedMonths} months)</p>

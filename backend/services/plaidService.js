@@ -3,6 +3,7 @@ const { db } = require('./database');
 const { encrypt, decrypt } = require('./encryption');
 const { mapPlaidCategory } = require('./categoryMapper');
 const { loadMerchantRules, lookupMerchantRule } = require('./merchantRules');
+const aiCategorization = require('./aiCategorizationService');
 
 // Structured Plaid logger - captures key identifiers for troubleshooting
 function logPlaid(level, action, details = {}) {
@@ -945,6 +946,21 @@ class PlaidService {
     for (const itemDoc of itemsSnapshot.docs) {
       results.push(await this.syncItem(itemDoc.data(), options));
     }
+
+    // Post-sync AI categorization pass over anything the rules left
+    // uncategorized. Non-fatal: a categorization failure never fails a sync.
+    const addedCount = results.reduce((s, r) => s + (r.streams?.transactions?.added || 0), 0);
+    if (addedCount > 0 && aiCategorization.isConfigured()) {
+      try {
+        const counts = await aiCategorization.categorizeUncategorized(userId);
+        logPlaid('info', 'ai_categorization', {
+          message: `AI pass: ${counts.ai_applied} applied, ${counts.merchant_rule_applied} via rules, ${counts.needs_review} queued for review`,
+        });
+      } catch (error) {
+        logPlaid('error', 'ai_categorization', { message: error.message });
+      }
+    }
+
     return results;
   }
 

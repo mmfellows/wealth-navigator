@@ -6,6 +6,8 @@ const fs = require('fs');
 const { db, docToObj } = require('../services/database');
 const { detectAndParse, extractPdfText } = require('../services/chasePdfParser');
 const { optionalAuth } = require('../middleware/auth');
+const { upsertMerchantRule } = require('../services/merchantRules');
+const aiCategorization = require('../services/aiCategorizationService');
 
 router.use(optionalAuth);
 
@@ -244,6 +246,98 @@ router.post('/preview-pdf', pdfDisabledInProd, upload.array('files', 20), async 
   } catch (error) {
     console.error('Error previewing PDF:', error);
     res.status(500).json({ error: 'Failed to preview PDF files' });
+  }
+});
+
+// Review queue: rows flagged needs_review plus anything still uncategorized.
+// Category can be '' (sync) or null (manual clear), hence three queries.
+router.get('/review-queue', async (req, res) => {
+  try {
+    const { month } = req.query;
+    const [reviewSnap, emptySnap, nullSnap] = await Promise.all([
+      db.collection('expenses').where('needs_review', '==', true).get(),
+      db.collection('expenses').where('category', '==', '').get(),
+      db.collection('expenses').where('category', '==', null).get(),
+    ]);
+
+    const byId = new Map();
+    [...reviewSnap.docs, ...emptySnap.docs, ...nullSnap.docs].forEach(doc => {
+      byId.set(doc.id, docToObj(doc));
+    });
+
+    let queue = [...byId.values()].filter(e => !e.is_transfer && !(e.review_acknowledged && !e.needs_review));
+    if (month) queue = queue.filter(e => (e.date || '').startsWith(month));
+    queue.sort((a, b) => String(b.date || '').localeCompare(String(a.date || '')));
+
+    res.json({ queue, total: queue.length });
+  } catch (error) {
+    console.error('Error fetching review queue:', error);
+    res.status(500).json({ error: 'Failed to fetch review queue' });
+  }
+});
+
+// Trigger an AI categorization pass. Body: { month?: 'YYYY-MM' }.
+router.post('/categorize', async (req, res) => {
+  try {
+    if (!aiCategorization.isConfigured()) {
+      return res.status(503).json({
+        error: 'AI categorization is not configured. Set ANTHROPIC_API_KEY in backend/.env.',
+      });
+    }
+    const counts = await aiCategorization.categorizeUncategorized(req.user.id, {
+      month: req.body?.month,
+    });
+    res.json(counts);
+  } catch (error) {
+    console.error('Error running AI categorization:', error);
+    res.status(500).json({ error: 'Failed to run AI categorization' });
+  }
+});
+
+// Resolve one review-queue item.
+// Body: { category, subcategory } to categorize (also learns a merchant rule),
+// or { is_transfer: true }, or { skip: true } to acknowledge and leave as-is.
+router.post('/:id/resolve-review', async (req, res) => {
+  try {
+    const doc = await db.collection('expenses').doc(req.params.id).get();
+    if (!doc.exists) {
+      return res.status(404).json({ error: 'Expense not found' });
+    }
+    const expense = doc.data();
+    const { category, subcategory, is_transfer, skip } = req.body || {};
+
+    const updateData = {
+      needs_review: false,
+      ai_question: null,
+      ai_suggestions: null,
+      updated_at: new Date().toISOString(),
+    };
+
+    if (is_transfer) {
+      updateData.is_transfer = true;
+    } else if (skip) {
+      // Deliberately left uncategorized — keep it out of future queues.
+      updateData.review_acknowledged = true;
+    } else if (category) {
+      updateData.category = category;
+      updateData.subcategory = subcategory ?? null;
+      updateData.categorization_source = 'manual';
+      await upsertMerchantRule({
+        merchant: expense.merchant || expense.description,
+        category,
+        subcategory,
+        userId: req.user.id,
+        source: 'review',
+      });
+    } else {
+      return res.status(400).json({ error: 'Provide category, is_transfer, or skip' });
+    }
+
+    await doc.ref.update(updateData);
+    res.json({ message: 'Review resolved' });
+  } catch (error) {
+    console.error('Error resolving review:', error);
+    res.status(500).json({ error: 'Failed to resolve review' });
   }
 });
 
@@ -639,6 +733,23 @@ router.put('/:id', async (req, res) => {
     }
 
     await db.collection('expenses').doc(req.params.id).update(updateData);
+
+    // Manual categorization teaches a merchant rule so future syncs (and the
+    // AI pass) categorize this merchant the same way without asking.
+    if (updateData.category && !updateData.is_transfer) {
+      const expense = doc.data();
+      try {
+        await upsertMerchantRule({
+          merchant: expense.merchant || expense.description,
+          category: updateData.category,
+          subcategory: 'subcategory' in updateData ? updateData.subcategory : expense.subcategory,
+          userId: req.user?.id,
+          source: 'manual',
+        });
+      } catch (err) {
+        console.error('Failed to record merchant rule:', err);
+      }
+    }
 
     res.json({ message: 'Expense updated successfully' });
   } catch (error) {

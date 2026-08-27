@@ -20,6 +20,7 @@ import ReviewQueue from './pages/ReviewQueue';
 import MonthlyClose from './pages/MonthlyClose';
 import Pacing from './pages/Pacing';
 import FinanceChat from './pages/FinanceChat';
+import QuarterlyReview from './pages/QuarterlyReview';
 import Accounts from './pages/Accounts';
 import Reports from './pages/Reports';
 import Carrots from './pages/Carrots';
@@ -75,6 +76,7 @@ function App() {
                       <Route path="/close" element={<MonthlyClose />} />
                       <Route path="/pacing" element={<Pacing />} />
                       <Route path="/chat" element={<FinanceChat />} />
+                      <Route path="/quarterly" element={<QuarterlyReview />} />
                       <Route path="/accounts" element={<Accounts />} />
                       <Route path="/reports" element={<Reports />} />
                       <Route path="/carrots" element={<Carrots />} />

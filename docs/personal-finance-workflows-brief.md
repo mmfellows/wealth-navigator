@@ -134,7 +134,9 @@ Each phase is independently shippable and verified with `npm run build` + a reas
 - [x] **P4 — Mobile + weekly pacing:** *(done 2026-08-26 — hamburger drawer below md, `/pacing` with week-quarter progress + under/on/hot/blown category bars + tap-to-expand transactions, PWA manifest with start_url /pacing, BurnStrip with 3/6/12-mo windows on /reports and /pacing, `/api/expenses/stats/trailing` over complete months only)* responsive `Layout.tsx`, `/pacing` page, PWA manifest, burn-vs-income strip (F4) on `/reports` + `/pacing`, trailing aggregates in stats endpoint.
 - [x] **P5 — Finance chat** (route + tool-runner service + streaming + chat UI). *(done 2026-08-26 — SSE streaming via toolRunner with 5 JSON-schema tools, `finance_chats` sibling collection + index, `/chat` page shows live tool activity; `get_recurring_costs` tool lands with P6; research default model bumped to claude-opus-5; maxDuration 300)*
 - [x] **P6 — New-cost radar:** sync-time flagging, radar UI on `/pacing` + `/close`, acknowledged state; then recurring detection (own or Plaid recurring endpoint). *(done 2026-08-26 — chose own detection (≥3 distinct months in 6, MAD/median ≤ 0.25, no extra Plaid consent); new recurring = red alert on /pacing; dismissible new-merchant list; `get_recurring_costs` chat tool added)*
-- [ ] **P7 — Quarterly review** (`/quarterly` walkthrough, decisions write to `budget_items`, `quarter_reviews` persistence).
+- [x] **P7 — Quarterly review** (`/quarterly` walkthrough, decisions write to `budget_items`, `quarter_reviews` persistence). *(done 2026-08-26 — 4-quarter trend + top merchants + subcategory drill-down per category; cut/grow targets rescale the category's active budget items proportionally with priceHistory entries; reviews revisable per quarter; variance shown at category level, line-item detail stays on /budgets)*
+
+**All phases complete (2026-08-26).**
 
 ## Out of scope
 

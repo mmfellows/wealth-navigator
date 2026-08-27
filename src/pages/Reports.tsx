@@ -2,6 +2,7 @@ import React, { useState, useMemo } from 'react';
 import { authedFetch } from '../services/authRedirect';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { AlertTriangle, ChevronDown, ChevronRight } from 'lucide-react';
+import { BurnStrip } from '../components/BurnStrip';
 
 interface CategoryStat {
   category: string;
@@ -357,6 +358,9 @@ const Reports: React.FC = () => {
           )}
         </div>
       </div>
+
+      {/* Burn vs income */}
+      <BurnStrip />
 
       {/* Summary Cards */}
       <div className="grid grid-cols-1 md:grid-cols-6 gap-4">

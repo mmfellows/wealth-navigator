@@ -23,7 +23,10 @@ import {
   ChevronDown,
   Check,
   Inbox,
-  CalendarCheck
+  CalendarCheck,
+  Menu,
+  X,
+  Gauge
 } from 'lucide-react';
 
 interface LayoutProps {
@@ -41,7 +44,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
     const path = location.pathname;
 
     // Personal Finance routes
-    if (path.startsWith('/budgets') || path.startsWith('/expenses') || path.startsWith('/accounts') || path.startsWith('/reports') || path.startsWith('/carrots') || path === '/personal-finance-settings') {
+    if (path.startsWith('/budgets') || path.startsWith('/expenses') || path.startsWith('/accounts') || path.startsWith('/reports') || path.startsWith('/carrots') || path.startsWith('/review') || path.startsWith('/close') || path.startsWith('/pacing') || path === '/personal-finance-settings') {
       localStorage.setItem('lastActiveSection', 'personal-finance');
       return 'personal-finance';
     }
@@ -63,7 +66,13 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
   const [activeSection, setActiveSection] = useState<Section>(getActiveSection());
   const [collapsed, setCollapsed] = useState(() => localStorage.getItem('navCollapsed') === 'true');
   const [sectionMenuOpen, setSectionMenuOpen] = useState(false);
+  const [drawerOpen, setDrawerOpen] = useState(false);
   const sectionMenuRef = useRef<HTMLDivElement>(null);
+
+  // Close the mobile drawer on navigation
+  useEffect(() => {
+    setDrawerOpen(false);
+  }, [location.pathname]);
 
   // Close the section dropdown on outside click or Escape
   useEffect(() => {
@@ -126,6 +135,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
 
   const personalFinanceNavItems = [
     { path: '/reports', icon: PieChart, label: 'Dashboard' },
+    { path: '/pacing', icon: Gauge, label: 'Pacing' },
     { path: '/budgets', icon: DollarSign, label: 'Budgets' },
     { path: '/expenses', icon: CreditCard, label: 'Expenses' },
     { path: '/review', icon: Inbox, label: 'Review' },
@@ -141,8 +151,16 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
     <div className="flex flex-col h-screen bg-gray-100">
       {/* Top Navigation */}
       <div className="bg-white shadow-sm border-b">
-        <div className="px-6 py-3">
+        <div className="px-4 md:px-6 py-3">
           <div className="flex items-center space-x-2">
+            {/* Mobile: hamburger opens the nav drawer */}
+            <button
+              onClick={() => setDrawerOpen(true)}
+              className="md:hidden -ml-1 p-1.5 text-gray-500 hover:text-gray-900"
+              aria-label="Open navigation"
+            >
+              <Menu className="h-6 w-6" />
+            </button>
             <TrendingUp className="h-8 w-8 text-blue-600" />
             <h1 className="text-xl font-bold text-gray-900">Wealth Navigator</h1>
           </div>
@@ -191,8 +209,56 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
       </div>
 
       <div className="flex flex-1 overflow-hidden">
-        {/* Side Navigation */}
-        <nav className={`${collapsed ? 'w-16' : 'w-52'} bg-white shadow-lg transition-all duration-200 flex flex-col`}>
+        {/* Mobile nav drawer */}
+        {drawerOpen && (
+          <div className="fixed inset-0 z-50 md:hidden">
+            <div className="absolute inset-0 bg-black/40" onClick={() => setDrawerOpen(false)} />
+            <div className="absolute inset-y-0 left-0 w-64 bg-white shadow-xl flex flex-col">
+              <div className="p-4 flex items-center justify-between border-b">
+                <span className="text-sm font-semibold text-gray-900 uppercase tracking-wide">
+                  {activeSection === 'investing' ? 'Investment Tools' : 'Finance Tools'}
+                </span>
+                <button onClick={() => setDrawerOpen(false)} className="p-1 text-gray-400 hover:text-gray-600" aria-label="Close navigation">
+                  <X className="h-5 w-5" />
+                </button>
+              </div>
+              <div className="flex gap-1 p-3 border-b">
+                {SECTIONS.map(s => (
+                  <button
+                    key={s.id}
+                    onClick={() => selectSection(s)}
+                    className={`flex-1 px-2 py-1.5 rounded-md text-xs font-medium ${
+                      s.id === activeSection ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-600'
+                    }`}
+                  >
+                    {s.label}
+                  </button>
+                ))}
+              </div>
+              <div className="overflow-y-auto py-2">
+                {currentNavItems.map(item => {
+                  const Icon = item.icon;
+                  const isActive = location.pathname === item.path;
+                  return (
+                    <Link
+                      key={item.path}
+                      to={item.path}
+                      className={`flex items-center gap-3 px-5 py-3 ${
+                        isActive ? 'bg-blue-50 text-blue-600' : 'text-gray-600'
+                      }`}
+                    >
+                      <Icon className="h-5 w-5" />
+                      {item.label}
+                    </Link>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Side Navigation (desktop) */}
+        <nav className={`${collapsed ? 'w-16' : 'w-52'} hidden md:flex bg-white shadow-lg transition-all duration-200 flex-col`}>
           <div className={`p-4 flex items-center ${collapsed ? 'justify-center' : 'justify-between'}`}>
             {!collapsed && (
               <h2 className="text-sm font-semibold text-gray-900 uppercase tracking-wide">
@@ -233,10 +299,10 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
         </nav>
 
         <main className="flex-1 overflow-auto flex flex-col">
-          <div className="p-8 flex-1">
+          <div className="p-4 md:p-8 flex-1">
             {children}
           </div>
-          <footer className="px-8 py-4 text-xs text-gray-400 border-t border-gray-200 bg-white">
+          <footer className="px-4 md:px-8 py-4 text-xs text-gray-400 border-t border-gray-200 bg-white">
             <Link to="/privacy" className="hover:text-gray-600">Privacy Policy</Link>
             <span className="mx-2" aria-hidden="true">·</span>
             <Link to="/security" className="hover:text-gray-600">Security &amp; passkeys</Link>

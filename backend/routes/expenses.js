@@ -546,6 +546,65 @@ router.get('/stats/summary', async (req, res) => {
   }
 });
 
+// Trailing burn/income aggregates over complete months (the in-progress
+// month is excluded so averages aren't dragged down by a partial month).
+// Returns 3/6/12-month windows plus the per-month series.
+router.get('/stats/trailing', async (req, res) => {
+  try {
+    const now = new Date();
+    const currentMonthStart = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-01`;
+    const start = new Date(now.getFullYear(), now.getMonth() - 12, 1);
+    const startDate = `${start.getFullYear()}-${String(start.getMonth() + 1).padStart(2, '0')}-01`;
+
+    const snapshot = await db.collection('expenses')
+      .where('date', '>=', startDate)
+      .where('date', '<', currentMonthStart)
+      .get();
+
+    const monthMap = {};
+    snapshot.docs.forEach(doc => {
+      const e = doc.data();
+      if (e.is_transfer) return;
+      const month = (e.date || '').substring(0, 7);
+      if (!month) return;
+      const m = monthMap[month] = monthMap[month] || { month, spend: 0, income: 0, taxes: 0 };
+      if (e.category === 'Income') m.income += -e.amount;
+      else if (e.category === 'Taxes') m.taxes += e.amount;
+      else m.spend += e.amount;
+    });
+
+    const byMonth = Object.values(monthMap).sort((a, b) => a.month.localeCompare(b.month));
+
+    const windowStats = (n) => {
+      const slice = byMonth.slice(-n);
+      if (slice.length === 0) {
+        return { months: 0, avg_spend: 0, avg_income: 0, avg_taxes: 0, avg_net: 0, savings_rate: null };
+      }
+      const sum = (f) => slice.reduce((s, m) => s + f(m), 0);
+      const avgSpend = sum(m => m.spend) / slice.length;
+      const avgIncome = sum(m => m.income) / slice.length;
+      const avgTaxes = sum(m => m.taxes) / slice.length;
+      const avgNet = avgIncome - avgSpend - avgTaxes;
+      return {
+        months: slice.length,
+        avg_spend: avgSpend,
+        avg_income: avgIncome,
+        avg_taxes: avgTaxes,
+        avg_net: avgNet,
+        savings_rate: avgIncome > 0 ? avgNet / avgIncome : null,
+      };
+    };
+
+    res.json({
+      windows: { m3: windowStats(3), m6: windowStats(6), m12: windowStats(12) },
+      by_month: byMonth,
+    });
+  } catch (error) {
+    console.error('Error fetching trailing stats:', error);
+    res.status(500).json({ error: 'Failed to fetch trailing statistics' });
+  }
+});
+
 // Get all expenses with optional filtering
 router.get('/', async (req, res) => {
   try {

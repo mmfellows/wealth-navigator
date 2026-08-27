@@ -2,6 +2,7 @@ const { PlaidApi, Configuration, PlaidEnvironments } = require('plaid');
 const { db } = require('./database');
 const { encrypt, decrypt } = require('./encryption');
 const { mapPlaidCategory } = require('./categoryMapper');
+const { loadMerchantRules, lookupMerchantRule } = require('./merchantRules');
 
 // Structured Plaid logger - captures key identifiers for troubleshooting
 function logPlaid(level, action, details = {}) {
@@ -423,6 +424,11 @@ class PlaidService {
     let skipped = 0;
     const batchOps = [];
 
+    // Learned merchant → category mappings (from past review answers /
+    // manual edits). Precedence: special buckets, then merchant rules, then
+    // the Plaid-category mapping. Manual edits are never touched here.
+    const merchantRules = await loadMerchantRules();
+
     for (const txn of allTransactions) {
       if (txn.pending) { skipped++; continue; }
 
@@ -456,10 +462,23 @@ class PlaidService {
         || /\b(PAYMENT\s*THANK YOU|AUTOPAY|AUTOMATIC PAYMENT)\b/.test(txnName);
       const isTaxPayment = plaidDetailed.includes('TAX_PAYMENT')
         || /\b(IRS|INTERNAL REVENUE|FRANCHISE TAX)\b/.test(txnName);
-      // Special buckets (Income / Taxes / CC payment) win; otherwise fall
-      // back to the Plaid-category → budget-scheme mapping.
-      const mapped = (!isIncome && !isTaxPayment && !isCreditCardPayment && !isTransfer)
+      // Special buckets (Income / Taxes / CC payment / transfer) win —
+      // they're structural, not merchant-dependent. Plain spending then
+      // checks learned merchant rules before the Plaid-category mapping.
+      const isPlainSpending = !isIncome && !isTaxPayment && !isCreditCardPayment && !isTransfer;
+      const merchantRule = isPlainSpending
+        ? lookupMerchantRule(merchantRules, txn.merchant_name || txn.name)
+        : null;
+      const mapped = isPlainSpending && !merchantRule
         ? mapPlaidCategory(plaidPrimary, plaidDetailed)
+        : null;
+
+      const category = isIncome ? 'Income'
+        : isTaxPayment ? 'Taxes'
+        : isCreditCardPayment ? 'Credit Card Payment'
+        : (merchantRule?.category || mapped?.category || '');
+      const categorizationSource = !isPlainSpending || mapped ? 'plaid_rule'
+        : merchantRule ? 'merchant_rule'
         : null;
 
       batchOps.push({
@@ -467,12 +486,15 @@ class PlaidService {
         merchant: txn.merchant_name || txn.name || 'Unknown',
         description: txn.name || '',
         amount,
-        category: isIncome ? 'Income' : isTaxPayment ? 'Taxes' : isCreditCardPayment ? 'Credit Card Payment' : (mapped?.category || ''),
-        subcategory: mapped?.subcategory || '',
+        category,
+        subcategory: merchantRule?.subcategory || mapped?.subcategory || '',
         account: item.institution_name,
         statement: `Plaid - ${item.institution_name}`,
         is_transfer: isTransfer,
         is_credit_card_payment: isCreditCardPayment,
+        categorization_source: category ? categorizationSource : null,
+        needs_review: false,
+        ai_confidence: null,
         plaid_transaction_id: txn.transaction_id,
         plaid_account_id: txn.account_id || null,
         plaid_item_id: item.item_id,

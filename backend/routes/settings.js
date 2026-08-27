@@ -226,6 +226,11 @@ router.delete('/etrade-keys', optionalAuth, async (req, res) => {
 // Budget Category Order
 // =====================
 
+// Everything below (category order, taxonomy CRUD, category colors) requires
+// auth. Registered here as router-level middleware so it covers all routes
+// defined after this point; the routes above carry optionalAuth individually.
+router.use(optionalAuth);
+
 // Get saved budget category display order
 router.get('/budget-category-order', async (req, res) => {
   try {

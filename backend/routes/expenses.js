@@ -556,6 +556,14 @@ router.put('/bulk-update', async (req, res) => {
       }
     }
 
+    // A user-driven categorization always wins and resolves any pending review.
+    if ('category' in updates) {
+      updateData.categorization_source = updates.category ? 'manual' : null;
+      updateData.needs_review = false;
+      updateData.ai_question = null;
+      updateData.ai_suggestions = null;
+    }
+
     if (Object.keys(updateData).length <= 1) {
       return res.status(400).json({ error: 'No valid fields to update' });
     }
@@ -614,7 +622,14 @@ router.put('/:id', async (req, res) => {
     if ('merchant' in req.body) updateData.merchant = merchant ?? null;
     if ('amount' in req.body) updateData.amount = amount;
     if ('statement' in req.body) updateData.statement = statement ?? null;
-    if ('category' in req.body) updateData.category = category ?? null;
+    if ('category' in req.body) {
+      updateData.category = category ?? null;
+      // A user-driven categorization always wins and resolves any pending review.
+      updateData.categorization_source = category ? 'manual' : null;
+      updateData.needs_review = false;
+      updateData.ai_question = null;
+      updateData.ai_suggestions = null;
+    }
     if ('subcategory' in req.body) updateData.subcategory = subcategory ?? null;
     if ('account' in req.body) updateData.account = account ?? null;
     if ('is_transfer' in req.body) updateData.is_transfer = !!is_transfer;

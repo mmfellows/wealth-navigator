@@ -62,6 +62,7 @@ app.use('/api/etrade', require('./routes/etrade'));
 app.use('/api/expenses', require('./routes/expenses'));
 app.use('/api/carrots', require('./routes/carrots'));
 app.use('/api/budgets', require('./routes/budgets'));
+app.use('/api/month-closes', require('./routes/monthCloses'));
 app.use('/api/bets', require('./routes/bets'));
 app.use('/api/options', require('./routes/options'));
 app.use('/api/snapshot', require('./routes/snapshot'));

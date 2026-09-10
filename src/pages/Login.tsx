@@ -1,12 +1,48 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 
 type Stage = 'password' | 'passkey';
 type Mode = 'login' | 'register';
 
+// Google Identity Services web client ID. Unset -> the Google button is
+// hidden and only password/passkey auth is offered.
+const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID as string | undefined;
+const GSI_SRC = 'https://accounts.google.com/gsi/client';
+
+interface GoogleCredentialResponse { credential: string }
+declare global {
+  interface Window {
+    google?: {
+      accounts: {
+        id: {
+          initialize: (config: object) => void;
+          renderButton: (el: HTMLElement, options: object) => void;
+        };
+      };
+    };
+  }
+}
+
+// Load the GIS script once and resolve when window.google is available.
+let gsiPromise: Promise<void> | null = null;
+function loadGsi(): Promise<void> {
+  if (window.google?.accounts?.id) return Promise.resolve();
+  if (!gsiPromise) {
+    gsiPromise = new Promise((resolve, reject) => {
+      const script = document.createElement('script');
+      script.src = GSI_SRC;
+      script.async = true;
+      script.onload = () => resolve();
+      script.onerror = () => { gsiPromise = null; reject(new Error('Failed to load Google sign-in')); };
+      document.head.appendChild(script);
+    });
+  }
+  return gsiPromise;
+}
+
 export default function Login() {
-  const { login, loginVerifyPasskey, register } = useAuth();
+  const { login, loginVerifyPasskey, register, loginWithGoogle } = useAuth();
   const navigate = useNavigate();
   const location = useLocation() as { state?: { from?: { pathname?: string } } };
   const redirectTo = location.state?.from?.pathname || '/';
@@ -19,6 +55,43 @@ export default function Login() {
   const [pendingEmail, setPendingEmail] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const googleButtonRef = useRef<HTMLDivElement>(null);
+
+  // Render the official Google button when configured. The GIS callback
+  // hands us an ID token; the server verifies it and issues our JWT.
+  useEffect(() => {
+    if (!GOOGLE_CLIENT_ID || stage !== 'password') return;
+    let cancelled = false;
+    loadGsi()
+      .then(() => {
+        if (cancelled || !googleButtonRef.current || !window.google) return;
+        window.google.accounts.id.initialize({
+          client_id: GOOGLE_CLIENT_ID,
+          callback: async (response: GoogleCredentialResponse) => {
+            setError(null);
+            setBusy(true);
+            try {
+              await loginWithGoogle(response.credential);
+              navigate(redirectTo, { replace: true });
+            } catch (err) {
+              setError(extractError(err) || 'Google sign-in failed');
+            } finally {
+              setBusy(false);
+            }
+          },
+        });
+        window.google.accounts.id.renderButton(googleButtonRef.current, {
+          theme: 'outline',
+          size: 'large',
+          width: 352,
+          text: 'continue_with',
+        });
+      })
+      .catch(() => {
+        // Script blocked or offline — password login still works.
+      });
+    return () => { cancelled = true; };
+  }, [stage, loginWithGoogle, navigate, redirectTo]);
 
   async function handlePasswordSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -71,6 +144,17 @@ export default function Login() {
             ? 'Sign in to your account.'
             : 'Create your account.'}
         </p>
+
+        {stage === 'password' && GOOGLE_CLIENT_ID && (
+          <div className="mb-5">
+            <div ref={googleButtonRef} className="flex justify-center" />
+            <div className="flex items-center gap-3 mt-5">
+              <div className="flex-1 border-t border-gray-200" />
+              <span className="text-xs text-gray-400 uppercase tracking-wide">or</span>
+              <div className="flex-1 border-t border-gray-200" />
+            </div>
+          </div>
+        )}
 
         {stage === 'password' && (
           <form onSubmit={handlePasswordSubmit} className="space-y-4">

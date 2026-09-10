@@ -38,6 +38,8 @@ interface AuthContextValue {
   loginVerifyPasskey: (email: string, options: unknown) => Promise<void>;
   /** Register email+password (allow-list enforced server-side in prod). */
   register: (email: string, password: string) => Promise<void>;
+  /** Sign in with a Google Identity Services ID token. */
+  loginWithGoogle: (credential: string) => Promise<void>;
   /** Add a passkey to the currently-authenticated user. */
   registerPasskey: (deviceLabel?: string) => Promise<void>;
   logout: () => void;
@@ -147,6 +149,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setSession(data.user, data.token);
   }, [setSession]);
 
+  const loginWithGoogle = useCallback<AuthContextValue['loginWithGoogle']>(async (credential) => {
+    const { data } = await axios.post<{ user: AuthUser; token: string }>(
+      '/api/auth/google',
+      { credential },
+    );
+    setSession(data.user, data.token);
+  }, [setSession]);
+
   const registerPasskey = useCallback<AuthContextValue['registerPasskey']>(async (deviceLabel) => {
     if (!token) throw new Error('Must be logged in to register a passkey');
     const { data: options } = await axios.post('/api/auth/passkey/register-options', {});
@@ -159,8 +169,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [token]);
 
   const value = useMemo<AuthContextValue>(() => ({
-    user, token, ready, login, loginVerifyPasskey, register, registerPasskey, logout,
-  }), [user, token, ready, login, loginVerifyPasskey, register, registerPasskey, logout]);
+    user, token, ready, login, loginVerifyPasskey, register, loginWithGoogle, registerPasskey, logout,
+  }), [user, token, ready, login, loginVerifyPasskey, register, loginWithGoogle, registerPasskey, logout]);
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }

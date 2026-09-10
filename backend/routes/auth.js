@@ -1,11 +1,18 @@
 const express = require('express');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
+const { OAuth2Client } = require('google-auth-library');
 const { db, docToObj } = require('../services/database');
 const { authenticateToken } = require('../middleware/auth');
 const passkeyService = require('../services/passkeyService');
 
 const router = express.Router();
+
+// Google Sign-In. GOOGLE_CLIENT_ID is the OAuth web client ID from Google
+// Cloud Console; the same value ships to the frontend as VITE_GOOGLE_CLIENT_ID.
+// Unset -> the endpoint 503s and the login page hides the Google button.
+const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID || '';
+const googleClient = GOOGLE_CLIENT_ID ? new OAuth2Client(GOOGLE_CLIENT_ID) : null;
 
 function issueJwt(user) {
   return jwt.sign(
@@ -118,6 +125,11 @@ router.post('/login', async (req, res) => {
     const userDoc = snapshot.docs[0];
     const user = { id: userDoc.id, ...userDoc.data() };
 
+    // Google-only accounts have no password hash; bcrypt.compare would throw.
+    if (!user.password_hash) {
+      return res.status(401).json({ error: 'This account uses Google sign-in.' });
+    }
+
     // Verify password
     const validPassword = await bcrypt.compare(password, user.password_hash);
     if (!validPassword) {
@@ -149,6 +161,85 @@ router.post('/login', async (req, res) => {
   } catch (error) {
     console.error('Login error:', error);
     res.status(500).json({ error: 'Login failed' });
+  }
+});
+
+// Google Sign-In. Body: { credential } — the ID token from Google Identity
+// Services. Signature and audience are verified offline against Google's
+// JWKS via google-auth-library.
+//
+// Account policy mirrors password auth: an existing user (matched by email)
+// signs straight in; a new email must pass the registration allow-list.
+// The passkey second factor is intentionally bypassed here — Google sign-in
+// carries Google's own account protections (their 2FA), and requiring a
+// passkey on top would gate SSO on a factor the user chose as a
+// password-hardener. Documented trade-off for this single-tenant app.
+router.post('/google', async (req, res) => {
+  try {
+    if (!googleClient) {
+      return res.status(503).json({ error: 'Google sign-in is not configured.' });
+    }
+    const { credential } = req.body || {};
+    if (!credential) {
+      return res.status(400).json({ error: 'credential is required' });
+    }
+
+    let payload;
+    try {
+      const ticket = await googleClient.verifyIdToken({
+        idToken: credential,
+        audience: GOOGLE_CLIENT_ID,
+      });
+      payload = ticket.getPayload();
+    } catch (err) {
+      console.error('Google token verification failed:', err.message);
+      return res.status(401).json({ error: 'Invalid Google credential' });
+    }
+
+    const email = String(payload.email || '').toLowerCase();
+    if (!email || payload.email_verified !== true) {
+      return res.status(401).json({ error: 'Google account email is not verified' });
+    }
+
+    const snapshot = await db.collection('users').where('email', '==', email).limit(1).get();
+
+    let user;
+    if (!snapshot.empty) {
+      const userDoc = snapshot.docs[0];
+      user = { id: userDoc.id, ...userDoc.data() };
+      // Remember the stable Google subject id on first Google sign-in.
+      if (user.google_sub !== payload.sub) {
+        await userDoc.ref.update({ google_sub: payload.sub, updated_at: new Date().toISOString() });
+      }
+    } else {
+      if (!isAllowedToRegister(email)) {
+        // Same generic message as /register; don't reveal allow-list contents.
+        return res.status(403).json({ error: 'Registration is not open.' });
+      }
+      const userRef = await db.collection('users').add({
+        email,
+        google_sub: payload.sub,
+        auth_provider: 'google',
+        created_at: new Date().toISOString(),
+      });
+      await db.collection('settings').doc(userRef.id).set({
+        user_id: userRef.id,
+        target_low_risk: 30,
+        target_growth: 60,
+        target_speculative: 10,
+        updated_at: new Date().toISOString(),
+      });
+      user = { id: userRef.id, email };
+    }
+
+    const token = issueJwt(user);
+    res.json({
+      user: { id: user.id, email: user.email },
+      token,
+    });
+  } catch (error) {
+    console.error('Google login error:', error);
+    res.status(500).json({ error: 'Google sign-in failed' });
   }
 });
 

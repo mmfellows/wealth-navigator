@@ -22,10 +22,10 @@ function paceStatus(ratio: number, elapsed: number): PaceStatus {
 }
 
 const STATUS_STYLES: Record<PaceStatus, { bar: string; text: string; label: string }> = {
-  under: { bar: 'bg-green-500', text: 'text-green-700', label: 'under pace' },
-  on: { bar: 'bg-blue-500', text: 'text-blue-700', label: 'on pace' },
-  hot: { bar: 'bg-amber-500', text: 'text-amber-700', label: 'running hot' },
-  blown: { bar: 'bg-red-500', text: 'text-red-600', label: 'over budget' },
+  under: { bar: 'bg-ever-pos', text: 'text-ever-pos', label: 'under pace' },
+  on: { bar: 'bg-ever-teal', text: 'text-ever-lime', label: 'on pace' },
+  hot: { bar: 'bg-ever-orange', text: 'text-ever-orange', label: 'running hot' },
+  blown: { bar: 'bg-ever-neg', text: 'text-ever-neg', label: 'over budget' },
 };
 
 // One category pacing row: MTD actual vs monthly envelope, with the
@@ -66,46 +66,46 @@ function CategoryPacing({
   const style = status ? STATUS_STYLES[status] : null;
 
   return (
-    <div className="bg-white rounded-lg shadow-sm border">
+    <div className="bg-ever-card rounded-ever border border-ever-line">
       <button onClick={() => setExpanded(e => !e)} className="w-full p-3 text-left">
         <div className="flex items-center justify-between gap-2 mb-1.5">
-          <span className="font-medium text-gray-900 flex items-center gap-1">
-            {expanded ? <ChevronDown className="h-4 w-4 text-gray-400" /> : <ChevronRight className="h-4 w-4 text-gray-400" />}
+          <span className="font-medium text-ever-ink flex items-center gap-1">
+            {expanded ? <ChevronDown className="h-4 w-4 text-ever-faint" /> : <ChevronRight className="h-4 w-4 text-ever-faint" />}
             {category}
           </span>
           <span className="text-sm whitespace-nowrap">
             <span className="font-semibold">{fmt(actual)}</span>
-            <span className="text-gray-400"> / {budget !== null ? fmt(budget) : '—'}</span>
+            <span className="text-ever-faint"> / {budget !== null ? fmt(budget) : '—'}</span>
           </span>
         </div>
         {ratio !== null ? (
           <>
-            <div className="relative h-2.5 bg-gray-100 rounded-full overflow-hidden">
+            <div className="relative h-2.5 bg-ever-track rounded-full overflow-hidden">
               <div
                 className={`absolute inset-y-0 left-0 rounded-full ${style!.bar}`}
                 style={{ width: `${Math.min(ratio * 100, 100)}%` }}
               />
               {/* elapsed-time marker */}
-              <div className="absolute inset-y-0 w-0.5 bg-gray-500/70" style={{ left: `${elapsed * 100}%` }} />
+              <div className="absolute inset-y-0 w-0.5 bg-ever-ink/60" style={{ left: `${elapsed * 100}%` }} />
             </div>
             <div className={`text-xs mt-1 ${style!.text}`}>
               {Math.round(ratio * 100)}% spent · {style!.label}
             </div>
           </>
         ) : (
-          <div className="text-xs text-gray-400">No budget set</div>
+          <div className="text-xs text-ever-faint">No budget set</div>
         )}
       </button>
       {expanded && (
-        <div className="border-t px-3 py-2 text-sm max-h-64 overflow-y-auto">
+        <div className="border-t border-ever-line px-3 py-2 text-sm max-h-64 overflow-y-auto">
           {!txData ? (
-            <p className="text-gray-400 py-1">Loading…</p>
+            <p className="text-ever-faint py-1">Loading…</p>
           ) : txData.expenses.length === 0 ? (
-            <p className="text-gray-400 py-1">No transactions this month.</p>
+            <p className="text-ever-faint py-1">No transactions this month.</p>
           ) : (
             txData.expenses.map((e: any) => (
-              <div key={e.id} className="flex justify-between gap-2 py-1 border-b last:border-0 border-gray-50">
-                <span className="truncate text-gray-700">{e.date.substring(5)} · {e.merchant}</span>
+              <div key={e.id} className="flex justify-between gap-2 py-1 border-b last:border-0 border-ever-line/50">
+                <span className="truncate text-ever-dim">{e.date.substring(5)} · {e.merchant}</span>
                 <span className="whitespace-nowrap font-medium">{fmt(e.amount)}</span>
               </div>
             ))
@@ -224,20 +224,20 @@ const Pacing: React.FC = () => {
   return (
     <div className="max-w-2xl mx-auto space-y-4">
       <div>
-        <h1 className="text-2xl font-bold text-gray-900">Pacing</h1>
-        <p className="text-sm text-gray-500">
+        <h1 className="text-2xl font-bold text-ever-ink">Pacing</h1>
+        <p className="text-sm text-ever-dim">
           {now.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })} · day {now.getDate()} of {daysInMonth} · week {weekQuarter + 1} of 4
         </p>
       </div>
 
       {/* Month progress: 4 week-quarters with total spend vs pro-rated budget */}
-      <div className="bg-white rounded-lg shadow-sm border p-4">
+      <div className="bg-ever-card rounded-ever border border-ever-line p-4">
         <div className="flex items-baseline justify-between mb-2">
-          <span className="text-sm text-gray-500">Month spend</span>
+          <span className="text-sm text-ever-dim">Month spend</span>
           <span className="text-sm">
-            <span className="font-bold text-gray-900">{fmt(totalSpend)}</span>
+            <span className="font-bold text-ever-ink">{fmt(totalSpend)}</span>
             {totalBudget > 0 && (
-              <span className="text-gray-400"> / {fmt(totalBudget)} budgeted</span>
+              <span className="text-ever-faint"> / {fmt(totalBudget)} budgeted</span>
             )}
           </span>
         </div>
@@ -246,14 +246,14 @@ const Pacing: React.FC = () => {
             const qStart = q / 4;
             const qFill = Math.max(0, Math.min((elapsed - qStart) * 4, 1));
             return (
-              <div key={q} className="flex-1 h-2.5 bg-gray-100 rounded-full overflow-hidden">
-                <div className="h-full bg-gray-400" style={{ width: `${qFill * 100}%` }} />
+              <div key={q} className="flex-1 h-2.5 bg-ever-track rounded-full overflow-hidden">
+                <div className="h-full bg-ever-dim" style={{ width: `${qFill * 100}%` }} />
               </div>
             );
           })}
         </div>
         {totalBudget > 0 && (
-          <p className={`text-xs mt-2 ${totalSpend <= proRated ? 'text-green-700' : 'text-red-600'}`}>
+          <p className={`text-xs mt-2 ${totalSpend <= proRated ? 'text-ever-pos' : 'text-ever-neg'}`}>
             {totalSpend <= proRated
               ? `${fmt(proRated - totalSpend)} under pace for day ${now.getDate()}`
               : `${fmt(totalSpend - proRated)} over pace for day ${now.getDate()}`}
@@ -265,7 +265,7 @@ const Pacing: React.FC = () => {
       {reviewCount > 0 && (
         <Link
           to="/review"
-          className="flex items-center justify-between gap-2 bg-amber-50 border border-amber-200 rounded-lg p-3 text-sm text-amber-800"
+          className="flex items-center justify-between gap-2 bg-ever-orange/10 border border-ever-orange/30 rounded-lg p-3 text-sm text-ever-orange"
         >
           <span className="flex items-center gap-2">
             <Inbox className="h-4 w-4" />
@@ -276,12 +276,12 @@ const Pacing: React.FC = () => {
       )}
 
       {radar && (radar.new_recurring.length > 0 || radar.new_merchants.length > 0) && (
-        <div className="bg-white rounded-lg shadow-sm border p-4 space-y-3">
-          <h2 className="text-sm font-semibold text-gray-900 flex items-center gap-2">
-            <Radar className="h-4 w-4 text-blue-600" /> New on the radar
+        <div className="bg-ever-card rounded-ever border border-ever-line p-4 space-y-3">
+          <h2 className="text-sm font-semibold text-ever-ink flex items-center gap-2">
+            <Radar className="h-4 w-4 text-ever-lime" /> New on the radar
           </h2>
           {radar.new_recurring.map(r => (
-            <div key={r.merchant} className="flex items-center gap-2 text-sm bg-red-50 border border-red-200 rounded-md p-2.5 text-red-800">
+            <div key={r.merchant} className="flex items-center gap-2 text-sm bg-ever-neg/10 border border-ever-neg/30 rounded-md p-2.5 text-ever-neg">
               <Repeat className="h-4 w-4 shrink-0" />
               <span className="flex-1 min-w-0">
                 <span className="font-medium">{r.merchant}</span> looks like a new recurring cost
@@ -290,17 +290,17 @@ const Pacing: React.FC = () => {
             </div>
           ))}
           {radar.new_merchants.map(m => (
-            <div key={m.id} className="flex items-center gap-2 text-sm border-b last:border-0 border-gray-50 pb-2 last:pb-0">
+            <div key={m.id} className="flex items-center gap-2 text-sm border-b last:border-0 border-ever-line/50 pb-2 last:pb-0">
               <div className="flex-1 min-w-0">
-                <span className="block truncate text-gray-800">
-                  {m.merchant} <span className="text-gray-400">· first time seen</span>
+                <span className="block truncate text-ever-ink">
+                  {m.merchant} <span className="text-ever-faint">· first time seen</span>
                 </span>
-                <span className="text-xs text-gray-400">{m.date} · {m.category || 'Uncategorized'}</span>
+                <span className="text-xs text-ever-faint">{m.date} · {m.category || 'Uncategorized'}</span>
               </div>
               <span className="font-medium whitespace-nowrap">{fmt(m.amount)}</span>
               <button
                 onClick={() => ackNewMerchant.mutate(m.id)}
-                className="p-1 text-gray-300 hover:text-gray-600"
+                className="p-1 text-ever-faint hover:text-ever-ink"
                 title="Got it — remove from radar"
               >
                 <X className="h-4 w-4" />
@@ -325,7 +325,7 @@ const Pacing: React.FC = () => {
           />
         ))}
         {rows.length === 0 && (
-          <p className="text-sm text-gray-400 text-center py-6">No spending or budgets yet this month.</p>
+          <p className="text-sm text-ever-faint text-center py-6">No spending or budgets yet this month.</p>
         )}
       </div>
     </div>

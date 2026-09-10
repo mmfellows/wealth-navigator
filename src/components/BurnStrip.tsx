@@ -42,11 +42,11 @@ export function BurnStrip() {
   const w = data?.windows?.[window];
 
   return (
-    <div className="bg-white rounded-lg shadow-sm border p-4">
+    <div className="bg-ever-card rounded-ever border border-ever-line p-4">
       <div className="flex items-center justify-between mb-3">
-        <h2 className="text-sm font-semibold text-gray-900">
+        <h2 className="text-sm font-semibold text-ever-ink">
           Monthly burn vs. income
-          {w && w.months > 0 && <span className="text-gray-400 font-normal"> · avg over {w.months} complete month{w.months === 1 ? '' : 's'}</span>}
+          {w && w.months > 0 && <span className="text-ever-faint font-normal"> · avg over {w.months} complete month{w.months === 1 ? '' : 's'}</span>}
         </h2>
         <div className="flex gap-1">
           {WINDOWS.map(win => (
@@ -54,7 +54,7 @@ export function BurnStrip() {
               key={win.key}
               onClick={() => setWindow(win.key)}
               className={`px-2 py-1 text-xs rounded font-medium ${
-                window === win.key ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
+                window === win.key ? 'bg-ever-lime text-ever-lime-ink' : 'bg-ever-track text-ever-dim hover:bg-white/10'
               }`}
             >
               {win.label}
@@ -63,30 +63,30 @@ export function BurnStrip() {
         </div>
       </div>
       {!w ? (
-        <p className="text-sm text-gray-400">Loading…</p>
+        <p className="text-sm text-ever-faint">Loading…</p>
       ) : (
         <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
           <div>
-            <p className="text-xs text-gray-500">Income</p>
-            <p className="text-lg font-bold text-green-700">{fmt(w.avg_income)}</p>
+            <p className="text-xs text-ever-dim">Income</p>
+            <p className="text-lg font-bold text-ever-pos">{fmt(w.avg_income)}</p>
           </div>
           <div>
-            <p className="text-xs text-gray-500">Burn (ex-taxes)</p>
-            <p className="text-lg font-bold text-gray-900">{fmt(w.avg_spend)}</p>
+            <p className="text-xs text-ever-dim">Burn (ex-taxes)</p>
+            <p className="text-lg font-bold text-ever-ink">{fmt(w.avg_spend)}</p>
           </div>
           <div>
-            <p className="text-xs text-gray-500">Taxes</p>
-            <p className="text-lg font-bold text-gray-500">{fmt(w.avg_taxes)}</p>
+            <p className="text-xs text-ever-dim">Taxes</p>
+            <p className="text-lg font-bold text-ever-dim">{fmt(w.avg_taxes)}</p>
           </div>
           <div>
-            <p className="text-xs text-gray-500">Net / month</p>
-            <p className={`text-lg font-bold ${w.avg_net >= 0 ? 'text-green-700' : 'text-red-600'}`}>
+            <p className="text-xs text-ever-dim">Net / month</p>
+            <p className={`text-lg font-bold ${w.avg_net >= 0 ? 'text-ever-pos' : 'text-ever-neg'}`}>
               {w.avg_net >= 0 ? '+' : ''}{fmt(w.avg_net)}
             </p>
           </div>
           <div>
-            <p className="text-xs text-gray-500">Savings rate</p>
-            <p className={`text-lg font-bold ${(w.savings_rate ?? 0) >= 0 ? 'text-green-700' : 'text-red-600'}`}>
+            <p className="text-xs text-ever-dim">Savings rate</p>
+            <p className={`text-lg font-bold ${(w.savings_rate ?? 0) >= 0 ? 'text-ever-pos' : 'text-ever-neg'}`}>
               {w.savings_rate === null ? '—' : `${(w.savings_rate * 100).toFixed(0)}%`}
             </p>
           </div>

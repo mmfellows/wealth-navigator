@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { X } from 'lucide-react';
+import { Button } from './ui';
 
 interface NewTradeModalProps {
   isOpen: boolean;
@@ -94,18 +95,18 @@ const NewTradeModal: React.FC<NewTradeModalProps> = ({ isOpen, onClose, onSubmit
       <div className="flex min-h-screen items-center justify-center p-4">
         {/* Backdrop */}
         <div
-          className="fixed inset-0 bg-black bg-opacity-50 transition-opacity"
+          className="fixed inset-0 bg-black/50 transition-opacity"
           onClick={onClose}
         />
 
         {/* Modal */}
-        <div className="relative w-full max-w-lg transform rounded-lg bg-white shadow-xl transition-all">
+        <div className="relative w-full max-w-lg transform rounded-ever border border-ever-line bg-ever-card text-ever-ink shadow-xl transition-all">
           {/* Header */}
-          <div className="flex items-center justify-between border-b px-6 py-4">
-            <h2 className="text-xl font-semibold text-gray-900">New Trade</h2>
+          <div className="flex items-center justify-between border-b border-ever-line px-6 py-4">
+            <h2 className="text-xl font-semibold text-ever-ink">New Trade</h2>
             <button
               onClick={onClose}
-              className="rounded-full p-1 text-gray-400 hover:bg-gray-100 hover:text-gray-600"
+              className="rounded-full p-1 text-ever-dim hover:bg-white/5 hover:text-ever-ink"
             >
               <X className="h-5 w-5" />
             </button>
@@ -116,7 +117,7 @@ const NewTradeModal: React.FC<NewTradeModalProps> = ({ isOpen, onClose, onSubmit
             <div className="space-y-4">
               {/* Date */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-sm font-medium text-ever-dim mb-1">
                   Date of Purchase
                 </label>
                 <input
@@ -124,17 +125,17 @@ const NewTradeModal: React.FC<NewTradeModalProps> = ({ isOpen, onClose, onSubmit
                   name="date"
                   value={formData.date}
                   onChange={handleChange}
-                  className={`w-full rounded-md border px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-                    errors.date ? 'border-red-500' : 'border-gray-300'
+                  className={`w-full rounded-lg border bg-ever-bg px-3 py-2 text-ever-ink placeholder-ever-faint focus:outline-none focus:border-ever-lime ${
+                    errors.date ? 'border-ever-neg' : 'border-ever-line'
                   }`}
                 />
-                {errors.date && <p className="mt-1 text-sm text-red-500">{errors.date}</p>}
+                {errors.date && <p className="mt-1 text-sm text-ever-neg">{errors.date}</p>}
               </div>
 
               {/* Ticker and Action Row */}
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                  <label className="block text-sm font-medium text-ever-dim mb-1">
                     Ticker Symbol
                   </label>
                   <input
@@ -143,20 +144,20 @@ const NewTradeModal: React.FC<NewTradeModalProps> = ({ isOpen, onClose, onSubmit
                     value={formData.ticker}
                     onChange={handleChange}
                     placeholder="AAPL"
-                    className={`w-full rounded-md border px-3 py-2 uppercase focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-                      errors.ticker ? 'border-red-500' : 'border-gray-300'
+                    className={`w-full rounded-lg border bg-ever-bg px-3 py-2 uppercase text-ever-ink placeholder-ever-faint focus:outline-none focus:border-ever-lime ${
+                      errors.ticker ? 'border-ever-neg' : 'border-ever-line'
                     }`}
                   />
-                  {errors.ticker && <p className="mt-1 text-sm text-red-500">{errors.ticker}</p>}
+                  {errors.ticker && <p className="mt-1 text-sm text-ever-neg">{errors.ticker}</p>}
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Action</label>
+                  <label className="block text-sm font-medium text-ever-dim mb-1">Action</label>
                   <select
                     name="type"
                     value={formData.type}
                     onChange={handleChange}
-                    className="w-full rounded-md border border-gray-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="w-full rounded-lg border border-ever-line bg-ever-bg px-3 py-2 text-ever-ink focus:outline-none focus:border-ever-lime"
                   >
                     <option value="buy">Buy</option>
                     <option value="sell">Sell</option>
@@ -167,7 +168,7 @@ const NewTradeModal: React.FC<NewTradeModalProps> = ({ isOpen, onClose, onSubmit
               {/* Shares and Price Row */}
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Shares</label>
+                  <label className="block text-sm font-medium text-ever-dim mb-1">Shares</label>
                   <input
                     type="number"
                     name="shares"
@@ -176,19 +177,19 @@ const NewTradeModal: React.FC<NewTradeModalProps> = ({ isOpen, onClose, onSubmit
                     placeholder="0"
                     step="0.0001"
                     min="0"
-                    className={`w-full rounded-md border px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-                      errors.shares ? 'border-red-500' : 'border-gray-300'
+                    className={`w-full rounded-lg border bg-ever-bg px-3 py-2 text-ever-ink placeholder-ever-faint focus:outline-none focus:border-ever-lime ${
+                      errors.shares ? 'border-ever-neg' : 'border-ever-line'
                     }`}
                   />
-                  {errors.shares && <p className="mt-1 text-sm text-red-500">{errors.shares}</p>}
+                  {errors.shares && <p className="mt-1 text-sm text-ever-neg">{errors.shares}</p>}
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                  <label className="block text-sm font-medium text-ever-dim mb-1">
                     Price Paid
                   </label>
                   <div className="relative">
-                    <span className="absolute left-3 top-2 text-gray-500">$</span>
+                    <span className="absolute left-3 top-2 text-ever-dim">$</span>
                     <input
                       type="number"
                       name="price"
@@ -197,21 +198,21 @@ const NewTradeModal: React.FC<NewTradeModalProps> = ({ isOpen, onClose, onSubmit
                       placeholder="0.00"
                       step="0.01"
                       min="0"
-                      className={`w-full rounded-md border px-3 py-2 pl-7 focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-                        errors.price ? 'border-red-500' : 'border-gray-300'
+                      className={`w-full rounded-lg border bg-ever-bg px-3 py-2 pl-7 text-ever-ink placeholder-ever-faint focus:outline-none focus:border-ever-lime ${
+                        errors.price ? 'border-ever-neg' : 'border-ever-line'
                       }`}
                     />
                   </div>
-                  {errors.price && <p className="mt-1 text-sm text-red-500">{errors.price}</p>}
+                  {errors.price && <p className="mt-1 text-sm text-ever-neg">{errors.price}</p>}
                 </div>
               </div>
 
               {/* Total Display */}
               {total > 0 && (
-                <div className="rounded-md bg-gray-50 px-4 py-3">
+                <div className="rounded-lg bg-white/5 px-4 py-3">
                   <div className="flex justify-between">
-                    <span className="text-sm text-gray-600">Total Value</span>
-                    <span className="font-semibold text-gray-900">
+                    <span className="text-sm text-ever-dim">Total Value</span>
+                    <span className="font-semibold text-ever-ink">
                       ${total.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                     </span>
                   </div>
@@ -221,13 +222,13 @@ const NewTradeModal: React.FC<NewTradeModalProps> = ({ isOpen, onClose, onSubmit
               {/* Platform and Strategy Row */}
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Platform</label>
+                  <label className="block text-sm font-medium text-ever-dim mb-1">Platform</label>
                   <select
                     name="platform"
                     value={formData.platform}
                     onChange={handleChange}
-                    className={`w-full rounded-md border px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-                      errors.platform ? 'border-red-500' : 'border-gray-300'
+                    className={`w-full rounded-lg border bg-ever-bg px-3 py-2 text-ever-ink focus:outline-none focus:border-ever-lime ${
+                      errors.platform ? 'border-ever-neg' : 'border-ever-line'
                     }`}
                   >
                     {PLATFORMS.map((platform) => (
@@ -237,18 +238,18 @@ const NewTradeModal: React.FC<NewTradeModalProps> = ({ isOpen, onClose, onSubmit
                     ))}
                   </select>
                   {errors.platform && (
-                    <p className="mt-1 text-sm text-red-500">{errors.platform}</p>
+                    <p className="mt-1 text-sm text-ever-neg">{errors.platform}</p>
                   )}
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Strategy</label>
+                  <label className="block text-sm font-medium text-ever-dim mb-1">Strategy</label>
                   <select
                     name="strategy"
                     value={formData.strategy}
                     onChange={handleChange}
-                    className={`w-full rounded-md border px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-                      errors.strategy ? 'border-red-500' : 'border-gray-300'
+                    className={`w-full rounded-lg border bg-ever-bg px-3 py-2 text-ever-ink focus:outline-none focus:border-ever-lime ${
+                      errors.strategy ? 'border-ever-neg' : 'border-ever-line'
                     }`}
                   >
                     {STRATEGIES.map((strategy) => (
@@ -258,15 +259,15 @@ const NewTradeModal: React.FC<NewTradeModalProps> = ({ isOpen, onClose, onSubmit
                     ))}
                   </select>
                   {errors.strategy && (
-                    <p className="mt-1 text-sm text-red-500">{errors.strategy}</p>
+                    <p className="mt-1 text-sm text-ever-neg">{errors.strategy}</p>
                   )}
                 </div>
               </div>
 
               {/* Rationale */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Rationale <span className="text-gray-400">(optional)</span>
+                <label className="block text-sm font-medium text-ever-dim mb-1">
+                  Rationale <span className="text-ever-faint">(optional)</span>
                 </label>
                 <textarea
                   name="rationale"
@@ -274,26 +275,19 @@ const NewTradeModal: React.FC<NewTradeModalProps> = ({ isOpen, onClose, onSubmit
                   onChange={handleChange}
                   placeholder="Why are you making this trade? What's your thesis?"
                   rows={3}
-                  className="w-full rounded-md border border-gray-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full rounded-lg border border-ever-line bg-ever-bg px-3 py-2 text-ever-ink placeholder-ever-faint focus:outline-none focus:border-ever-lime"
                 />
               </div>
             </div>
 
             {/* Footer */}
             <div className="mt-6 flex justify-end space-x-3">
-              <button
-                type="button"
-                onClick={onClose}
-                className="rounded-md border border-gray-300 px-4 py-2 text-gray-700 hover:bg-gray-50"
-              >
+              <Button type="button" variant="ghost" onClick={onClose}>
                 Cancel
-              </button>
-              <button
-                type="submit"
-                className="rounded-md bg-blue-600 px-4 py-2 text-white hover:bg-blue-700"
-              >
+              </Button>
+              <Button type="submit">
                 Add Trade
-              </button>
+              </Button>
             </div>
           </form>
         </div>

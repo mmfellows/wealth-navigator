@@ -3,6 +3,7 @@ import { Save, AlertCircle, RefreshCw, Trash2, CheckCircle, Clock, Plus, Minus, 
 import { useLocation } from 'react-router-dom';
 import PlaidLink from '../components/PlaidLink';
 import axios from 'axios';
+import { toast } from '../components/ui';
 
 const Settings: React.FC = () => {
   const location = useLocation();
@@ -447,7 +448,7 @@ const Settings: React.FC = () => {
       const lines = text.split('\n').filter(line => line.trim());
 
       if (lines.length === 0) {
-        alert('CSV file appears to be empty');
+        toast.error('CSV file appears to be empty');
         setImportProgress(prev => ({ ...prev, isProcessing: false }));
         return;
       }
@@ -710,13 +711,13 @@ const Settings: React.FC = () => {
     setIsSyncing(true);
     try {
       const response = await axios.post('/api/plaid/sync');
-      alert(response.data.message);
+      toast.success(response.data.message);
       loadSyncHistory(); // Refresh history
       // Optionally refresh portfolio data
       window.location.reload();
     } catch (error) {
       console.error('Sync failed:', error);
-      alert('Portfolio sync failed. Please try again.');
+      toast.error('Portfolio sync failed. Please try again.');
     } finally {
       setIsSyncing(false);
     }
@@ -726,12 +727,12 @@ const Settings: React.FC = () => {
     if (window.confirm(`Are you sure you want to remove ${institutionName}? This will delete all associated portfolio data.`)) {
       try {
         await axios.delete(`/api/plaid/accounts/${itemId}`);
-        alert('Account removed successfully');
+        toast.success('Account removed successfully');
         loadConnectedAccounts();
         loadSyncHistory();
       } catch (error) {
         console.error('Failed to remove account:', error);
-        alert('Failed to remove account. Please try again.');
+        toast.error('Failed to remove account. Please try again.');
       }
     }
   };
@@ -749,7 +750,7 @@ const Settings: React.FC = () => {
     setHasChanges(false);
 
     // Show success message
-    alert('Settings saved successfully!');
+    toast.success('Settings saved successfully!');
   };
 
   const handleEtradeKeyChange = (field: string, value: string | boolean) => {
@@ -768,7 +769,7 @@ const Settings: React.FC = () => {
       }
     } catch (error) {
       console.error('Failed to save ETrade keys:', error);
-      alert('Failed to save ETrade API keys. Please try again.');
+      toast.error('Failed to save ETrade API keys. Please try again.');
     }
   };
 

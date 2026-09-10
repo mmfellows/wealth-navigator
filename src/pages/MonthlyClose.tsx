@@ -245,27 +245,27 @@ const MonthlyClose: React.FC = () => {
     <div className="max-w-3xl mx-auto px-4 py-6 space-y-5">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Monthly Close</h1>
-          <p className="text-sm text-gray-500">Close the books like a business — every transaction categorized and acknowledged.</p>
+          <h1 className="text-2xl font-bold text-ever-ink">Monthly Close</h1>
+          <p className="text-sm text-ever-dim">Close the books like a business — every transaction categorized and acknowledged.</p>
         </div>
         <select
           value={month}
           onChange={e => { setMonth(e.target.value); setStep(0); setSyncResult(null); setCategorizeResult(null); }}
-          className="border border-gray-300 rounded-md px-3 py-2"
+          className="bg-ever-bg border border-ever-line rounded-md text-ever-ink placeholder-ever-faint px-3 py-2"
         >
           {monthOptions.map(m => <option key={m} value={m}>{monthLabel(m)}</option>)}
         </select>
       </div>
 
       {closeState && (
-        <div className="bg-green-50 border border-green-200 rounded-lg p-4 flex items-center justify-between gap-3">
-          <div className="flex items-center gap-2 text-green-800">
+        <div className="bg-ever-pos/10 border border-ever-pos/30 rounded-lg p-4 flex items-center justify-between gap-3">
+          <div className="flex items-center gap-2 text-ever-pos">
             <Lock className="h-5 w-5" />
             <span>{monthLabel(month)} was closed on {String(closeState.closed_at).substring(0, 10)}.</span>
           </div>
           <button
             onClick={() => reopen.mutate()}
-            className="flex items-center gap-1 text-sm px-3 py-1.5 rounded-md border border-green-300 text-green-700 hover:bg-green-100"
+            className="flex items-center gap-1 text-sm px-3 py-1.5 rounded-md border border-ever-pos/40 text-ever-pos hover:bg-ever-pos/20"
           >
             <Unlock className="h-4 w-4" /> Reopen
           </button>
@@ -276,13 +276,13 @@ const MonthlyClose: React.FC = () => {
       <div className="flex items-center gap-1 overflow-x-auto">
         {STEPS.map((label, i) => (
           <React.Fragment key={label}>
-            {i > 0 && <ChevronRight className="h-4 w-4 text-gray-300 shrink-0" />}
+            {i > 0 && <ChevronRight className="h-4 w-4 text-ever-faint shrink-0" />}
             <button
               onClick={() => i <= step && setStep(i)}
               className={`px-3 py-1.5 rounded-full text-sm font-medium whitespace-nowrap ${
-                i === step ? 'bg-blue-600 text-white'
-                : i < step ? 'bg-blue-50 text-blue-700'
-                : 'bg-gray-100 text-gray-400'
+                i === step ? 'bg-ever-lime text-ever-lime-ink'
+                : i < step ? 'bg-ever-lime/10 text-ever-lime'
+                : 'bg-ever-track text-ever-faint'
               }`}
             >
               {i + 1}. {label}
@@ -293,24 +293,24 @@ const MonthlyClose: React.FC = () => {
 
       {/* Step 1: Sync */}
       {step === 0 && (
-        <div className="bg-white rounded-lg shadow p-5 space-y-4">
-          <h2 className="font-semibold text-gray-900 flex items-center gap-2"><RefreshCw className="h-5 w-5" /> Pull the latest transactions</h2>
-          <div className="text-sm text-gray-600">
+        <div className="bg-ever-card rounded-ever border border-ever-line p-5 space-y-4">
+          <h2 className="font-semibold text-ever-ink flex items-center gap-2"><RefreshCw className="h-5 w-5" /> Pull the latest transactions</h2>
+          <div className="text-sm text-ever-dim">
             {institutions.length === 0
               ? 'No connected institutions.'
               : `${institutions.length} connected institution${institutions.length === 1 ? '' : 's'}: ${institutions.map((i: any) => i.institution_name).join(', ')}.`}
-            {lastSync && <span className="block text-gray-400 mt-1">Last sync: {String(lastSync).replace('T', ' ').substring(0, 16)}</span>}
+            {lastSync && <span className="block text-ever-faint mt-1">Last sync: {String(lastSync).replace('T', ' ').substring(0, 16)}</span>}
           </div>
-          {syncResult && <div className="text-sm bg-gray-50 rounded-md p-3">{syncResult}</div>}
+          {syncResult && <div className="text-sm bg-white/5 rounded-md p-3">{syncResult}</div>}
           <div className="flex gap-2">
             <button
               onClick={() => sync.mutate()}
               disabled={sync.isLoading || institutions.length === 0}
-              className="px-4 py-2 rounded-md bg-blue-600 text-white font-medium disabled:bg-blue-300"
+              className="px-4 py-2 rounded-md bg-ever-lime text-ever-lime-ink font-medium disabled:opacity-40"
             >
               {sync.isLoading ? 'Syncing…' : 'Sync now'}
             </button>
-            <button onClick={() => setStep(1)} className="px-4 py-2 rounded-md border border-gray-300 text-gray-700">
+            <button onClick={() => setStep(1)} className="px-4 py-2 rounded-md border border-ever-line text-ever-dim">
               Continue
             </button>
           </div>
@@ -319,19 +319,19 @@ const MonthlyClose: React.FC = () => {
 
       {/* Step 2: Categorize */}
       {step === 1 && (
-        <div className="bg-white rounded-lg shadow p-5 space-y-4">
-          <h2 className="font-semibold text-gray-900 flex items-center gap-2"><Sparkles className="h-5 w-5" /> Auto-categorize {monthLabel(month)}</h2>
-          <p className="text-sm text-gray-600">Runs saved merchant rules first, then AI for anything left. Uncertain transactions go to the review step with a question attached.</p>
-          {categorizeResult && <div className="text-sm bg-gray-50 rounded-md p-3">{categorizeResult}</div>}
+        <div className="bg-ever-card rounded-ever border border-ever-line p-5 space-y-4">
+          <h2 className="font-semibold text-ever-ink flex items-center gap-2"><Sparkles className="h-5 w-5" /> Auto-categorize {monthLabel(month)}</h2>
+          <p className="text-sm text-ever-dim">Runs saved merchant rules first, then AI for anything left. Uncertain transactions go to the review step with a question attached.</p>
+          {categorizeResult && <div className="text-sm bg-white/5 rounded-md p-3">{categorizeResult}</div>}
           <div className="flex gap-2">
             <button
               onClick={() => categorize.mutate()}
               disabled={categorize.isLoading}
-              className="px-4 py-2 rounded-md bg-blue-600 text-white font-medium disabled:bg-blue-300"
+              className="px-4 py-2 rounded-md bg-ever-lime text-ever-lime-ink font-medium disabled:opacity-40"
             >
               {categorize.isLoading ? 'Categorizing…' : 'Run auto-categorization'}
             </button>
-            <button onClick={() => setStep(2)} className="px-4 py-2 rounded-md border border-gray-300 text-gray-700">
+            <button onClick={() => setStep(2)} className="px-4 py-2 rounded-md border border-ever-line text-ever-dim">
               Continue
             </button>
           </div>
@@ -341,15 +341,15 @@ const MonthlyClose: React.FC = () => {
       {/* Step 3: Review */}
       {step === 2 && (
         <div className="space-y-3">
-          <div className="bg-white rounded-lg shadow p-5">
-            <h2 className="font-semibold text-gray-900 flex items-center gap-2"><Inbox className="h-5 w-5" /> Answer the open questions</h2>
-            <p className="text-sm text-gray-600 mt-1">
+          <div className="bg-ever-card rounded-ever border border-ever-line p-5">
+            <h2 className="font-semibold text-ever-ink flex items-center gap-2"><Inbox className="h-5 w-5" /> Answer the open questions</h2>
+            <p className="text-sm text-ever-dim mt-1">
               {queue.length === 0
                 ? `Nothing left to review for ${monthLabel(month)}.`
                 : `${queue.length} transaction${queue.length === 1 ? '' : 's'} need your input. Skip is an explicit "leave uncategorized".`}
             </p>
             {queue.length === 0 && (
-              <button onClick={() => setStep(3)} className="mt-3 px-4 py-2 rounded-md bg-blue-600 text-white font-medium">
+              <button onClick={() => setStep(3)} className="mt-3 px-4 py-2 rounded-md bg-ever-lime text-ever-lime-ink font-medium">
                 Continue
               </button>
             )}
@@ -363,25 +363,25 @@ const MonthlyClose: React.FC = () => {
             />
           ))}
           {queue.length > 0 && !queueFetching && (
-            <p className="text-xs text-gray-400 text-center">Resolve every card to continue.</p>
+            <p className="text-xs text-ever-faint text-center">Resolve every card to continue.</p>
           )}
         </div>
       )}
 
       {/* Step 4: Anomalies */}
       {step === 3 && (
-        <div className="bg-white rounded-lg shadow p-5 space-y-4">
-          <h2 className="font-semibold text-gray-900 flex items-center gap-2"><Flag className="h-5 w-5" /> Anything unusual?</h2>
+        <div className="bg-ever-card rounded-ever border border-ever-line p-5 space-y-4">
+          <h2 className="font-semibold text-ever-ink flex items-center gap-2"><Flag className="h-5 w-5" /> Anything unusual?</h2>
           {!anomalies ? (
-            <p className="text-sm text-gray-500">Checking…</p>
+            <p className="text-sm text-ever-dim">Checking…</p>
           ) : (
             <>
               <div>
-                <h3 className="text-sm font-medium text-gray-700 mb-1">New merchants (first appearance in 6 months)</h3>
+                <h3 className="text-sm font-medium text-ever-dim mb-1">New merchants (first appearance in 6 months)</h3>
                 {anomalies.new_merchants.length === 0 ? (
-                  <p className="text-sm text-gray-400">None.</p>
+                  <p className="text-sm text-ever-faint">None.</p>
                 ) : (
-                  <ul className="text-sm divide-y">
+                  <ul className="text-sm divide-y divide-ever-line">
                     {anomalies.new_merchants.map(e => (
                       <li key={e.id} className="py-1.5 flex justify-between gap-2">
                         <span className="truncate">{e.date} · {e.merchant}</span>
@@ -392,30 +392,30 @@ const MonthlyClose: React.FC = () => {
                 )}
               </div>
               <div>
-                <h3 className="text-sm font-medium text-gray-700 mb-1">Unusually large vs. category history</h3>
+                <h3 className="text-sm font-medium text-ever-dim mb-1">Unusually large vs. category history</h3>
                 {anomalies.large_transactions.length === 0 ? (
-                  <p className="text-sm text-gray-400">None.</p>
+                  <p className="text-sm text-ever-faint">None.</p>
                 ) : (
-                  <ul className="text-sm divide-y">
+                  <ul className="text-sm divide-y divide-ever-line">
                     {anomalies.large_transactions.map(e => (
                       <li key={e.id} className="py-1.5 flex justify-between gap-2">
-                        <span className="truncate">{e.date} · {e.merchant} <span className="text-gray-400">({(e as any).category})</span></span>
-                        <span className="font-medium text-amber-600 whitespace-nowrap">{fmt(e.amount)}</span>
+                        <span className="truncate">{e.date} · {e.merchant} <span className="text-ever-faint">({(e as any).category})</span></span>
+                        <span className="font-medium text-ever-orange whitespace-nowrap">{fmt(e.amount)}</span>
                       </li>
                     ))}
                   </ul>
                 )}
               </div>
               <div>
-                <h3 className="text-sm font-medium text-gray-700 mb-1">Possible duplicates</h3>
+                <h3 className="text-sm font-medium text-ever-dim mb-1">Possible duplicates</h3>
                 {anomalies.duplicate_suspects.length === 0 ? (
-                  <p className="text-sm text-gray-400">None.</p>
+                  <p className="text-sm text-ever-faint">None.</p>
                 ) : (
                   anomalies.duplicate_suspects.map((group, i) => (
-                    <div key={i} className="text-sm bg-amber-50 rounded-md p-2 mb-2">
+                    <div key={i} className="text-sm bg-ever-orange/10 rounded-md p-2 mb-2">
                       {group.map(e => (
                         <div key={e.id} className="flex justify-between gap-2">
-                          <span className="truncate">{e.date} · {e.merchant} <span className="text-gray-400">({e.account})</span></span>
+                          <span className="truncate">{e.date} · {e.merchant} <span className="text-ever-faint">({e.account})</span></span>
                           <span className="font-medium whitespace-nowrap">{fmt(e.amount)}</span>
                         </div>
                       ))}
@@ -423,7 +423,7 @@ const MonthlyClose: React.FC = () => {
                   ))
                 )}
               </div>
-              <button onClick={() => setStep(4)} className="px-4 py-2 rounded-md bg-blue-600 text-white font-medium">
+              <button onClick={() => setStep(4)} className="px-4 py-2 rounded-md bg-ever-lime text-ever-lime-ink font-medium">
                 Looks right — continue
               </button>
             </>
@@ -433,34 +433,34 @@ const MonthlyClose: React.FC = () => {
 
       {/* Step 5: Summary & close */}
       {step === 4 && (
-        <div className="bg-white rounded-lg shadow p-5 space-y-4">
-          <h2 className="font-semibold text-gray-900 flex items-center gap-2"><CheckCircle2 className="h-5 w-5" /> {monthLabel(month)} summary</h2>
+        <div className="bg-ever-card rounded-ever border border-ever-line p-5 space-y-4">
+          <h2 className="font-semibold text-ever-ink flex items-center gap-2"><CheckCircle2 className="h-5 w-5" /> {monthLabel(month)} summary</h2>
           {!monthStats ? (
-            <p className="text-sm text-gray-500">Loading…</p>
+            <p className="text-sm text-ever-dim">Loading…</p>
           ) : (
             <>
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
                 <div>
-                  <p className="text-xs text-gray-500">Income</p>
-                  <p className="text-lg font-bold text-green-700">{fmt(income)}</p>
+                  <p className="text-xs text-ever-dim">Income</p>
+                  <p className="text-lg font-bold text-ever-pos">{fmt(income)}</p>
                 </div>
                 <div>
-                  <p className="text-xs text-gray-500">Spend (ex-taxes)</p>
-                  <p className="text-lg font-bold text-gray-900">{fmt(spend)}</p>
+                  <p className="text-xs text-ever-dim">Spend (ex-taxes)</p>
+                  <p className="text-lg font-bold text-ever-ink">{fmt(spend)}</p>
                 </div>
                 <div>
-                  <p className="text-xs text-gray-500">Taxes</p>
-                  <p className="text-lg font-bold text-gray-500">{fmt(taxes)}</p>
+                  <p className="text-xs text-ever-dim">Taxes</p>
+                  <p className="text-lg font-bold text-ever-dim">{fmt(taxes)}</p>
                 </div>
                 <div>
-                  <p className="text-xs text-gray-500">Net (ex-taxes)</p>
-                  <p className={`text-lg font-bold ${income - spend >= 0 ? 'text-green-700' : 'text-red-600'}`}>{fmt(income - spend)}</p>
+                  <p className="text-xs text-ever-dim">Net (ex-taxes)</p>
+                  <p className={`text-lg font-bold ${income - spend >= 0 ? 'text-ever-pos' : 'text-ever-neg'}`}>{fmt(income - spend)}</p>
                 </div>
               </div>
               {trailingAvg !== null && trailingAvg > 0 && (
-                <p className="text-sm text-gray-600">
+                <p className="text-sm text-ever-dim">
                   Spend vs. trailing 3-month average ({fmt(trailingAvg)}):{' '}
-                  <span className={spend <= trailingAvg ? 'text-green-700 font-medium' : 'text-red-600 font-medium'}>
+                  <span className={spend <= trailingAvg ? 'text-ever-pos font-medium' : 'text-ever-neg font-medium'}>
                     {spend <= trailingAvg ? '−' : '+'}{fmt(Math.abs(spend - trailingAvg))}
                   </span>
                 </p>
@@ -470,7 +470,7 @@ const MonthlyClose: React.FC = () => {
               <div className="overflow-x-auto">
                 <table className="w-full text-sm">
                   <thead>
-                    <tr className="text-left text-gray-500 border-b">
+                    <tr className="text-left text-ever-dim border-b border-ever-line">
                       <th className="py-1.5 pr-2">Category</th>
                       <th className="py-1.5 pr-2 text-right">Actual</th>
                       <th className="py-1.5 pr-2 text-right">Budget</th>
@@ -482,11 +482,11 @@ const MonthlyClose: React.FC = () => {
                       const budget = envelopes?.byCategory?.[c.category]?.total ?? null;
                       const delta = budget !== null ? c.total - budget : null;
                       return (
-                        <tr key={c.category} className="border-b last:border-0">
+                        <tr key={c.category} className="border-b border-ever-line/60 last:border-0">
                           <td className="py-1.5 pr-2">{c.category}</td>
                           <td className="py-1.5 pr-2 text-right">{fmt(c.total)}</td>
-                          <td className="py-1.5 pr-2 text-right text-gray-500">{budget !== null ? fmt(budget) : '—'}</td>
-                          <td className={`py-1.5 text-right font-medium ${delta === null ? 'text-gray-400' : delta > 0 ? 'text-red-600' : 'text-green-700'}`}>
+                          <td className="py-1.5 pr-2 text-right text-ever-dim">{budget !== null ? fmt(budget) : '—'}</td>
+                          <td className={`py-1.5 text-right font-medium ${delta === null ? 'text-ever-faint' : delta > 0 ? 'text-ever-neg' : 'text-ever-pos'}`}>
                             {delta !== null ? `${delta > 0 ? '+' : ''}${fmt(delta)}` : '—'}
                           </td>
                         </tr>
@@ -497,18 +497,18 @@ const MonthlyClose: React.FC = () => {
               </div>
 
               {queue.length > 0 && (
-                <div className="flex items-center gap-2 text-sm text-amber-700 bg-amber-50 rounded-md p-3">
+                <div className="flex items-center gap-2 text-sm text-ever-orange bg-ever-orange/10 rounded-md p-3">
                   <AlertTriangle className="h-4 w-4 shrink-0" />
                   {queue.length} transaction{queue.length === 1 ? '' : 's'} still unresolved — go back to Review before closing.
                 </div>
               )}
               {closeMonth.isError && (
-                <div className="text-sm text-red-600">{(closeMonth.error as Error).message}</div>
+                <div className="text-sm text-ever-neg">{(closeMonth.error as Error).message}</div>
               )}
               <button
                 onClick={() => closeMonth.mutate()}
                 disabled={closeMonth.isLoading || queue.length > 0 || Boolean(closeState)}
-                className="flex items-center gap-2 px-5 py-2.5 rounded-md bg-green-600 text-white font-medium disabled:bg-gray-300"
+                className="flex items-center gap-2 px-5 py-2.5 rounded-md bg-ever-pos text-ever-lime-ink font-medium disabled:opacity-40"
               >
                 <Lock className="h-4 w-4" />
                 {closeState ? 'Month closed' : closeMonth.isLoading ? 'Closing…' : `Close ${monthLabel(month)}`}

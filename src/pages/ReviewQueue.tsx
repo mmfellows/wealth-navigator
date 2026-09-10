@@ -87,15 +87,15 @@ const ReviewQueue: React.FC = () => {
     <div className="max-w-2xl mx-auto px-4 py-6 space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Review Queue</h1>
-          <p className="text-sm text-gray-500">
+          <h1 className="text-2xl font-bold text-ever-ink">Review Queue</h1>
+          <p className="text-sm text-ever-dim">
             {isLoading ? 'Loading…' : `${queue.length} transaction${queue.length === 1 ? '' : 's'} need your input`}
           </p>
         </div>
         <button
           onClick={() => categorize.mutate()}
           disabled={categorize.isLoading}
-          className="flex items-center gap-2 px-4 py-2 rounded-md bg-blue-600 text-white font-medium hover:bg-blue-700 disabled:bg-blue-300"
+          className="flex items-center gap-2 px-4 py-2 rounded-md bg-ever-lime text-ever-lime-ink font-medium hover:opacity-90 disabled:opacity-40"
         >
           <Sparkles className="h-4 w-4" />
           {categorize.isLoading ? 'Categorizing…' : 'Run AI categorization'}
@@ -103,12 +103,12 @@ const ReviewQueue: React.FC = () => {
       </div>
 
       {categorize.isError && (
-        <div className="bg-red-50 text-red-700 text-sm rounded-md p-3">
+        <div className="bg-ever-neg/10 text-ever-neg text-sm rounded-md p-3">
           {(categorize.error as Error).message}
         </div>
       )}
       {lastRun && (
-        <div className="bg-green-50 text-green-800 text-sm rounded-md p-3">
+        <div className="bg-ever-pos/10 text-ever-pos text-sm rounded-md p-3">
           AI pass: {lastRun.ai_applied} categorized, {lastRun.merchant_rule_applied} matched saved
           rules, {lastRun.needs_review} queued for review
           {lastRun.unprocessed > 0 && `, ${lastRun.unprocessed} unprocessed`}.
@@ -116,8 +116,8 @@ const ReviewQueue: React.FC = () => {
       )}
 
       {!isLoading && queue.length === 0 ? (
-        <div className="bg-white rounded-lg shadow p-10 text-center text-gray-500">
-          <Inbox className="h-10 w-10 mx-auto mb-3 text-gray-300" />
+        <div className="bg-ever-card rounded-ever border border-ever-line p-10 text-center text-ever-dim">
+          <Inbox className="h-10 w-10 mx-auto mb-3 text-ever-faint" />
           All caught up — every transaction is categorized.
         </div>
       ) : (

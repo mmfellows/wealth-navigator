@@ -126,20 +126,20 @@ const FinanceChat: React.FC = () => {
   return (
     <div className="max-w-3xl mx-auto space-y-6">
       <div>
-        <h1 className="text-2xl md:text-3xl font-bold text-gray-900">Finance Chat</h1>
-        <p className="text-sm text-gray-500">
+        <h1 className="text-2xl md:text-3xl font-bold text-ever-ink">Finance Chat</h1>
+        <p className="text-sm text-ever-dim">
           Ask about your spending, budgets, taxes, or how it all fits with your investments — it can query your live data.
         </p>
       </div>
 
       {error && (
-        <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 flex items-start gap-3">
-          <AlertCircle className="h-5 w-5 text-amber-600 flex-shrink-0 mt-0.5" />
-          <div className="text-sm text-amber-800">{error}</div>
+        <div className="bg-ever-orange/10 border border-ever-orange/30 rounded-lg p-4 flex items-start gap-3">
+          <AlertCircle className="h-5 w-5 text-ever-orange flex-shrink-0 mt-0.5" />
+          <div className="text-sm text-ever-orange">{error}</div>
         </div>
       )}
 
-      <div className="bg-white rounded-lg p-4 md:p-6 shadow-sm border">
+      <div className="bg-ever-card rounded-ever p-4 md:p-6 border border-ever-line">
         {(thread.length > 0 || streamingText !== null) && (
           <div className="space-y-4 mb-4 max-h-[32rem] overflow-y-auto pr-1">
             {thread.map((turn, i) => (
@@ -147,24 +147,24 @@ const FinanceChat: React.FC = () => {
                 <div
                   className={
                     turn.role === 'user'
-                      ? 'bg-blue-600 text-white rounded-lg px-4 py-2 max-w-[80%] text-sm'
-                      : 'bg-gray-50 border rounded-lg px-4 py-3 max-w-[95%]'
+                      ? 'bg-ever-lime text-ever-lime-ink rounded-lg px-4 py-2 max-w-[80%] text-sm'
+                      : 'bg-white/5 border border-ever-line rounded-lg px-4 py-3 max-w-[95%]'
                   }
                 >
                   {turn.role === 'user' ? (
                     turn.content
                   ) : (
-                    <pre className="whitespace-pre-wrap text-sm text-gray-800 font-sans">{turn.content}</pre>
+                    <pre className="whitespace-pre-wrap text-sm text-ever-ink font-sans">{turn.content}</pre>
                   )}
                 </div>
               </div>
             ))}
             {streamingText !== null && (
-              <div className="bg-gray-50 border rounded-lg px-4 py-3 max-w-[95%]">
+              <div className="bg-white/5 border border-ever-line rounded-lg px-4 py-3 max-w-[95%]">
                 {streamingText ? (
-                  <pre className="whitespace-pre-wrap text-sm text-gray-800 font-sans">{streamingText}</pre>
+                  <pre className="whitespace-pre-wrap text-sm text-ever-ink font-sans">{streamingText}</pre>
                 ) : null}
-                <div className="flex items-center gap-2 text-sm text-gray-500 mt-1">
+                <div className="flex items-center gap-2 text-sm text-ever-dim mt-1">
                   {activity ? (
                     <><Database className="h-4 w-4 animate-pulse" /> {activity}</>
                   ) : !streamingText ? (
@@ -184,12 +184,12 @@ const FinanceChat: React.FC = () => {
             onChange={e => setQuery(e.target.value)}
             onKeyDown={e => e.key === 'Enter' && ask()}
             placeholder={thread.length ? 'Ask a follow-up…' : 'e.g. Where could I cut $500/month?'}
-            className="flex-1 min-w-0 px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            className="flex-1 min-w-0 px-4 py-2 bg-ever-bg border border-ever-line rounded-md text-ever-ink placeholder-ever-faint focus:ring-2 focus:ring-ever-lime focus:border-ever-lime"
           />
           <button
             onClick={ask}
             disabled={isAsking}
-            className="px-4 md:px-6 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50 flex items-center gap-2"
+            className="px-4 md:px-6 py-2 bg-ever-lime text-ever-lime-ink rounded-md hover:opacity-90 disabled:opacity-50 flex items-center gap-2"
           >
             {isAsking ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
             <span className="hidden sm:inline">{isAsking ? 'Working…' : 'Ask'}</span>
@@ -197,37 +197,37 @@ const FinanceChat: React.FC = () => {
           {thread.length > 0 && !isAsking && (
             <button
               onClick={() => setThread([])}
-              className="px-2 py-2 text-sm text-gray-500 hover:text-gray-800"
+              className="px-2 py-2 text-sm text-ever-dim hover:text-ever-ink"
               title="Start a new conversation"
             >
               Clear
             </button>
           )}
         </div>
-        <div className="text-xs md:text-sm text-gray-500 mt-2 flex items-center gap-1.5">
+        <div className="text-xs md:text-sm text-ever-dim mt-2 flex items-center gap-1.5">
           <Sparkles className="h-3.5 w-3.5" />
           Try: "Am I spending more than I make?" · "What subscriptions am I paying for?" · "Tax implications if I sell a bet?"
         </div>
       </div>
 
-      <div className="bg-white rounded-lg p-4 md:p-6 shadow-sm border">
-        <h2 className="text-lg font-semibold text-gray-900 mb-4">History</h2>
+      <div className="bg-ever-card rounded-ever p-4 md:p-6 border border-ever-line">
+        <h2 className="text-lg font-semibold text-ever-ink mb-4">History</h2>
         {history.length === 0 ? (
-          <div className="text-sm text-gray-500">No conversations yet.</div>
+          <div className="text-sm text-ever-dim">No conversations yet.</div>
         ) : (
           <div className="space-y-3">
             {history.map((item, index) => (
-              <div key={index} className="bg-gray-50 rounded-md">
+              <div key={index} className="bg-white/5 rounded-md">
                 <button
                   className="w-full flex items-center justify-between p-3 text-left"
                   onClick={() => setExpandedHistory(expandedHistory === index ? null : index)}
                 >
-                  <span className="text-gray-900 truncate pr-4">{item.query}</span>
-                  <span className="text-sm text-gray-500 flex-shrink-0">{relTime(item.created_at)}</span>
+                  <span className="text-ever-ink truncate pr-4">{item.query}</span>
+                  <span className="text-sm text-ever-dim flex-shrink-0">{relTime(item.created_at)}</span>
                 </button>
                 {expandedHistory === index && (
                   <div className="px-3 pb-3">
-                    <pre className="whitespace-pre-wrap text-sm text-gray-700 font-sans border-t pt-3">{item.response}</pre>
+                    <pre className="whitespace-pre-wrap text-sm text-ever-dim font-sans border-t border-ever-line pt-3">{item.response}</pre>
                   </div>
                 )}
               </div>

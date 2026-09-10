@@ -13,4 +13,6 @@ security/*.log
 
 .vercel
 .env*.local
+backend/.env*
+!backend/.env.example
 backend/backups/

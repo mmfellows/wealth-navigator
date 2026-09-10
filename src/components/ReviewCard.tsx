@@ -43,21 +43,21 @@ export function ReviewCard({
   const suggestions = item.ai_suggestions || [];
 
   return (
-    <div className="bg-white rounded-lg shadow p-4 space-y-3">
+    <div className="bg-ever-card rounded-ever border border-ever-line p-4 space-y-3">
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
-          <div className="font-medium text-gray-900 truncate">{item.merchant || '(no merchant)'}</div>
-          <div className="text-sm text-gray-500">
+          <div className="font-medium text-ever-ink truncate">{item.merchant || '(no merchant)'}</div>
+          <div className="text-sm text-ever-dim">
             {item.date} · {item.account || 'Unknown account'}
             {item.description && item.description !== item.merchant && (
               <span className="block truncate">{item.description}</span>
             )}
           </div>
         </div>
-        <div className="font-semibold text-gray-900 whitespace-nowrap">{fmtAmount(item.amount)}</div>
+        <div className="font-semibold text-ever-ink whitespace-nowrap">{fmtAmount(item.amount)}</div>
       </div>
 
-      <p className="text-sm text-gray-700">{question}</p>
+      <p className="text-sm text-ever-dim">{question}</p>
 
       {suggestions.length > 0 && (
         <div className="flex flex-wrap gap-2">
@@ -65,7 +65,7 @@ export function ReviewCard({
             <button
               key={i}
               onClick={() => onResolve(item.id, { category: s.category, subcategory: s.subcategory })}
-              className="flex items-center gap-1 px-3 py-2 rounded-md bg-blue-50 text-blue-700 text-sm font-medium hover:bg-blue-100 active:bg-blue-200"
+              className="flex items-center gap-1 px-3 py-2 rounded-md bg-ever-lime/10 text-ever-lime text-sm font-medium hover:bg-ever-lime/20 active:bg-ever-lime/25"
             >
               <Check className="h-4 w-4" />
               {s.category} · {s.subcategory}
@@ -78,7 +78,7 @@ export function ReviewCard({
         {!showPicker ? (
           <button
             onClick={() => setShowPicker(true)}
-            className="px-3 py-2 rounded-md border border-gray-300 text-gray-700 hover:bg-gray-50"
+            className="px-3 py-2 rounded-md border border-ever-line text-ever-dim hover:bg-white/5"
           >
             Other category…
           </button>
@@ -87,7 +87,7 @@ export function ReviewCard({
             <select
               value={mainCat}
               onChange={e => { setMainCat(e.target.value); setSubCat(''); }}
-              className="border border-gray-300 rounded-md px-2 py-2 flex-1 min-w-[8rem]"
+              className="bg-ever-bg border border-ever-line rounded-md text-ever-ink placeholder-ever-faint px-2 py-2 flex-1 min-w-[8rem]"
             >
               <option value="">Category…</option>
               {Object.keys(categories).map(c => <option key={c} value={c}>{c}</option>)}
@@ -96,7 +96,7 @@ export function ReviewCard({
               value={subCat}
               onChange={e => setSubCat(e.target.value)}
               disabled={!mainCat}
-              className="border border-gray-300 rounded-md px-2 py-2 flex-1 min-w-[8rem] disabled:bg-gray-100"
+              className="bg-ever-bg border border-ever-line rounded-md text-ever-ink placeholder-ever-faint px-2 py-2 flex-1 min-w-[8rem] disabled:bg-ever-track"
             >
               <option value="">Subcategory…</option>
               {(categories[mainCat] || []).map(s => <option key={s} value={s}>{s}</option>)}
@@ -104,7 +104,7 @@ export function ReviewCard({
             <button
               onClick={() => onResolve(item.id, { category: mainCat, subcategory: subCat || null })}
               disabled={!mainCat}
-              className="px-3 py-2 rounded-md bg-blue-600 text-white font-medium disabled:bg-gray-300"
+              className="px-3 py-2 rounded-md bg-ever-lime text-ever-lime-ink font-medium disabled:opacity-40"
             >
               Apply
             </button>
@@ -113,14 +113,14 @@ export function ReviewCard({
         <div className="flex gap-2 ml-auto">
           <button
             onClick={() => onResolve(item.id, { is_transfer: true })}
-            className="flex items-center gap-1 px-3 py-2 rounded-md border border-gray-300 text-gray-600 hover:bg-gray-50"
+            className="flex items-center gap-1 px-3 py-2 rounded-md border border-ever-line text-ever-dim hover:bg-white/5"
             title="Mark as a transfer (excluded from spending)"
           >
             <ArrowLeftRight className="h-4 w-4" /> Transfer
           </button>
           <button
             onClick={() => onResolve(item.id, { skip: true })}
-            className="flex items-center gap-1 px-3 py-2 rounded-md border border-gray-300 text-gray-600 hover:bg-gray-50"
+            className="flex items-center gap-1 px-3 py-2 rounded-md border border-ever-line text-ever-dim hover:bg-white/5"
             title="Acknowledge and leave uncategorized"
           >
             <SkipForward className="h-4 w-4" /> Skip

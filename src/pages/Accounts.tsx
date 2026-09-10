@@ -3,6 +3,9 @@ import axios from 'axios';
 import { Link } from 'react-router-dom';
 import { PiggyBank, CreditCard, Building2, Briefcase, Eye, EyeOff, Loader2, AlertCircle } from 'lucide-react';
 import PlaidLink from '../components/PlaidLink';
+import { Card, CardHeader, Button, StatCard } from '../components/ui';
+import { everPill } from '../lib/categoryColors';
+import { cn } from '../lib/cn';
 
 interface Account {
   id: string;
@@ -85,111 +88,91 @@ const Accounts: React.FC = () => {
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
-        <h1 className="text-3xl font-bold text-gray-900">Accounts</h1>
-        <button
-          onClick={toggleShowBalances}
-          className="flex items-center px-3 py-2 text-sm text-gray-600 hover:text-gray-900"
-        >
-          {showBalances ? <Eye className="h-4 w-4 mr-2" /> : <EyeOff className="h-4 w-4 mr-2" />}
+        <h1 className="text-2xl font-extrabold tracking-tight text-ever-ink md:text-[26px]">Accounts</h1>
+        <Button variant="ghost" onClick={toggleShowBalances}>
+          {showBalances ? <Eye className="h-4 w-4" /> : <EyeOff className="h-4 w-4" />}
           {showBalances ? 'Hide' : 'Show'} Balances
-        </button>
+        </Button>
       </div>
 
       {/* Summary Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <div className="bg-white rounded-lg p-6 shadow-sm border">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium text-gray-600">Total Assets</p>
-              <p className="text-2xl font-bold text-green-600">{masked(fmt(totalAssets))}</p>
-            </div>
-            <PiggyBank className="h-10 w-10 text-green-400" />
-          </div>
-        </div>
-
-        <div className="bg-white rounded-lg p-6 shadow-sm border">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium text-gray-600">Total Debt</p>
-              <p className="text-2xl font-bold text-red-600">{masked(fmt(totalDebt))}</p>
-            </div>
-            <CreditCard className="h-10 w-10 text-red-400" />
-          </div>
-        </div>
-
-        <div className="bg-white rounded-lg p-6 shadow-sm border">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium text-gray-600">Net Worth</p>
-              <p className={`text-2xl font-bold ${netWorth >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                {masked(fmt(netWorth))}
-              </p>
-            </div>
-            <Building2 className="h-10 w-10 text-blue-400" />
-          </div>
-        </div>
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+        <StatCard label="Total Assets" value={masked(fmt(totalAssets))} dot="var(--ever-pos)" />
+        <StatCard
+          label="Total Debt"
+          value={<span className="text-ever-neg">{masked(fmt(totalDebt))}</span>}
+          dot="var(--ever-neg)"
+        />
+        <StatCard
+          label="Net Worth"
+          value={<span className={netWorth < 0 ? 'text-ever-neg' : undefined}>{masked(fmt(netWorth))}</span>}
+          dot={netWorth >= 0 ? 'var(--ever-pos)' : 'var(--ever-neg)'}
+        />
       </div>
 
       {/* Accounts List */}
-      <div className="bg-white rounded-lg shadow-sm border">
-        <div className="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
-          <h2 className="text-lg font-semibold text-gray-900">All Accounts</h2>
-          <Link to="/account-snapshot" className="text-sm text-blue-600 hover:text-blue-800">
-            Detailed snapshot →
-          </Link>
-        </div>
+      <Card>
+        <CardHeader
+          title="All Accounts"
+          right={
+            <Link to="/account-snapshot" className="font-mono text-[10.5px] text-ever-lime hover:underline">
+              Detailed snapshot →
+            </Link>
+          }
+        />
 
         {loading ? (
-          <div className="p-10 flex items-center justify-center text-gray-500">
+          <div className="flex items-center justify-center py-10 text-ever-dim">
             <Loader2 className="h-5 w-5 mr-2 animate-spin" /> Loading accounts…
           </div>
         ) : error ? (
-          <div className="p-10 flex items-center justify-center text-red-600">
+          <div className="flex items-center justify-center py-10 text-ever-neg">
             <AlertCircle className="h-5 w-5 mr-2" /> {error}
           </div>
         ) : sorted.length === 0 ? (
-          <div className="p-10 text-center text-gray-500">
+          <div className="py-10 text-center text-ever-dim">
             No accounts connected yet. Connect one below to get started.
           </div>
         ) : (
-          <div className="divide-y divide-gray-200">
+          <div>
             {sorted.map((account) => {
               const bal = signedBalance(account);
               return (
-                <div key={account.id} className="p-6 hover:bg-gray-50">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center space-x-4">
-                      <div className={`p-3 rounded-lg ${getAccountTypeColor(account)}`}>
-                        {getAccountIcon(account)}
-                      </div>
-                      <div>
-                        <h3 className="text-lg font-semibold text-gray-900">{account.name}</h3>
-                        <p className="text-sm text-gray-600">{account.institution_name}</p>
-                        {account.mask && <p className="text-xs text-gray-500">****{account.mask}</p>}
-                      </div>
+                <div
+                  key={account.id}
+                  className="flex items-center justify-between gap-4 border-t border-ever-line py-4 first:border-t-0"
+                >
+                  <div className="flex items-center space-x-4">
+                    <div className={cn('p-3 rounded-lg', everPill(getAccountTypeColor(account)))}>
+                      {getAccountIcon(account)}
                     </div>
+                    <div>
+                      <h3 className="text-lg font-semibold text-ever-ink">{account.name}</h3>
+                      <p className="text-sm text-ever-dim">{account.institution_name}</p>
+                      {account.mask && <p className="text-xs text-ever-faint">****{account.mask}</p>}
+                    </div>
+                  </div>
 
-                    <div className="text-right">
-                      <div className={`text-xl font-bold ${bal < 0 ? 'text-red-600' : 'text-gray-900'}`}>
-                        {masked(fmt(bal))}
-                      </div>
-                      <span className={`inline-flex px-2 py-1 text-xs font-medium rounded-full mt-2 ${getAccountTypeColor(account)}`}>
-                        {typeLabel(account)}
-                      </span>
+                  <div className="text-right">
+                    <div className={cn('text-xl font-bold tabular-nums', bal < 0 ? 'text-ever-neg' : 'text-ever-ink')}>
+                      {masked(fmt(bal))}
                     </div>
+                    <span className={cn('inline-flex px-2 py-1 text-xs font-medium rounded-full mt-2', everPill(getAccountTypeColor(account)))}>
+                      {typeLabel(account)}
+                    </span>
                   </div>
                 </div>
               );
             })}
           </div>
         )}
-      </div>
+      </Card>
 
       {/* Connect a new account */}
-      <div className="bg-white rounded-lg p-6 shadow-sm border">
-        <h3 className="text-lg font-semibold text-gray-900 mb-4">Connect New Account</h3>
+      <Card>
+        <CardHeader title="Connect New Account" />
         <PlaidLink onSuccess={load} />
-      </div>
+      </Card>
     </div>
   );
 };

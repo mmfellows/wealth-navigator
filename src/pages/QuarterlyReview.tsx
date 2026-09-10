@@ -48,16 +48,16 @@ function CategoryCard({
   const maxSpend = Math.max(...cat.spend_by_quarter.map(q => q.total), cat.quarterly_budget || 0, 1);
 
   return (
-    <div className="bg-white rounded-lg shadow-sm border p-4 space-y-3">
+    <div className="bg-ever-card rounded-ever border border-ever-line p-4 space-y-3">
       <button onClick={() => setExpanded(e => !e)} className="w-full text-left">
         <div className="flex items-center justify-between gap-2">
-          <span className="font-semibold text-gray-900 flex items-center gap-1">
-            {expanded ? <ChevronDown className="h-4 w-4 text-gray-400" /> : <ChevronRight className="h-4 w-4 text-gray-400" />}
+          <span className="font-semibold text-ever-ink flex items-center gap-1">
+            {expanded ? <ChevronDown className="h-4 w-4 text-ever-faint" /> : <ChevronRight className="h-4 w-4 text-ever-faint" />}
             {cat.category}
           </span>
           <span className="text-sm">
             <span className="font-semibold">{fmt(cat.current_quarter_spend)}</span>
-            <span className="text-gray-400"> this quarter{cat.quarterly_budget !== null && ` / ${fmt(cat.quarterly_budget)} budgeted`}</span>
+            <span className="text-ever-faint"> this quarter{cat.quarterly_budget !== null && ` / ${fmt(cat.quarterly_budget)} budgeted`}</span>
           </span>
         </div>
         {/* 4-quarter trend */}
@@ -65,39 +65,39 @@ function CategoryCard({
           {cat.spend_by_quarter.map((q, i) => (
             <div key={q.quarter} className="flex-1 flex flex-col items-center gap-0.5">
               <div
-                className={`w-full rounded-t ${i === cat.spend_by_quarter.length - 1 ? 'bg-blue-500' : 'bg-gray-300'}`}
+                className={`w-full rounded-t ${i === cat.spend_by_quarter.length - 1 ? 'bg-ever-teal' : 'bg-ever-faint'}`}
                 style={{ height: `${Math.max((q.total / maxSpend) * 44, 2)}px` }}
                 title={`${q.quarter}: ${fmt(q.total)}`}
               />
-              <span className="text-[10px] text-gray-400">{q.quarter.split('-')[1]}</span>
+              <span className="text-[10px] text-ever-faint">{q.quarter.split('-')[1]}</span>
             </div>
           ))}
         </div>
       </button>
 
       {expanded && (
-        <div className="grid sm:grid-cols-2 gap-4 text-sm border-t pt-3">
+        <div className="grid sm:grid-cols-2 gap-4 text-sm border-t border-ever-line pt-3">
           <div>
-            <h4 className="font-medium text-gray-700 mb-1">Subcategories</h4>
+            <h4 className="font-medium text-ever-dim mb-1">Subcategories</h4>
             {cat.by_subcategory.length === 0 ? (
-              <p className="text-gray-400">No spending.</p>
+              <p className="text-ever-faint">No spending.</p>
             ) : (
               cat.by_subcategory.map(s => (
                 <div key={s.subcategory} className="flex justify-between py-0.5">
-                  <span className="text-gray-600 truncate pr-2">{s.subcategory}</span>
+                  <span className="text-ever-dim truncate pr-2">{s.subcategory}</span>
                   <span className="font-medium">{fmt(s.total)}</span>
                 </div>
               ))
             )}
           </div>
           <div>
-            <h4 className="font-medium text-gray-700 mb-1">Top merchants</h4>
+            <h4 className="font-medium text-ever-dim mb-1">Top merchants</h4>
             {cat.top_merchants.length === 0 ? (
-              <p className="text-gray-400">None.</p>
+              <p className="text-ever-faint">None.</p>
             ) : (
               cat.top_merchants.map(m => (
                 <div key={m.merchant} className="flex justify-between py-0.5">
-                  <span className="text-gray-600 truncate pr-2">{m.merchant} <span className="text-gray-400">×{m.count}</span></span>
+                  <span className="text-ever-dim truncate pr-2">{m.merchant} <span className="text-ever-faint">×{m.count}</span></span>
                   <span className="font-medium">{fmt(m.total)}</span>
                 </div>
               ))
@@ -107,15 +107,15 @@ function CategoryCard({
       )}
 
       {/* Decision */}
-      <div className="flex flex-wrap items-center gap-2 border-t pt-3">
+      <div className="flex flex-wrap items-center gap-2 border-t border-ever-line pt-3">
         {(['keep', 'cut', 'grow'] as DecisionKind[]).map(kind => (
           <button
             key={kind}
             onClick={() => onChange({ ...decision, decision: kind })}
             className={`px-3 py-1.5 rounded-full text-sm font-medium capitalize ${
               decision.decision === kind
-                ? kind === 'cut' ? 'bg-red-600 text-white' : kind === 'grow' ? 'bg-green-600 text-white' : 'bg-blue-600 text-white'
-                : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                ? kind === 'cut' ? 'bg-ever-neg text-ever-lime-ink' : kind === 'grow' ? 'bg-ever-pos text-ever-lime-ink' : 'bg-ever-lime text-ever-lime-ink'
+                : 'bg-ever-track text-ever-dim hover:bg-white/10'
             }`}
           >
             {kind}
@@ -123,15 +123,15 @@ function CategoryCard({
         ))}
         {decision.decision !== 'keep' && (
           <div className="flex items-center gap-1 text-sm">
-            <span className="text-gray-500">target</span>
+            <span className="text-ever-dim">target</span>
             <input
               type="number"
               value={decision.target_monthly}
               onChange={e => onChange({ ...decision, target_monthly: e.target.value })}
-              className="w-24 border border-gray-300 rounded-md px-2 py-1"
+              className="w-24 bg-ever-bg border border-ever-line rounded-md text-ever-ink placeholder-ever-faint px-2 py-1"
               placeholder={cat.monthly_budget !== null ? String(Math.round(cat.monthly_budget)) : '0'}
             />
-            <span className="text-gray-500">/mo</span>
+            <span className="text-ever-dim">/mo</span>
           </div>
         )}
         <input
@@ -139,7 +139,7 @@ function CategoryCard({
           value={decision.note}
           onChange={e => onChange({ ...decision, note: e.target.value })}
           placeholder="Note (optional)"
-          className="flex-1 min-w-[10rem] border border-gray-300 rounded-md px-2 py-1.5 text-sm"
+          className="flex-1 min-w-[10rem] bg-ever-bg border border-ever-line rounded-md text-ever-ink placeholder-ever-faint px-2 py-1.5 text-sm"
         />
       </div>
     </div>
@@ -219,24 +219,24 @@ const QuarterlyReview: React.FC = () => {
     <div className="max-w-3xl mx-auto space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
-            <CalendarRange className="h-6 w-6 text-blue-600" /> Quarterly Review
+          <h1 className="text-2xl font-bold text-ever-ink flex items-center gap-2">
+            <CalendarRange className="h-6 w-6 text-ever-lime" /> Quarterly Review
           </h1>
-          <p className="text-sm text-gray-500">
+          <p className="text-sm text-ever-dim">
             Walk every category: what you actually spent, then keep, cut, or grow it for next quarter. Cut/grow targets rescale that category's budget items, so pacing updates immediately.
           </p>
         </div>
         <select
           value={quarter}
           onChange={e => { setQuarter(e.target.value); setDecisions({}); setNotes(''); }}
-          className="border border-gray-300 rounded-md px-3 py-2"
+          className="bg-ever-bg border border-ever-line rounded-md text-ever-ink placeholder-ever-faint px-3 py-2"
         >
           {quarterOptions.map(q => <option key={q} value={q}>{q}</option>)}
         </select>
       </div>
 
       {existing && (
-        <div className="bg-green-50 border border-green-200 rounded-lg p-4 text-sm text-green-800 flex items-start gap-2">
+        <div className="bg-ever-pos/10 border border-ever-pos/30 rounded-lg p-4 text-sm text-ever-pos flex items-start gap-2">
           <CheckCircle2 className="h-5 w-5 shrink-0" />
           <div>
             Review for {quarter} completed on {String(existing.completed_at).substring(0, 10)}
@@ -247,7 +247,7 @@ const QuarterlyReview: React.FC = () => {
       )}
 
       {isLoading ? (
-        <div className="flex items-center gap-2 text-gray-500 py-8 justify-center">
+        <div className="flex items-center gap-2 text-ever-dim py-8 justify-center">
           <Loader2 className="h-5 w-5 animate-spin" /> Analyzing the quarter…
         </div>
       ) : (
@@ -261,24 +261,24 @@ const QuarterlyReview: React.FC = () => {
             />
           ))}
 
-          <div className="bg-white rounded-lg shadow-sm border p-4 space-y-3">
+          <div className="bg-ever-card rounded-ever border border-ever-line p-4 space-y-3">
             <textarea
               value={notes}
               onChange={e => setNotes(e.target.value)}
               placeholder="Overall notes for this quarter (optional)…"
               rows={2}
-              className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm"
+              className="w-full bg-ever-bg border border-ever-line rounded-md text-ever-ink placeholder-ever-faint px-3 py-2 text-sm"
             />
             {complete.isError && (
-              <div className="text-sm text-red-600">{(complete.error as Error).message}</div>
+              <div className="text-sm text-ever-neg">{(complete.error as Error).message}</div>
             )}
             {complete.isSuccess && (
-              <div className="text-sm text-green-700">Review saved — budgets updated where you chose cut or grow.</div>
+              <div className="text-sm text-ever-pos">Review saved — budgets updated where you chose cut or grow.</div>
             )}
             <button
               onClick={() => complete.mutate()}
               disabled={complete.isLoading || !analysis}
-              className="flex items-center gap-2 px-5 py-2.5 rounded-md bg-blue-600 text-white font-medium disabled:bg-gray-300"
+              className="flex items-center gap-2 px-5 py-2.5 rounded-md bg-ever-lime text-ever-lime-ink font-medium disabled:opacity-40"
             >
               {complete.isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle2 className="h-4 w-4" />}
               Complete review ({changedCount} change{changedCount === 1 ? '' : 's'})

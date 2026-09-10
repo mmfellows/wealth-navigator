@@ -152,40 +152,40 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
   const currentNavItems = activeSection === 'investing' ? investingNavItems : personalFinanceNavItems;
 
   return (
-    <div className="flex flex-col h-screen bg-gray-100">
+    <div className={`theme-evergreen ${activeSection === 'personal-finance' ? 'theme-pf' : ''} flex flex-col h-screen bg-ever-bg font-grotesk text-ever-ink`}>
       {/* Top Navigation */}
-      <div className="bg-white shadow-sm border-b">
+      <div className="bg-ever-side border-b border-ever-line">
         <div className="px-4 md:px-6 py-3">
           <div className="flex items-center space-x-2">
             {/* Mobile: hamburger opens the nav drawer */}
             <button
               onClick={() => setDrawerOpen(true)}
-              className="md:hidden -ml-1 p-1.5 text-gray-500 hover:text-gray-900"
+              className="md:hidden -ml-1 p-1.5 text-ever-dim hover:text-ever-ink"
               aria-label="Open navigation"
             >
               <Menu className="h-6 w-6" />
             </button>
-            <TrendingUp className="h-8 w-8 text-blue-600" />
-            <h1 className="text-xl font-bold text-gray-900">Wealth Navigator</h1>
+            <TrendingUp className="h-7 w-7 text-ever-lime" />
+            <h1 className="text-xl font-bold tracking-tight text-ever-ink">Wealth Navigator</h1>
           </div>
 
           {/* Section selector */}
-          <div className="relative mt-1 ml-10 inline-block" ref={sectionMenuRef}>
+          <div className="relative mt-1 ml-9 inline-block" ref={sectionMenuRef}>
             <button
               onClick={() => setSectionMenuOpen(open => !open)}
               aria-haspopup="listbox"
               aria-expanded={sectionMenuOpen}
-              className="inline-flex items-center gap-1.5 text-sm font-medium text-gray-600 hover:text-gray-900 transition-colors"
+              className="inline-flex items-center gap-1.5 text-sm font-medium text-ever-dim hover:text-ever-ink transition-colors"
             >
-              <currentSection.icon className="h-4 w-4 text-blue-600" />
+              <currentSection.icon className="h-4 w-4 text-ever-lime" />
               {currentSection.label}
-              <ChevronDown className={`h-4 w-4 text-gray-400 transition-transform ${sectionMenuOpen ? 'rotate-180' : ''}`} />
+              <ChevronDown className={`h-4 w-4 text-ever-faint transition-transform ${sectionMenuOpen ? 'rotate-180' : ''}`} />
             </button>
 
             {sectionMenuOpen && (
               <div
                 role="listbox"
-                className="absolute left-0 top-full mt-1 w-52 bg-white border border-gray-200 rounded-lg shadow-lg py-1 z-50"
+                className="absolute left-0 top-full mt-1 w-52 bg-ever-card border border-ever-line rounded-ever shadow-lg py-1 z-50"
               >
                 {SECTIONS.map(s => {
                   const Icon = s.icon;
@@ -197,7 +197,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
                       aria-selected={isActive}
                       onClick={() => selectSection(s)}
                       className={`w-full flex items-center gap-2 px-3 py-2 text-sm text-left transition-colors ${
-                        isActive ? 'text-blue-600 bg-blue-50' : 'text-gray-700 hover:bg-gray-50'
+                        isActive ? 'text-ever-lime bg-white/5' : 'text-ever-dim hover:bg-white/5 hover:text-ever-ink'
                       }`}
                     >
                       <Icon className="h-4 w-4" />
@@ -216,23 +216,23 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
         {/* Mobile nav drawer */}
         {drawerOpen && (
           <div className="fixed inset-0 z-50 md:hidden">
-            <div className="absolute inset-0 bg-black/40" onClick={() => setDrawerOpen(false)} />
-            <div className="absolute inset-y-0 left-0 w-64 bg-white shadow-xl flex flex-col">
-              <div className="p-4 flex items-center justify-between border-b">
-                <span className="text-sm font-semibold text-gray-900 uppercase tracking-wide">
+            <div className="absolute inset-0 bg-black/60" onClick={() => setDrawerOpen(false)} />
+            <div className="absolute inset-y-0 left-0 w-64 bg-ever-side border-r border-ever-line shadow-xl flex flex-col">
+              <div className="p-4 flex items-center justify-between border-b border-ever-line">
+                <span className="font-mono text-[10.5px] font-semibold text-ever-faint uppercase tracking-[0.16em]">
                   {activeSection === 'investing' ? 'Investment Tools' : 'Finance Tools'}
                 </span>
-                <button onClick={() => setDrawerOpen(false)} className="p-1 text-gray-400 hover:text-gray-600" aria-label="Close navigation">
+                <button onClick={() => setDrawerOpen(false)} className="p-1 text-ever-dim hover:text-ever-ink" aria-label="Close navigation">
                   <X className="h-5 w-5" />
                 </button>
               </div>
-              <div className="flex gap-1 p-3 border-b">
+              <div className="flex gap-1 p-3 border-b border-ever-line">
                 {SECTIONS.map(s => (
                   <button
                     key={s.id}
                     onClick={() => selectSection(s)}
-                    className={`flex-1 px-2 py-1.5 rounded-md text-xs font-medium ${
-                      s.id === activeSection ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-600'
+                    className={`flex-1 px-2 py-1.5 rounded-lg text-xs font-medium ${
+                      s.id === activeSection ? 'bg-ever-lime text-ever-lime-ink' : 'bg-white/5 text-ever-dim'
                     }`}
                   >
                     {s.label}
@@ -247,8 +247,8 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
                     <Link
                       key={item.path}
                       to={item.path}
-                      className={`flex items-center gap-3 px-5 py-3 ${
-                        isActive ? 'bg-blue-50 text-blue-600' : 'text-gray-600'
+                      className={`flex items-center gap-3 px-4 py-2.5 mx-2 rounded-lg text-sm ${
+                        isActive ? 'bg-ever-lime text-ever-lime-ink font-semibold' : 'text-ever-dim'
                       }`}
                     >
                       <Icon className="h-5 w-5" />
@@ -262,23 +262,23 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
         )}
 
         {/* Side Navigation (desktop) */}
-        <nav className={`${collapsed ? 'w-16' : 'w-52'} hidden md:flex bg-white shadow-lg transition-all duration-200 flex-col`}>
+        <nav className={`${collapsed ? 'w-16' : 'w-52'} hidden md:flex bg-ever-side border-r border-ever-line transition-all duration-200 flex-col`}>
           <div className={`p-4 flex items-center ${collapsed ? 'justify-center' : 'justify-between'}`}>
             {!collapsed && (
-              <h2 className="text-sm font-semibold text-gray-900 uppercase tracking-wide">
+              <h2 className="font-mono text-[10.5px] font-semibold text-ever-faint uppercase tracking-[0.16em]">
                 {activeSection === 'investing' ? 'Investment Tools' : 'Finance Tools'}
               </h2>
             )}
             <button
               onClick={toggleCollapsed}
-              className="text-gray-400 hover:text-gray-600 transition-colors"
+              className="text-ever-dim hover:text-ever-ink transition-colors"
               title={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
             >
               {collapsed ? <PanelLeftOpen className="h-5 w-5" /> : <PanelLeftClose className="h-5 w-5" />}
             </button>
           </div>
 
-          <div className="mt-2">
+          <div className="mt-1">
             {currentNavItems.map((item) => {
               const Icon = item.icon;
               const isActive = location.pathname === item.path;
@@ -288,10 +288,10 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
                   key={item.path}
                   to={item.path}
                   title={collapsed ? item.label : undefined}
-                  className={`flex items-center ${collapsed ? 'justify-center px-3' : 'pl-6 pr-3'} py-3 text-left w-full transition-colors ${
+                  className={`flex items-center ${collapsed ? 'justify-center px-3' : 'px-4'} py-2.5 mx-2 rounded-lg text-sm transition-colors ${
                     isActive
-                      ? 'bg-blue-50 text-blue-600 border-r-2 border-blue-600'
-                      : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
+                      ? 'bg-ever-lime text-ever-lime-ink font-semibold'
+                      : 'text-ever-dim hover:bg-white/5 hover:text-ever-ink'
                   }`}
                 >
                   <Icon className={`h-5 w-5 ${collapsed ? '' : 'mr-3'}`} />
@@ -306,10 +306,10 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
           <div className="p-4 md:p-8 flex-1">
             {children}
           </div>
-          <footer className="px-4 md:px-8 py-4 text-xs text-gray-400 border-t border-gray-200 bg-white">
-            <Link to="/privacy" className="hover:text-gray-600">Privacy Policy</Link>
+          <footer className="px-4 md:px-8 py-4 font-mono text-[11px] text-ever-faint border-t border-ever-line bg-ever-side">
+            <Link to="/privacy" className="hover:text-ever-ink">Privacy Policy</Link>
             <span className="mx-2" aria-hidden="true">·</span>
-            <Link to="/security" className="hover:text-gray-600">Security &amp; passkeys</Link>
+            <Link to="/security" className="hover:text-ever-ink">Security &amp; passkeys</Link>
           </footer>
         </main>
       </div>

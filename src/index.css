@@ -2,6 +2,47 @@
 @tailwind components;
 @tailwind utilities;
 
+/*
+ * Evergreen design system — scoped theme.
+ * Applying `.theme-evergreen` to a container turns on the dark green palette
+ * for everything inside it. Kept scoped (not on :root) so unconverted pages
+ * keep their current light look until they're migrated.
+ */
+.theme-evergreen {
+  --ever-bg: #20423a;
+  --ever-side: #1a382f;
+  --ever-card: #15221d;
+  --ever-line: #2c4d43;
+  --ever-ink: #ebf2ec;
+  --ever-dim: #9db3a7;
+  --ever-faint: #5f7b70;
+  --ever-lime: #c9f04e;
+  --ever-lime-ink: #16180c;
+  --ever-violet: #8b6ff0;
+  --ever-pos: #b6e35a;
+  --ever-neg: #eb8f6c;
+  --ever-track: #20362f;
+  --ever-teal: #38a790;
+  --ever-orange: #efb15b;
+  color-scheme: dark;
+}
+
+/*
+ * Personal Finance section variant. Applied alongside `.theme-evergreen` on the
+ * Layout root when the active section is Personal Finance. Higher specificity
+ * (two classes) wins over the base block — no !important needed. It shifts only
+ * the surface/structure vars to a cooler slate-blue ground, so the section reads
+ * as "a different room in the same house"; text, accent (lime), and semantic
+ * colors are inherited unchanged to preserve contrast and meaning.
+ */
+.theme-evergreen.theme-pf {
+  --ever-bg: #26303f;
+  --ever-side: #1f2735;
+  --ever-card: #1b2330;
+  --ever-line: #313d4d;
+  --ever-track: #212a37;
+}
+
 :root {
   font-family: Inter, system-ui, Avenir, Helvetica, Arial, sans-serif;
   line-height: 1.5;

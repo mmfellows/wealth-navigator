@@ -3,6 +3,8 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Plus, Loader2, Zap, PencilLine, RefreshCw } from 'lucide-react';
 import axios from 'axios';
 import NewTradeModal, { TradeFormData } from '../components/NewTradeModal';
+import { Card, Button } from '../components/ui';
+import { cn } from '../lib/cn';
 
 const API_BASE = '/api';
 
@@ -51,11 +53,11 @@ const TYPE_BUCKETS: Record<TypeFilter, (t: string) => boolean> = {
 };
 
 const typeStyle = (type: string) => {
-  if (/buy/i.test(type)) return 'bg-blue-100 text-blue-800';
-  if (/sell/i.test(type)) return 'bg-amber-100 text-amber-800';
-  if (/dividend|interest/i.test(type)) return 'bg-emerald-100 text-emerald-800';
-  if (/fee|tax/i.test(type)) return 'bg-rose-100 text-rose-800';
-  return 'bg-gray-100 text-gray-700';
+  if (/buy/i.test(type)) return 'bg-white/5 text-ever-lime';
+  if (/sell/i.test(type)) return 'bg-white/5 text-ever-orange';
+  if (/dividend|interest/i.test(type)) return 'bg-white/5 text-ever-pos';
+  if (/fee|tax/i.test(type)) return 'bg-white/5 text-ever-neg';
+  return 'bg-white/5 text-ever-dim';
 };
 
 const TradeJournal: React.FC = () => {
@@ -110,76 +112,78 @@ const TradeJournal: React.FC = () => {
   if (isLoading) {
     return (
       <div className="flex items-center justify-center h-64">
-        <Loader2 className="h-8 w-8 animate-spin text-blue-600" />
+        <Loader2 className="h-8 w-8 animate-spin text-ever-lime" />
       </div>
     );
   }
 
   if (error) {
-    return <div className="text-center py-12 text-red-600">Failed to load trades.</div>;
+    return <div className="text-center py-12 text-ever-neg">Failed to load trades.</div>;
   }
 
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900">Trade Journal</h1>
-          <p className="text-gray-600 mt-1">
+          <h1 className="text-2xl font-extrabold tracking-tight text-ever-ink md:text-[26px]">Trade Journal</h1>
+          <p className="mt-1 text-sm text-ever-dim">
             {data?.plaid_count ?? 0} auto-imported · {data?.manual_count ?? 0} manual · {filtered.length} shown
           </p>
         </div>
         <div className="flex gap-2">
-          <button
-            onClick={triggerSync}
-            disabled={syncing}
-            className="inline-flex items-center px-4 py-2 bg-white border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50 disabled:opacity-50"
-          >
-            <RefreshCw className={`h-4 w-4 mr-2 ${syncing ? 'animate-spin' : ''}`} />
+          <Button variant="ghost" onClick={triggerSync} disabled={syncing}>
+            <RefreshCw className={cn('h-4 w-4', syncing && 'animate-spin')} />
             {syncing ? 'Syncing…' : 'Sync'}
-          </button>
-          <button
-            onClick={() => setIsModalOpen(true)}
-            className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
-          >
-            <Plus className="h-4 w-4 mr-2" /> Manual Entry
-          </button>
+          </Button>
+          <Button onClick={() => setIsModalOpen(true)}>
+            <Plus className="h-4 w-4" /> Manual Entry
+          </Button>
         </div>
       </div>
 
       {/* Filters */}
       <div className="flex flex-wrap items-center gap-2">
-        <span className="text-xs uppercase tracking-wide text-gray-500 mr-1">Source</span>
+        <span className="font-mono text-[10.5px] uppercase tracking-wide text-ever-dim mr-1">Source</span>
         {(['all', 'plaid', 'manual'] as const).map(s => (
           <button
             key={s}
             onClick={() => setSourceFilter(s)}
-            className={`px-3 py-1 rounded-md text-xs font-medium capitalize ${
-              sourceFilter === s ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-            }`}
+            className={cn(
+              'rounded-lg px-3 py-1 text-xs font-medium capitalize transition',
+              sourceFilter === s
+                ? 'bg-ever-lime font-bold text-ever-lime-ink'
+                : 'border border-ever-line text-ever-dim hover:text-ever-ink',
+            )}
           >
             {s}
           </button>
         ))}
-        <span className="text-xs uppercase tracking-wide text-gray-500 ml-4 mr-1">Type</span>
+        <span className="font-mono text-[10.5px] uppercase tracking-wide text-ever-dim ml-4 mr-1">Type</span>
         {(['all', 'buy', 'sell', 'dividend', 'fee', 'other'] as const).map(t => (
           <button
             key={t}
             onClick={() => setTypeFilter(t)}
-            className={`px-3 py-1 rounded-md text-xs font-medium capitalize ${
-              typeFilter === t ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-            }`}
+            className={cn(
+              'rounded-lg px-3 py-1 text-xs font-medium capitalize transition',
+              typeFilter === t
+                ? 'bg-ever-lime font-bold text-ever-lime-ink'
+                : 'border border-ever-line text-ever-dim hover:text-ever-ink',
+            )}
           >
             {t}
           </button>
         ))}
-        <span className="text-xs uppercase tracking-wide text-gray-500 ml-4 mr-1">Window</span>
+        <span className="font-mono text-[10.5px] uppercase tracking-wide text-ever-dim ml-4 mr-1">Window</span>
         {[30, 90, 365, 1825].map(d => (
           <button
             key={d}
             onClick={() => setDays(d)}
-            className={`px-3 py-1 rounded-md text-xs font-medium ${
-              days === d ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-            }`}
+            className={cn(
+              'rounded-lg px-3 py-1 text-xs font-medium transition',
+              days === d
+                ? 'bg-ever-lime font-bold text-ever-lime-ink'
+                : 'border border-ever-line text-ever-dim hover:text-ever-ink',
+            )}
           >
             {d === 30 ? '30D' : d === 90 ? '90D' : d === 365 ? '1Y' : '5Y'}
           </button>
@@ -187,14 +191,14 @@ const TradeJournal: React.FC = () => {
       </div>
 
       {filtered.length === 0 ? (
-        <div className="bg-white rounded-lg border border-dashed border-gray-300 p-12 text-center text-gray-500">
+        <Card className="border-dashed p-12 text-center text-ever-dim">
           No trades match these filters.
-        </div>
+        </Card>
       ) : (
-        <div className="bg-white rounded-lg shadow-sm border overflow-hidden">
-          <table className="min-w-full divide-y divide-gray-200">
-            <thead className="bg-gray-50">
-              <tr className="text-xs text-gray-500 uppercase tracking-wide">
+        <Card className="overflow-hidden p-0">
+          <table className="min-w-full divide-y divide-ever-line">
+            <thead>
+              <tr className="font-mono text-[10.5px] uppercase tracking-wide text-ever-dim">
                 <th className="px-4 py-3 text-left">Date</th>
                 <th className="px-4 py-3 text-left">Ticker</th>
                 <th className="px-4 py-3 text-left">Type</th>
@@ -205,34 +209,34 @@ const TradeJournal: React.FC = () => {
                 <th className="px-4 py-3 text-center">Source</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-gray-100">
+            <tbody className="divide-y divide-ever-line">
               {filtered.map(e => (
-                <tr key={`${e.source}-${e.id}`} className="hover:bg-gray-50">
-                  <td className="px-4 py-3 text-sm text-gray-700 whitespace-nowrap">{e.date || '—'}</td>
+                <tr key={`${e.source}-${e.id}`} className="hover:bg-white/5">
+                  <td className="px-4 py-3 text-sm text-ever-dim whitespace-nowrap">{e.date || '—'}</td>
                   <td className="px-4 py-3">
-                    <div className="font-mono font-medium text-gray-900">{e.ticker || '—'}</div>
-                    {e.name && <div className="text-xs text-gray-500 truncate max-w-xs" title={e.name}>{e.name}</div>}
+                    <div className="font-mono font-medium text-ever-ink">{e.ticker || '—'}</div>
+                    {e.name && <div className="text-xs text-ever-dim truncate max-w-xs" title={e.name}>{e.name}</div>}
                   </td>
                   <td className="px-4 py-3">
-                    <span className={`inline-block text-xs px-2 py-0.5 rounded-full font-medium capitalize ${typeStyle(e.type)}`}>
+                    <span className={cn('inline-block text-xs px-2 py-0.5 rounded-full font-medium capitalize', typeStyle(e.type))}>
                       {e.type || '—'}
                     </span>
-                    {e.subtype && <div className="text-xs text-gray-500 mt-0.5">{e.subtype}</div>}
+                    {e.subtype && <div className="text-xs text-ever-dim mt-0.5">{e.subtype}</div>}
                   </td>
-                  <td className="px-4 py-3 text-sm text-right tabular-nums">{fmtQty(e.quantity)}</td>
-                  <td className="px-4 py-3 text-sm text-right tabular-nums">{fmt(e.price)}</td>
-                  <td className="px-4 py-3 text-sm text-right tabular-nums font-medium">{fmt(e.amount)}</td>
+                  <td className="px-4 py-3 text-sm text-right tabular-nums text-ever-ink">{fmtQty(e.quantity)}</td>
+                  <td className="px-4 py-3 text-sm text-right tabular-nums text-ever-ink">{fmt(e.price)}</td>
+                  <td className="px-4 py-3 text-sm text-right tabular-nums font-medium text-ever-ink">{fmt(e.amount)}</td>
                   <td className="px-4 py-3 text-sm">
-                    <div className="text-gray-900">{e.institution_name || '—'}</div>
-                    {e.account_name && <div className="text-xs text-gray-500">{e.account_name}</div>}
+                    <div className="text-ever-ink">{e.institution_name || '—'}</div>
+                    {e.account_name && <div className="text-xs text-ever-dim">{e.account_name}</div>}
                   </td>
                   <td className="px-4 py-3 text-center">
                     {e.source === 'plaid' ? (
-                      <span className="inline-flex items-center text-xs text-blue-700 bg-blue-50 px-2 py-0.5 rounded-full">
+                      <span className="inline-flex items-center text-xs text-ever-lime bg-white/5 px-2 py-0.5 rounded-full">
                         <Zap className="h-3 w-3 mr-1" /> Plaid
                       </span>
                     ) : (
-                      <span className="inline-flex items-center text-xs text-gray-700 bg-gray-100 px-2 py-0.5 rounded-full">
+                      <span className="inline-flex items-center text-xs text-ever-dim bg-white/5 px-2 py-0.5 rounded-full">
                         <PencilLine className="h-3 w-3 mr-1" /> Manual
                       </span>
                     )}
@@ -241,7 +245,7 @@ const TradeJournal: React.FC = () => {
               ))}
             </tbody>
           </table>
-        </div>
+        </Card>
       )}
 
       <NewTradeModal

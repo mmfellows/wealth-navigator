@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import axios from 'axios';
 import { ChevronDown, ChevronRight, RefreshCw } from 'lucide-react';
+import { Button } from '../components/ui';
 
 interface HoldingRow {
   source: 'plaid' | 'manual';
@@ -230,27 +231,27 @@ const Holdings: React.FC = () => {
 
   const renderFlatRow = (h: HoldingRow) => {
     const pnl = (h.current_value ?? 0) - (h.cost_basis_total ?? 0);
-    const pnlClass = pnl >= 0 ? 'text-green-600' : 'text-red-600';
+    const pnlClass = pnl >= 0 ? 'text-ever-pos' : 'text-ever-neg';
     const pnlPct = (h.cost_basis_total ?? 0) > 0 ? (pnl / (h.cost_basis_total as number)) * 100 : null;
     return (
-      <tr key={h.holding_id} className="border-t border-gray-100">
+      <tr key={h.holding_id} className="border-t border-ever-line">
         <td className="px-5 py-3">
-          <div className="font-mono font-medium text-gray-900">{h.ticker || '—'}</div>
-          <div className="text-xs text-gray-500">{h.name}</div>
+          <div className="font-mono font-medium text-ever-ink">{h.ticker || '—'}</div>
+          <div className="text-xs text-ever-dim">{h.name}</div>
         </td>
         <td className="px-5 py-3">
-          <div className="text-gray-900">{h.institution_name || h.account_name}</div>
-          <div className="text-xs text-gray-500">
+          <div className="text-ever-ink">{h.institution_name || h.account_name}</div>
+          <div className="text-xs text-ever-dim">
             {h.account_name}{h.account_subtype && ` · ${h.account_subtype}`}
             {h.source === 'manual' && ' · manual'}
           </div>
         </td>
-        <td className="px-5 py-3 text-right tabular-nums">{fmtQty(h.quantity)}</td>
-        <td className="px-5 py-3 text-right tabular-nums">{fmtMoney(h.current_price)}</td>
-        <td className="px-5 py-3 text-right tabular-nums text-gray-500">{fmtMoney(h.cost_basis_per_share)}</td>
-        <td className="px-5 py-3 text-right tabular-nums font-medium">{fmtMoney(h.current_value)}</td>
-        <td className="px-5 py-3 text-right tabular-nums text-gray-700">{fmtShare(pctOfInvested(h.current_value))}</td>
-        <td className="px-5 py-3 text-right tabular-nums text-gray-500">{fmtMoney(h.cost_basis_total)}</td>
+        <td className="px-5 py-3 text-right tabular-nums text-ever-ink">{fmtQty(h.quantity)}</td>
+        <td className="px-5 py-3 text-right tabular-nums text-ever-ink">{fmtMoney(h.current_price)}</td>
+        <td className="px-5 py-3 text-right tabular-nums text-ever-dim">{fmtMoney(h.cost_basis_per_share)}</td>
+        <td className="px-5 py-3 text-right tabular-nums font-medium text-ever-ink">{fmtMoney(h.current_value)}</td>
+        <td className="px-5 py-3 text-right tabular-nums text-ever-dim">{fmtShare(pctOfInvested(h.current_value))}</td>
+        <td className="px-5 py-3 text-right tabular-nums text-ever-dim">{fmtMoney(h.cost_basis_total)}</td>
         <td className={`px-5 py-3 text-right tabular-nums font-medium pr-5 ${pnlClass}`}>
           {fmtMoney(pnl)}
           {pnlPct != null && <div className="text-xs font-normal">{fmtPct(pnlPct)}</div>}
@@ -263,39 +264,39 @@ const Holdings: React.FC = () => {
     <div className="space-y-8">
       <div className="flex items-end justify-between flex-wrap gap-3">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900">Holdings</h1>
-          <p className="text-gray-600 mt-1">Every position across every account.</p>
+          <h1 className="text-2xl font-extrabold tracking-tight text-ever-ink md:text-[26px]">Holdings</h1>
+          <p className="mt-1 text-sm text-ever-dim">Every position across every account.</p>
           {livePricesAt && (
-            <p className="text-xs text-gray-500 mt-1">
+            <p className="text-xs text-ever-dim mt-1">
               Live prices · {livePricesAt.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}
             </p>
           )}
         </div>
         <div className="flex items-center gap-3">
-          <label className="inline-flex items-center text-sm text-gray-700 select-none">
+          <label className="inline-flex items-center text-sm text-ever-dim select-none">
             <input
               type="checkbox"
-              className="h-4 w-4 mr-2 rounded border-gray-300"
+              className="h-4 w-4 mr-2 rounded border-ever-line bg-ever-bg accent-ever-lime"
               checked={grouped}
               onChange={(e) => setGrouped(e.target.checked)}
             />
             Group by ticker
           </label>
-          <button
+          <Button
+            variant="ghost"
             onClick={() => load(true)}
             disabled={refreshing || loading}
-            className="inline-flex items-center px-3 py-2 text-sm bg-white border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50 disabled:opacity-50"
           >
-            <RefreshCw className={`h-4 w-4 mr-2 ${refreshing ? 'animate-spin' : ''}`} />
+            <RefreshCw className={`h-4 w-4 ${refreshing ? 'animate-spin' : ''}`} />
             {refreshing ? 'Fetching…' : 'Refresh prices'}
-          </button>
+          </Button>
         </div>
       </div>
 
       {loading ? (
-        <div className="text-gray-500">Loading…</div>
+        <div className="text-ever-dim">Loading…</div>
       ) : rows.length === 0 ? (
-        <div className="bg-white rounded-lg border border-dashed border-gray-300 p-12 text-center text-gray-500">
+        <div className="rounded-ever border border-dashed border-ever-line bg-ever-card p-12 text-center text-ever-dim">
           No holdings yet.
         </div>
       ) : (
@@ -303,10 +304,10 @@ const Holdings: React.FC = () => {
           {/* Investments */}
           {investments.length > 0 && (
             <section>
-              <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-2">Investments</h2>
-              <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
+              <h2 className="text-sm font-semibold text-ever-dim uppercase tracking-wide mb-2">Investments</h2>
+              <div className="rounded-ever border border-ever-line bg-ever-card overflow-hidden">
                 <table className="w-full text-sm">
-                  <thead className="bg-gray-50 text-gray-500 text-xs uppercase">
+                  <thead className="bg-white/5 text-ever-dim text-xs uppercase">
                     <tr>
                       <th className="text-left px-5 py-2 cursor-pointer select-none" onClick={() => onSort('ticker')}>Ticker{arrow('ticker')}</th>
                       <th className="text-left px-5 py-2 cursor-pointer select-none" onClick={() => onSort('account')}>
@@ -325,50 +326,50 @@ const Holdings: React.FC = () => {
                     {grouped
                       ? sortedGroups.map(g => {
                           const pnl = g.current_value - g.cost_basis_total;
-                          const pnlClass = pnl >= 0 ? 'text-green-600' : 'text-red-600';
+                          const pnlClass = pnl >= 0 ? 'text-ever-pos' : 'text-ever-neg';
                           const pnlPct = g.cost_basis_total > 0 ? (pnl / g.cost_basis_total) * 100 : null;
                           const multi = g.accounts.length > 1;
                           const isOpen = expanded.has(g.key);
                           return (
                             <React.Fragment key={g.key}>
                               <tr
-                                className={`border-t border-gray-100 ${multi ? 'cursor-pointer hover:bg-gray-50' : ''}`}
+                                className={`border-t border-ever-line ${multi ? 'cursor-pointer hover:bg-white/5' : ''}`}
                                 onClick={() => multi && toggleGroup(g.key)}
                               >
                                 <td className="px-5 py-3">
                                   <div className="flex items-center gap-1">
                                     {multi ? (
-                                      isOpen ? <ChevronDown className="h-4 w-4 text-gray-400" /> : <ChevronRight className="h-4 w-4 text-gray-400" />
+                                      isOpen ? <ChevronDown className="h-4 w-4 text-ever-faint" /> : <ChevronRight className="h-4 w-4 text-ever-faint" />
                                     ) : (
                                       <span className="w-4" />
                                     )}
                                     <div>
-                                      <div className="font-mono font-medium text-gray-900">{g.ticker || '—'}</div>
-                                      <div className="text-xs text-gray-500">{g.name}</div>
+                                      <div className="font-mono font-medium text-ever-ink">{g.ticker || '—'}</div>
+                                      <div className="text-xs text-ever-dim">{g.name}</div>
                                     </div>
                                   </div>
                                 </td>
                                 <td className="px-5 py-3">
                                   {multi ? (
-                                    <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs bg-gray-100 text-gray-700 border border-gray-200">
+                                    <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs bg-white/5 text-ever-dim border border-ever-line">
                                       {g.accounts.length} accounts
                                     </span>
                                   ) : (
                                     <>
-                                      <div className="text-gray-900">{g.accounts[0].institution_name || g.accounts[0].account_name}</div>
-                                      <div className="text-xs text-gray-500">
+                                      <div className="text-ever-ink">{g.accounts[0].institution_name || g.accounts[0].account_name}</div>
+                                      <div className="text-xs text-ever-dim">
                                         {g.accounts[0].account_name}{g.accounts[0].account_subtype && ` · ${g.accounts[0].account_subtype}`}
                                         {g.accounts[0].source === 'manual' && ' · manual'}
                                       </div>
                                     </>
                                   )}
                                 </td>
-                                <td className="px-5 py-3 text-right tabular-nums">{fmtQty(g.quantity)}</td>
-                                <td className="px-5 py-3 text-right tabular-nums">{fmtMoney(g.current_price)}</td>
-                                <td className="px-5 py-3 text-right tabular-nums text-gray-500">{fmtMoney(g.cost_basis_per_share)}</td>
-                                <td className="px-5 py-3 text-right tabular-nums font-medium">{fmtMoney(g.current_value)}</td>
-                                <td className="px-5 py-3 text-right tabular-nums text-gray-700">{fmtShare(pctOfInvested(g.current_value))}</td>
-                                <td className="px-5 py-3 text-right tabular-nums text-gray-500">{fmtMoney(g.cost_basis_total)}</td>
+                                <td className="px-5 py-3 text-right tabular-nums text-ever-ink">{fmtQty(g.quantity)}</td>
+                                <td className="px-5 py-3 text-right tabular-nums text-ever-ink">{fmtMoney(g.current_price)}</td>
+                                <td className="px-5 py-3 text-right tabular-nums text-ever-dim">{fmtMoney(g.cost_basis_per_share)}</td>
+                                <td className="px-5 py-3 text-right tabular-nums font-medium text-ever-ink">{fmtMoney(g.current_value)}</td>
+                                <td className="px-5 py-3 text-right tabular-nums text-ever-dim">{fmtShare(pctOfInvested(g.current_value))}</td>
+                                <td className="px-5 py-3 text-right tabular-nums text-ever-dim">{fmtMoney(g.cost_basis_total)}</td>
                                 <td className={`px-5 py-3 text-right tabular-nums font-medium pr-5 ${pnlClass}`}>
                                   {fmtMoney(pnl)}
                                   {pnlPct != null && <div className="text-xs font-normal">{fmtPct(pnlPct)}</div>}
@@ -376,23 +377,23 @@ const Holdings: React.FC = () => {
                               </tr>
                               {multi && isOpen && g.accounts.map(h => {
                                 const hPnl = (h.current_value ?? 0) - (h.cost_basis_total ?? 0);
-                                const hPnlClass = hPnl >= 0 ? 'text-green-600' : 'text-red-600';
+                                const hPnlClass = hPnl >= 0 ? 'text-ever-pos' : 'text-ever-neg';
                                 return (
-                                  <tr key={h.holding_id} className="border-t border-gray-100 bg-gray-50/50">
-                                    <td className="px-5 py-2 pl-12 text-xs text-gray-500">—</td>
+                                  <tr key={h.holding_id} className="border-t border-ever-line bg-white/5">
+                                    <td className="px-5 py-2 pl-12 text-xs text-ever-dim">—</td>
                                     <td className="px-5 py-2">
-                                      <div className="text-gray-800 text-sm">{h.institution_name || h.account_name}</div>
-                                      <div className="text-xs text-gray-500">
+                                      <div className="text-ever-ink text-sm">{h.institution_name || h.account_name}</div>
+                                      <div className="text-xs text-ever-dim">
                                         {h.account_name}{h.account_subtype && ` · ${h.account_subtype}`}
                                         {h.source === 'manual' && ' · manual'}
                                       </div>
                                     </td>
-                                    <td className="px-5 py-2 text-right tabular-nums text-sm">{fmtQty(h.quantity)}</td>
-                                    <td className="px-5 py-2 text-right tabular-nums text-sm">{fmtMoney(h.current_price)}</td>
-                                    <td className="px-5 py-2 text-right tabular-nums text-sm text-gray-500">{fmtMoney(h.cost_basis_per_share)}</td>
-                                    <td className="px-5 py-2 text-right tabular-nums text-sm">{fmtMoney(h.current_value)}</td>
-                                    <td className="px-5 py-2 text-right tabular-nums text-sm text-gray-500">{fmtShare(pctOfInvested(h.current_value))}</td>
-                                    <td className="px-5 py-2 text-right tabular-nums text-sm text-gray-500">{fmtMoney(h.cost_basis_total)}</td>
+                                    <td className="px-5 py-2 text-right tabular-nums text-sm text-ever-ink">{fmtQty(h.quantity)}</td>
+                                    <td className="px-5 py-2 text-right tabular-nums text-sm text-ever-ink">{fmtMoney(h.current_price)}</td>
+                                    <td className="px-5 py-2 text-right tabular-nums text-sm text-ever-dim">{fmtMoney(h.cost_basis_per_share)}</td>
+                                    <td className="px-5 py-2 text-right tabular-nums text-sm text-ever-ink">{fmtMoney(h.current_value)}</td>
+                                    <td className="px-5 py-2 text-right tabular-nums text-sm text-ever-dim">{fmtShare(pctOfInvested(h.current_value))}</td>
+                                    <td className="px-5 py-2 text-right tabular-nums text-sm text-ever-dim">{fmtMoney(h.cost_basis_total)}</td>
                                     <td className={`px-5 py-2 text-right tabular-nums text-sm pr-5 ${hPnlClass}`}>{fmtMoney(hPnl)}</td>
                                   </tr>
                                 );
@@ -402,13 +403,13 @@ const Holdings: React.FC = () => {
                         })
                       : sortedFlat.map(renderFlatRow)}
                   </tbody>
-                  <tfoot className="bg-gray-50 text-sm">
-                    <tr className="border-t border-gray-200">
-                      <td className="px-5 py-3 font-semibold text-gray-900" colSpan={5}>Investments total</td>
-                      <td className="px-5 py-3 text-right tabular-nums font-semibold text-gray-900">{fmtMoney(totals.invValue)}</td>
-                      <td className="px-5 py-3 text-right tabular-nums text-gray-700">100%</td>
-                      <td className="px-5 py-3 text-right tabular-nums text-gray-700">{fmtMoney(totals.invCost)}</td>
-                      <td className={`px-5 py-3 text-right tabular-nums font-semibold pr-5 ${totals.invPnl >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                  <tfoot className="bg-white/5 text-sm">
+                    <tr className="border-t border-ever-line">
+                      <td className="px-5 py-3 font-semibold text-ever-ink" colSpan={5}>Investments total</td>
+                      <td className="px-5 py-3 text-right tabular-nums font-semibold text-ever-ink">{fmtMoney(totals.invValue)}</td>
+                      <td className="px-5 py-3 text-right tabular-nums text-ever-dim">100%</td>
+                      <td className="px-5 py-3 text-right tabular-nums text-ever-dim">{fmtMoney(totals.invCost)}</td>
+                      <td className={`px-5 py-3 text-right tabular-nums font-semibold pr-5 ${totals.invPnl >= 0 ? 'text-ever-pos' : 'text-ever-neg'}`}>
                         {fmtMoney(totals.invPnl)}
                         <div className="text-xs font-normal">{fmtPct(totals.invPnlPct)}</div>
                       </td>
@@ -422,10 +423,10 @@ const Holdings: React.FC = () => {
           {/* Cash */}
           {cash.length > 0 && (
             <section>
-              <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-2">Cash &amp; currency</h2>
-              <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
+              <h2 className="text-sm font-semibold text-ever-dim uppercase tracking-wide mb-2">Cash &amp; currency</h2>
+              <div className="rounded-ever border border-ever-line bg-ever-card overflow-hidden">
                 <table className="w-full text-sm">
-                  <thead className="bg-gray-50 text-gray-500 text-xs uppercase">
+                  <thead className="bg-white/5 text-ever-dim text-xs uppercase">
                     <tr>
                       <th className="text-left px-5 py-2">Account</th>
                       <th className="text-left px-5 py-2">Currency</th>
@@ -436,22 +437,22 @@ const Holdings: React.FC = () => {
                     {[...cash]
                       .sort((a, b) => (b.current_value ?? 0) - (a.current_value ?? 0))
                       .map(h => (
-                        <tr key={h.holding_id} className="border-t border-gray-100">
+                        <tr key={h.holding_id} className="border-t border-ever-line">
                           <td className="px-5 py-3">
-                            <div className="text-gray-900">{h.institution_name || h.account_name}</div>
-                            <div className="text-xs text-gray-500">
+                            <div className="text-ever-ink">{h.institution_name || h.account_name}</div>
+                            <div className="text-xs text-ever-dim">
                               {h.account_name}{h.account_subtype && ` · ${h.account_subtype}`}
                             </div>
                           </td>
-                          <td className="px-5 py-3 font-mono text-gray-700">{cashCurrency(h)}</td>
-                          <td className="px-5 py-3 text-right tabular-nums font-medium pr-5">{fmtMoney(h.current_value)}</td>
+                          <td className="px-5 py-3 font-mono text-ever-dim">{cashCurrency(h)}</td>
+                          <td className="px-5 py-3 text-right tabular-nums font-medium pr-5 text-ever-ink">{fmtMoney(h.current_value)}</td>
                         </tr>
                       ))}
                   </tbody>
-                  <tfoot className="bg-gray-50 text-sm">
-                    <tr className="border-t border-gray-200">
-                      <td className="px-5 py-3 font-semibold text-gray-900" colSpan={2}>Cash total</td>
-                      <td className="px-5 py-3 text-right tabular-nums font-semibold text-gray-900 pr-5">{fmtMoney(totals.cashValue)}</td>
+                  <tfoot className="bg-white/5 text-sm">
+                    <tr className="border-t border-ever-line">
+                      <td className="px-5 py-3 font-semibold text-ever-ink" colSpan={2}>Cash total</td>
+                      <td className="px-5 py-3 text-right tabular-nums font-semibold text-ever-ink pr-5">{fmtMoney(totals.cashValue)}</td>
                     </tr>
                   </tfoot>
                 </table>
@@ -461,9 +462,9 @@ const Holdings: React.FC = () => {
 
           {/* Grand total */}
           {(investments.length > 0 && cash.length > 0) && (
-            <div className="bg-white rounded-lg border border-gray-200 px-5 py-4 flex items-center justify-between">
-              <div className="text-sm font-semibold text-gray-700 uppercase tracking-wide">Grand total</div>
-              <div className="text-2xl font-bold text-gray-900 tabular-nums">{fmtMoney(totals.grandTotal)}</div>
+            <div className="rounded-ever border border-ever-line bg-ever-card px-5 py-4 flex items-center justify-between">
+              <div className="text-sm font-semibold text-ever-dim uppercase tracking-wide">Grand total</div>
+              <div className="text-2xl font-bold text-ever-ink tabular-nums">{fmtMoney(totals.grandTotal)}</div>
             </div>
           )}
         </>

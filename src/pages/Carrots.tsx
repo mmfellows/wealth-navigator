@@ -1,7 +1,10 @@
 import React, { useState } from 'react';
 import { authedFetch } from '../services/authRedirect';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Gift, Check, X, Plus, Target, DollarSign, AlertCircle } from 'lucide-react';
+import { Gift, X, Plus, Target, DollarSign } from 'lucide-react';
+import { Card, Button, StatCard } from '../components/ui';
+import { cn } from '../lib/cn';
+import { everPill } from '../lib/categoryColors';
 
 interface Carrot {
   id: number;
@@ -176,7 +179,7 @@ const Carrots: React.FC = () => {
   if (isLoading) {
     return (
       <div className="flex justify-center items-center h-64">
-        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-600"></div>
+        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-ever-lime"></div>
       </div>
     );
   }
@@ -184,88 +187,53 @@ const Carrots: React.FC = () => {
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
-        <h1 className="text-3xl font-bold text-gray-900">Carrots</h1>
-        <button
+        <h1 className="text-2xl font-extrabold tracking-tight text-ever-ink md:text-[26px]">Carrots</h1>
+        <Button
           onClick={() => {
             setEditingCarrot(null);
             resetForm();
             setShowAddModal(true);
           }}
-          className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 flex items-center"
         >
-          <Plus className="h-4 w-4 mr-2" />
+          <Plus className="h-4 w-4" />
           Add Carrot
-        </button>
+        </Button>
       </div>
 
       {/* Stats Cards */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-        <div className="bg-white rounded-lg p-6 shadow-sm border">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium text-gray-600">Total Carrots</p>
-              <p className="text-2xl font-bold text-gray-900">{stats?.total || 0}</p>
-            </div>
-            <Gift className="h-10 w-10 text-gray-400" />
-          </div>
-        </div>
-
-        <div className="bg-white rounded-lg p-6 shadow-sm border">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium text-gray-600">Goals Completed</p>
-              <p className="text-2xl font-bold text-green-600">{stats?.goals_completed || 0}</p>
-            </div>
-            <Target className="h-10 w-10 text-green-400" />
-          </div>
-        </div>
-
-        <div className="bg-white rounded-lg p-6 shadow-sm border">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium text-gray-600">Ready to Buy</p>
-              <p className="text-2xl font-bold text-blue-600">{stats?.ready_to_buy || 0}</p>
-            </div>
-            <AlertCircle className="h-10 w-10 text-blue-400" />
-          </div>
-        </div>
-
-        <div className="bg-white rounded-lg p-6 shadow-sm border">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium text-gray-600">Purchased</p>
-              <p className="text-2xl font-bold text-purple-600">{stats?.purchased_count || 0}</p>
-            </div>
-            <Check className="h-10 w-10 text-purple-400" />
-          </div>
-        </div>
+        <StatCard label="Total Carrots" value={stats?.total || 0} dot="var(--ever-lime)" />
+        <StatCard label="Goals Completed" value={stats?.goals_completed || 0} dot="var(--ever-pos)" />
+        <StatCard label="Ready to Buy" value={stats?.ready_to_buy || 0} dot="var(--ever-orange)" />
+        <StatCard label="Purchased" value={stats?.purchased_count || 0} dot="var(--ever-violet)" />
       </div>
 
       {/* Carrots List */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {carrots.map((carrot: Carrot) => (
-          <div
+          <Card
             key={carrot.id}
-            className={`bg-white rounded-lg p-6 shadow-sm border-2 ${
+            className={cn(
+              'border-2',
               carrot.is_purchased
-                ? 'border-purple-300 bg-purple-50'
+                ? 'border-ever-violet'
                 : carrot.is_goal_completed
-                ? 'border-green-300 bg-green-50'
-                : 'border-gray-200'
-            }`}
+                ? 'border-ever-lime'
+                : 'border-ever-line',
+            )}
           >
             <div className="flex justify-between items-start mb-4">
               <div className="flex-1">
-                <h3 className="text-lg font-semibold text-gray-900 mb-1">
+                <h3 className="text-lg font-semibold text-ever-ink mb-1">
                   {carrot.item_name}
                 </h3>
-                <span className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${priorityColors[carrot.priority]}`}>
+                <span className={cn('inline-flex px-2 py-1 text-xs font-medium rounded-full', everPill(priorityColors[carrot.priority]))}>
                   {carrot.priority}
                 </span>
               </div>
               <button
                 onClick={() => deleteCarrot.mutate(carrot.id)}
-                className="text-red-500 hover:text-red-700"
+                className="text-ever-dim hover:text-ever-neg transition"
               >
                 <X className="h-5 w-5" />
               </button>
@@ -273,12 +241,12 @@ const Carrots: React.FC = () => {
 
             <div className="space-y-3 mb-4">
               <div>
-                <p className="text-sm font-medium text-gray-600 mb-1">Goal:</p>
-                <p className="text-sm text-gray-700">{carrot.goal_description}</p>
+                <p className="text-sm font-medium text-ever-dim mb-1">Goal:</p>
+                <p className="text-sm text-ever-ink">{carrot.goal_description}</p>
               </div>
 
               {carrot.estimated_cost && (
-                <div className="flex items-center text-sm text-gray-600">
+                <div className="flex items-center text-sm text-ever-dim">
                   <DollarSign className="h-4 w-4 mr-1" />
                   ${carrot.estimated_cost.toFixed(2)}
                 </div>
@@ -286,8 +254,8 @@ const Carrots: React.FC = () => {
 
               {carrot.notes && (
                 <div>
-                  <p className="text-sm font-medium text-gray-600 mb-1">Notes:</p>
-                  <p className="text-sm text-gray-700">{carrot.notes}</p>
+                  <p className="text-sm font-medium text-ever-dim mb-1">Notes:</p>
+                  <p className="text-sm text-ever-ink">{carrot.notes}</p>
                 </div>
               )}
             </div>
@@ -295,11 +263,12 @@ const Carrots: React.FC = () => {
             <div className="space-y-2">
               <button
                 onClick={() => toggleGoalCompleted(carrot)}
-                className={`w-full flex items-center justify-center px-4 py-2 rounded-md text-sm font-medium ${
+                className={cn(
+                  'w-full flex items-center justify-center px-4 py-2 rounded-[11px] text-sm font-medium transition',
                   carrot.is_goal_completed
-                    ? 'bg-green-600 text-white hover:bg-green-700'
-                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                }`}
+                    ? 'bg-ever-lime text-ever-lime-ink font-semibold'
+                    : 'border border-ever-line text-ever-dim hover:text-ever-ink hover:bg-white/5',
+                )}
               >
                 <Target className="h-4 w-4 mr-2" />
                 {carrot.is_goal_completed ? 'Goal Completed!' : 'Complete Goal'}
@@ -308,46 +277,44 @@ const Carrots: React.FC = () => {
               <button
                 onClick={() => togglePurchased(carrot)}
                 disabled={!carrot.is_goal_completed}
-                className={`w-full flex items-center justify-center px-4 py-2 rounded-md text-sm font-medium ${
+                className={cn(
+                  'w-full flex items-center justify-center px-4 py-2 rounded-[11px] text-sm font-medium transition',
                   carrot.is_purchased
-                    ? 'bg-purple-600 text-white hover:bg-purple-700'
+                    ? 'bg-ever-violet text-white font-semibold'
                     : carrot.is_goal_completed
-                    ? 'bg-blue-600 text-white hover:bg-blue-700'
-                    : 'bg-gray-300 text-gray-500 cursor-not-allowed'
-                }`}
+                    ? 'border border-ever-lime text-ever-ink hover:bg-white/5'
+                    : 'border border-ever-line text-ever-faint cursor-not-allowed',
+                )}
               >
                 <Gift className="h-4 w-4 mr-2" />
                 {carrot.is_purchased ? 'Purchased!' : 'Mark as Purchased'}
               </button>
 
-              <button
-                onClick={() => handleEdit(carrot)}
-                className="w-full px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50"
-              >
+              <Button variant="ghost" onClick={() => handleEdit(carrot)} className="w-full">
                 Edit
-              </button>
+              </Button>
             </div>
-          </div>
+          </Card>
         ))}
       </div>
 
       {carrots.length === 0 && (
         <div className="text-center py-12">
-          <Gift className="h-12 w-12 text-gray-300 mx-auto mb-4" />
-          <p className="text-gray-500">No carrots yet. Add your first reward goal!</p>
+          <Gift className="h-12 w-12 text-ever-faint mx-auto mb-4" />
+          <p className="text-ever-dim">No carrots yet. Add your first reward goal!</p>
         </div>
       )}
 
       {/* Add/Edit Modal */}
       {showAddModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-8 max-w-md w-full mx-4">
-            <h2 className="text-2xl font-bold text-gray-900 mb-6">
+          <div className="bg-ever-card border border-ever-line rounded-ever text-ever-ink p-8 max-w-md w-full mx-4">
+            <h2 className="text-2xl font-bold text-ever-ink mb-6">
               {editingCarrot ? 'Edit Carrot' : 'Add New Carrot'}
             </h2>
             <form onSubmit={handleSubmit} className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-sm font-medium text-ever-dim mb-1">
                   Item Name *
                 </label>
                 <input
@@ -355,27 +322,27 @@ const Carrots: React.FC = () => {
                   required
                   value={formData.item_name}
                   onChange={(e) => setFormData({ ...formData, item_name: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+                  className="w-full px-3 py-2 bg-ever-bg border border-ever-line text-ever-ink placeholder-ever-faint rounded-lg focus:outline-none focus:border-ever-lime"
                   placeholder="e.g., New Headphones"
                 />
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-sm font-medium text-ever-dim mb-1">
                   Goal to Complete *
                 </label>
                 <textarea
                   required
                   value={formData.goal_description}
                   onChange={(e) => setFormData({ ...formData, goal_description: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+                  className="w-full px-3 py-2 bg-ever-bg border border-ever-line text-ever-ink placeholder-ever-faint rounded-lg focus:outline-none focus:border-ever-lime"
                   rows={3}
                   placeholder="e.g., Complete 10 workout sessions"
                 />
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-sm font-medium text-ever-dim mb-1">
                   Estimated Cost
                 </label>
                 <input
@@ -383,19 +350,19 @@ const Carrots: React.FC = () => {
                   step="0.01"
                   value={formData.estimated_cost}
                   onChange={(e) => setFormData({ ...formData, estimated_cost: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+                  className="w-full px-3 py-2 bg-ever-bg border border-ever-line text-ever-ink placeholder-ever-faint rounded-lg focus:outline-none focus:border-ever-lime"
                   placeholder="0.00"
                 />
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-sm font-medium text-ever-dim mb-1">
                   Priority
                 </label>
                 <select
                   value={formData.priority}
                   onChange={(e) => setFormData({ ...formData, priority: e.target.value as 'low' | 'medium' | 'high' })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+                  className="w-full px-3 py-2 bg-ever-bg border border-ever-line text-ever-ink rounded-lg focus:outline-none focus:border-ever-lime"
                 >
                   <option value="low">Low</option>
                   <option value="medium">Medium</option>
@@ -404,36 +371,34 @@ const Carrots: React.FC = () => {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-sm font-medium text-ever-dim mb-1">
                   Notes
                 </label>
                 <textarea
                   value={formData.notes}
                   onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+                  className="w-full px-3 py-2 bg-ever-bg border border-ever-line text-ever-ink placeholder-ever-faint rounded-lg focus:outline-none focus:border-ever-lime"
                   rows={2}
                   placeholder="Any additional notes..."
                 />
               </div>
 
               <div className="flex space-x-3 pt-4">
-                <button
-                  type="submit"
-                  className="flex-1 bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700"
-                >
+                <Button type="submit" className="flex-1">
                   {editingCarrot ? 'Update' : 'Add'} Carrot
-                </button>
-                <button
+                </Button>
+                <Button
                   type="button"
+                  variant="ghost"
+                  className="flex-1"
                   onClick={() => {
                     setShowAddModal(false);
                     setEditingCarrot(null);
                     resetForm();
                   }}
-                  className="flex-1 bg-gray-200 text-gray-700 px-4 py-2 rounded-md hover:bg-gray-300"
                 >
                   Cancel
-                </button>
+                </Button>
               </div>
             </form>
           </div>

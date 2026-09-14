@@ -107,6 +107,8 @@ Hosting:
 | `Expenses.tsx` | Personal Finance | Transaction review + tagging |
 | `Budgets.tsx` | Personal Finance | Budget setup + tracking |
 | `Carrots.tsx` | Personal Finance | Aspirational purchases tied to milestones |
+| `FinanceChat.tsx` | Personal Finance | Claude chat over live spending/budget/portfolio data (SSE streaming, tool use) |
+| `Planner.tsx` | Personal Finance | Claude planning conversation: projects net worth under risk profiles / savings rates / retirement dates with a Monte Carlo fan chart; solves for goals; saves a planning profile. Backend: `backend/routes/planning.js`, `services/planningChatService.js`, `services/projectionEngine.js`; Firestore `planning_conversations`, `planning_profiles` |
 | `Reports.tsx` | Personal Finance | Visual reporting dashboard |
 | `Portfolio.tsx` | Investments | All holdings overview |
 | `Bets.tsx` | Investments | Active investment theses |
@@ -123,7 +125,7 @@ Hosting:
 | `Privacy.tsx` / `Security.tsx` | Compliance | In-app privacy + security info |
 | `TestPage.tsx` | Dev | Internal testing surface (`ApiTesting.tsx` removed 2026-07) |
 
-Backend routes live in `backend/routes/`: auth, bets, budgets, carrots, etrade, expenses, ideas, internal, investments, ips, plaid, portfolio, research, settings, snapshot, stocks, trades.
+Backend routes live in `backend/routes/`: auth, bets, budgets, carrots, etrade, expenses, financeChat, ideas, internal, investments, ips, monthCloses, options, plaid, planning, portfolio, quarterReviews, research, settings, snapshot, stocks, trades.
 
 ## What's not built yet (from the intent)
 

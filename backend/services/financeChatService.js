@@ -297,4 +297,4 @@ async function getHistory(userId, limit = 20) {
   });
 }
 
-module.exports = { isConfigured, answerQueryStream, getHistory, MODEL };
+module.exports = { isConfigured, answerQueryStream, getHistory, buildTools, MODEL };

@@ -2,6 +2,7 @@ const express = require('express');
 const plaidService = require('../services/plaidService');
 const { writeAllBalanceSnapshots } = require('../services/snapshotService');
 const { auditStoredSecrets, rotateStoredSecrets } = require('../services/keyRotation');
+const { addSyncLog, summarizeItemResults } = require('../services/syncLog');
 
 const router = express.Router();
 
@@ -23,6 +24,7 @@ function requireCronSecret(req, res, next) {
 // GET so Vercel Cron can trigger it without a body. POST also allowed for manual runs.
 const handleSyncAll = async (req, res) => {
   try {
+    const startedAt = Date.now();
     const days = Number(req.query.days || 30);
     const { users, results } = await plaidService.syncAllUsers(days);
     const ok = results.filter(r => r.success).length;
@@ -35,6 +37,35 @@ const handleSyncAll = async (req, res) => {
       snapshots = await writeAllBalanceSnapshots();
     } catch (err) {
       console.error('[cron snapshot] failed:', err.message);
+    }
+
+    // One sync_logs row per user per run, so the scheduled sync is visible in
+    // the same place as manual syncs. Status is `completed` when every stream
+    // on every item succeeded, `partial` when some streams failed, `error`
+    // when the user's sync threw. No `in_progress` row: the cron is
+    // synchronous, and open in_progress rows only ever mean "never finished".
+    const durationMs = Date.now() - startedAt;
+    for (const r of results) {
+      const snapshot = snapshots.results.find(s => s.user_id === r.user_id);
+      const metadata = {
+        trigger: 'cron',
+        days,
+        duration_ms: durationMs,
+        snapshot: snapshot ? (snapshot.success ? { date: snapshot.date, success: true } : { success: false, error: snapshot.error }) : null,
+      };
+      try {
+        if (!r.success) {
+          await addSyncLog(r.user_id, 'cron_sync', 'error', r.error, { metadata });
+          continue;
+        }
+        const { totals, failures, message } = summarizeItemResults(r.items || []);
+        const status = failures.length ? 'partial' : 'completed';
+        await addSyncLog(r.user_id, 'cron_sync', status, message, {
+          metadata: { ...metadata, totals, failures, items: (r.items || []).map(i => i.institution) },
+        });
+      } catch (err) {
+        console.error('[cron sync-all] failed to write sync_logs:', err.message);
+      }
     }
 
     res.json({ success: true, users, ok, days, results, snapshots });

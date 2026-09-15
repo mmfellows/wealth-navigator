@@ -7,16 +7,9 @@ const { verifyPlaidWebhook } = require('../services/plaidWebhookVerifier');
 
 const router = express.Router();
 
-// Helper to add sync log
-async function addSyncLog(userId, syncType, status, message) {
-  await db.collection('sync_logs').add({
-    user_id: userId,
-    sync_type: syncType,
-    status,
-    message,
-    created_at: new Date().toISOString(),
-  });
-}
+// sync_logs writer, shared with the webhook handler and the cron
+// (see services/syncLog.js).
+const { addSyncLog } = require('../services/syncLog');
 
 // Record a Plaid Link consent event. The frontend calls this immediately
 // before opening Plaid Link, after the user has acknowledged the consent

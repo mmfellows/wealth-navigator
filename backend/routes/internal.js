@@ -1,6 +1,7 @@
 const express = require('express');
 const plaidService = require('../services/plaidService');
 const { writeAllBalanceSnapshots } = require('../services/snapshotService');
+const { auditStoredSecrets, rotateStoredSecrets } = require('../services/keyRotation');
 
 const router = express.Router();
 
@@ -45,5 +46,27 @@ const handleSyncAll = async (req, res) => {
 
 router.get('/sync-all', requireCronSecret, handleSyncAll);
 router.post('/sync-all', requireCronSecret, handleSyncAll);
+
+// Encryption-key rotation. See backend/services/encryption.js for the
+// procedure. Both routes need the cron secret; neither returns a secret value.
+router.get('/encryption-key-status', requireCronSecret, async (req, res) => {
+  try {
+    res.json(await auditStoredSecrets());
+  } catch (error) {
+    console.error('[encryption-key-status] failed:', error);
+    res.status(500).json({ error: error.message || 'audit failed' });
+  }
+});
+
+router.post('/rotate-encryption-key', requireCronSecret, async (req, res) => {
+  try {
+    const summary = await rotateStoredSecrets();
+    console.log('[rotate-encryption-key]', JSON.stringify({ ...summary, unreadable: summary.unreadable.length }));
+    res.json(summary);
+  } catch (error) {
+    console.error('[rotate-encryption-key] failed:', error);
+    res.status(500).json({ error: error.message || 'rotation failed' });
+  }
+});
 
 module.exports = router;

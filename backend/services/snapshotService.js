@@ -193,16 +193,28 @@ async function computeSnapshot(userId) {
   const totalAssets = cash + investmentsPlaid + investmentsManual;
   const netWorth = totalAssets - liabilities.total;
 
+  // Market value of positions per account, so a snapshot can separate the
+  // institution-reported balance from what the holdings are worth.
+  const holdingsValueByAccount = new Map();
+  for (const doc of holdingsSnap.docs) {
+    const h = doc.data();
+    const value = h.institution_value
+      ?? (h.institution_price != null && h.quantity != null ? h.institution_price * h.quantity : 0);
+    holdingsValueByAccount.set(h.account_id, (holdingsValueByAccount.get(h.account_id) || 0) + (value || 0));
+  }
+
   const accounts = accountsSnap.docs.map(doc => {
     const d = doc.data();
     return {
       id: doc.id,
+      account_id: d.account_id,
       institution_name: d.institution_name,
       name: d.name,
       mask: d.mask,
       type: d.type,
       subtype: d.subtype,
       balance: d.balance_current,
+      holdings_value: holdingsValueByAccount.has(d.account_id) ? holdingsValueByAccount.get(d.account_id) : null,
     };
   });
 
@@ -233,6 +245,18 @@ async function writeBalanceSnapshot(userId, snapshot) {
     total_liabilities: snap.liabilities.total,
     cash: snap.assets.cash,
     investments: snap.assets.investments + snap.assets.manual_investments,
+    // Per-account breakdown, written from 2026-09-14 on. Rows before that
+    // carry only the totals above; this field lets later analysis separate
+    // contributions and withdrawals from market movement, account by account.
+    accounts: snap.accounts.map(a => ({
+      account_id: a.account_id,
+      institution_name: a.institution_name,
+      name: a.name,
+      type: a.type,
+      subtype: a.subtype,
+      balance: a.balance ?? null,
+      holdings_value: a.holdings_value ?? null,
+    })),
     created_at: snap.generated_at,
   }, { merge: true });
 

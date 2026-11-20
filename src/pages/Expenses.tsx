@@ -63,6 +63,8 @@ const Expenses: React.FC = () => {
   const [selectedYear, setSelectedYear] = useState(() => urlYear || urlMonth?.slice(0, 4) || String(new Date().getFullYear()));
   const [uncategorizedOnly, setUncategorizedOnly] = useState(() => searchParams.get('uncategorized') === '1');
   const [includeTransfers, setIncludeTransfers] = useState(false);
+  // This page is about money going out; income lives on the dashboard.
+  const [includeIncome, setIncludeIncome] = useState(false);
   const [availableColumns, setAvailableColumns] = useState<string[]>([]);
   const [displayColumns, setDisplayColumns] = useState<string[]>(['amount', 'date', 'merchant', 'description', 'category', 'subcategory', 'statement']);
   const [currentPage, setCurrentPage] = useState(0);
@@ -232,7 +234,8 @@ const Expenses: React.FC = () => {
       sortOrder: 'DESC',
       startDate,
       endDate,
-      includeTransfers: includeTransfers.toString()
+      includeTransfers: includeTransfers.toString(),
+      includeIncome: includeIncome.toString()
     });
 
     if (searchTerm) params.append('search', searchTerm);
@@ -264,7 +267,7 @@ const Expenses: React.FC = () => {
     error,
     refetch
   } = useQuery({
-    queryKey: ['expenses', currentPage, limit, searchTerm, selectedCategory, selectedSubcategory, dateRange, selectedMonth, selectedYear, uncategorizedOnly, includeTransfers],
+    queryKey: ['expenses', currentPage, limit, searchTerm, selectedCategory, selectedSubcategory, dateRange, selectedMonth, selectedYear, uncategorizedOnly, includeTransfers, includeIncome],
     queryFn: fetchExpenses,
     staleTime: 30000, // 30 seconds
   });
@@ -277,7 +280,7 @@ const Expenses: React.FC = () => {
 
   // Fetch all expenses (unpaginated) for the chart
   const { data: allExpensesData } = useQuery({
-    queryKey: ['expenses-chart', searchTerm, selectedCategory, selectedSubcategory, dateRange, selectedMonth, selectedYear, includeTransfers],
+    queryKey: ['expenses-chart', searchTerm, selectedCategory, selectedSubcategory, dateRange, selectedMonth, selectedYear, includeTransfers, includeIncome],
     queryFn: async (): Promise<ExpensesResponse> => {
       const { startDate, endDate } = getDateRange(dateRange);
       const params = new URLSearchParams({
@@ -288,6 +291,7 @@ const Expenses: React.FC = () => {
         startDate,
         endDate,
         includeTransfers: includeTransfers.toString(),
+        includeIncome: includeIncome.toString(),
       });
       if (searchTerm) params.append('search', searchTerm);
       if (selectedCategory !== 'all') params.append('category', selectedCategory);
@@ -303,7 +307,7 @@ const Expenses: React.FC = () => {
     if (uncategorizedOnly) return raw.filter(e => !e.category && !e.subcategory);
     return raw;
   }, [allExpensesData?.expenses, uncategorizedOnly]);
-  const categories = ['all', ...(filterOptions?.categories || [])];
+  const categories = ['all', ...(filterOptions?.categories || []).filter((c: string) => includeIncome || c !== 'Income')];
   const subcategories = ['all', ...(filterOptions?.subcategories || [])];
 
   // CSV handling functions
@@ -764,7 +768,7 @@ const Expenses: React.FC = () => {
   useEffect(() => {
     setCurrentPage(0);
     setSelectedIds(new Set());
-  }, [searchTerm, selectedCategory, selectedSubcategory, dateRange, selectedMonth, selectedYear, uncategorizedOnly, includeTransfers]);
+  }, [searchTerm, selectedCategory, selectedSubcategory, dateRange, selectedMonth, selectedYear, uncategorizedOnly, includeTransfers, includeIncome]);
 
   if (isLoading) {
     return (
@@ -959,6 +963,15 @@ const Expenses: React.FC = () => {
                     className="w-4 h-4 accent-ever-lime border-ever-line rounded"
                   />
                   <span className="text-sm text-ever-dim">Include Transfers</span>
+                </label>
+                <label className="flex items-center gap-2 cursor-pointer" title="Show pay, refunds and interest in the list as well">
+                  <input
+                    type="checkbox"
+                    checked={includeIncome}
+                    onChange={(e) => setIncludeIncome(e.target.checked)}
+                    className="w-4 h-4 accent-ever-lime border-ever-line rounded"
+                  />
+                  <span className="text-sm text-ever-dim">Include Income</span>
                 </label>
               </div>
             </div>
@@ -1241,19 +1254,21 @@ const Expenses: React.FC = () => {
         const t = expensesData?.totals;
         const spending = t?.spending ?? 0;
         return (
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
+          <div className={cn('grid grid-cols-2 gap-4 md:gap-6', includeIncome ? 'lg:grid-cols-4' : 'lg:grid-cols-3')}>
             <StatCard
               label="Spending"
               dot="var(--ever-neg)"
               value={money(spending)}
               sub={t && t.spending_count > 0 ? `${t.spending_count} purchases · ${money(spending / t.spending_count)} average` : 'excludes income, taxes and transfers'}
             />
-            <StatCard
-              label="Income"
-              dot="var(--ever-pos)"
-              value={<span className="text-ever-pos">{money(t?.income ?? 0)}</span>}
-              sub={t ? `${t.income_count} deposit${t.income_count === 1 ? '' : 's'} and refunds` : undefined}
-            />
+            {includeIncome && (
+              <StatCard
+                label="Income"
+                dot="var(--ever-pos)"
+                value={<span className="text-ever-pos">{money(t?.income ?? 0)}</span>}
+                sub={t ? `${t.income_count} deposit${t.income_count === 1 ? '' : 's'} and refunds` : undefined}
+              />
+            )}
             <StatCard
               label="Taxes paid"
               dot="var(--ever-orange)"

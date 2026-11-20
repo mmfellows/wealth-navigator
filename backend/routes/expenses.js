@@ -779,6 +779,7 @@ router.get('/', async (req, res) => {
       startDate,
       endDate,
       includeTransfers = 'false',
+      includeIncome = 'true',
       limit = 1000,
       offset = 0,
       sortBy = 'date',
@@ -821,6 +822,11 @@ router.get('/', async (req, res) => {
     // Exclude transfers
     if (includeTransfers === 'false') {
       expenses = expenses.filter(e => !e.is_transfer);
+    }
+    // Money coming in (pay, refunds, interest) can be left out, for views
+    // that are about what went out.
+    if (includeIncome === 'false') {
+      expenses = expenses.filter(e => e.category !== 'Income');
     }
 
     // Search filter (in memory)

@@ -92,6 +92,11 @@ const SEED_ITEMS = [
   priceHistory: [] as PriceChange[],
 }));
 
+const localToday = () => {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+};
+
 // Budget-vs-actuals comparison from /api/budgets/recommendations.
 type RecStatus = 'over' | 'under' | 'ok' | 'unbudgeted';
 interface ItemRec {
@@ -338,7 +343,9 @@ const Budgets: React.FC<{ embedded?: boolean }> = ({ embedded = false }) => {
     secondaryCategory: (BUDGET_CATEGORIES[Object.keys(BUDGET_CATEGORIES)[0]] || [])[0] || '',
     frequency: 'monthly' as 'monthly' | 'annual',
     amount: 0,
-    startDate: new Date().toISOString().split('T')[0],
+    // A line added to a future year's plan starts on that year's January 1;
+    // otherwise today (local date, not UTC).
+    startDate: isOtherYear ? `${viewYear}-01-01` : localToday(),
     endDate: '' as string,
   };
   const [form, setForm] = useState(defaultForm);
@@ -425,7 +432,7 @@ const Budgets: React.FC<{ embedded?: boolean }> = ({ embedded = false }) => {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             ...form, amount, endDate: form.endDate || null,
-            ...(isOtherYear ? { plan_year: viewYear, startDate: `${viewYear}-01-01` } : {}),
+            ...(isOtherYear ? { plan_year: viewYear, startDate: form.startDate >= `${viewYear}-01-01` ? form.startDate : `${viewYear}-01-01` } : {}),
           }),
         });
         if (res.ok) {

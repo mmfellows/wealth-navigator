@@ -68,3 +68,11 @@ body {
   height: 100vh;
   margin: 0;
 }
+/* Browser autofill would otherwise paint inputs pale yellow/white on the dark theme. */
+.theme-evergreen input:-webkit-autofill,
+.theme-evergreen input:-webkit-autofill:focus {
+  -webkit-text-fill-color: var(--ever-ink);
+  caret-color: var(--ever-ink);
+  box-shadow: 0 0 0 1000px var(--ever-bg) inset;
+  transition: background-color 9999s ease-out;
+}

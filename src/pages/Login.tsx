@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
+import { TrendingUp } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 
 type Stage = 'password' | 'passkey';
@@ -81,7 +82,7 @@ export default function Login() {
           },
         });
         window.google.accounts.id.renderButton(googleButtonRef.current, {
-          theme: 'outline',
+          theme: 'filled_black',
           size: 'large',
           width: 352,
           text: 'continue_with',
@@ -134,10 +135,13 @@ export default function Login() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 flex items-center justify-center px-4">
-      <div className="max-w-md w-full bg-white rounded-lg shadow p-8">
-        <h1 className="text-2xl font-semibold text-gray-900 mb-1">Wealth Navigator</h1>
-        <p className="text-sm text-gray-500 mb-6">
+    <div className="theme-evergreen min-h-screen bg-ever-bg font-grotesk text-ever-ink flex items-center justify-center px-4 py-10">
+      <div className="max-w-md w-full rounded-ever border border-ever-line bg-ever-card p-8">
+        <div className="mb-1 flex items-center gap-2.5">
+          <TrendingUp className="h-7 w-7 text-ever-lime" aria-hidden="true" />
+          <h1 className="text-2xl font-extrabold tracking-tight text-ever-ink">Wealth Navigator</h1>
+        </div>
+        <p className="text-sm text-ever-dim mb-6">
           {stage === 'passkey'
             ? 'Verify with your passkey to continue.'
             : mode === 'login'
@@ -149,9 +153,9 @@ export default function Login() {
           <div className="mb-5">
             <div ref={googleButtonRef} className="flex justify-center" />
             <div className="flex items-center gap-3 mt-5">
-              <div className="flex-1 border-t border-gray-200" />
-              <span className="text-xs text-gray-400 uppercase tracking-wide">or</span>
-              <div className="flex-1 border-t border-gray-200" />
+              <div className="flex-1 border-t border-ever-line" />
+              <span className="font-mono text-[10.5px] text-ever-dim uppercase tracking-[0.14em]">or</span>
+              <div className="flex-1 border-t border-ever-line" />
             </div>
           </div>
         )}
@@ -159,7 +163,7 @@ export default function Login() {
         {stage === 'password' && (
           <form onSubmit={handlePasswordSubmit} className="space-y-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1" htmlFor="email">
+              <label className="block font-mono text-[10.5px] uppercase tracking-[0.14em] text-ever-dim mb-1.5" htmlFor="email">
                 Email
               </label>
               <input
@@ -169,12 +173,12 @@ export default function Login() {
                 required
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                className="w-full rounded-[11px] border border-ever-line bg-ever-bg px-3 py-2.5 text-ever-ink placeholder-ever-faint focus:outline-none focus:border-ever-lime focus:ring-1 focus:ring-ever-lime"
               />
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1" htmlFor="password">
+              <label className="block font-mono text-[10.5px] uppercase tracking-[0.14em] text-ever-dim mb-1.5" htmlFor="password">
                 Password
               </label>
               <input
@@ -184,16 +188,16 @@ export default function Login() {
                 required
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                className="w-full rounded-[11px] border border-ever-line bg-ever-bg px-3 py-2.5 text-ever-ink placeholder-ever-faint focus:outline-none focus:border-ever-lime focus:ring-1 focus:ring-ever-lime"
               />
             </div>
 
-            {error && <p className="text-sm text-red-600">{error}</p>}
+            {error && <p role="alert" className="rounded-[11px] border border-ever-neg/40 bg-ever-neg/10 px-3 py-2 text-sm text-ever-neg">{error}</p>}
 
             <button
               type="submit"
               disabled={busy}
-              className="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white font-medium rounded-md py-2 transition"
+              className="w-full rounded-[11px] bg-ever-lime py-2.5 font-semibold text-ever-lime-ink transition hover:brightness-95 disabled:opacity-50"
             >
               {busy
                 ? mode === 'register' ? 'Creating account…' : 'Signing in…'
@@ -207,7 +211,7 @@ export default function Login() {
                 setError(null);
                 setPassword('');
               }}
-              className="w-full text-sm text-gray-500 hover:text-gray-700"
+              className="w-full text-sm text-ever-dim hover:text-ever-ink"
             >
               {mode === 'login'
                 ? "First time? Create an account"
@@ -218,18 +222,18 @@ export default function Login() {
 
         {stage === 'passkey' && (
           <div className="space-y-4">
-            <p className="text-sm text-gray-700">
-              Signed in as <span className="font-medium">{pendingEmail}</span>. Tap your security key
+            <p className="text-sm text-ever-dim">
+              Signed in as <span className="font-medium text-ever-ink">{pendingEmail}</span>. Tap your security key
               or use Touch ID / Face ID to complete sign-in.
             </p>
 
-            {error && <p className="text-sm text-red-600">{error}</p>}
+            {error && <p role="alert" className="rounded-[11px] border border-ever-neg/40 bg-ever-neg/10 px-3 py-2 text-sm text-ever-neg">{error}</p>}
 
             <button
               type="button"
               onClick={handlePasskeyVerify}
               disabled={busy}
-              className="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white font-medium rounded-md py-2 transition"
+              className="w-full rounded-[11px] bg-ever-lime py-2.5 font-semibold text-ever-lime-ink transition hover:brightness-95 disabled:opacity-50"
             >
               {busy ? 'Verifying…' : 'Verify with passkey'}
             </button>
@@ -243,7 +247,7 @@ export default function Login() {
                 setPassword('');
                 setError(null);
               }}
-              className="w-full text-sm text-gray-500 hover:text-gray-700"
+              className="w-full text-sm text-ever-dim hover:text-ever-ink"
             >
               Use a different account
             </button>

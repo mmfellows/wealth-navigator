@@ -945,7 +945,7 @@ const Budgets: React.FC<{ embedded?: boolean }> = ({ embedded = false }) => {
                 <th className="px-4 py-3 text-right text-xs font-medium text-ever-dim uppercase tracking-wider">Monthly Expected</th>
                 <th className="px-4 py-3 text-right text-xs font-medium text-ever-dim uppercase tracking-wider" title="Average actual spend per month over the comparison window">Actual / mo</th>
                 <th className="px-4 py-3 text-left text-xs font-medium text-ever-dim uppercase tracking-wider">Dates</th>
-                <th className="w-10 px-2 py-3"><span className="sr-only">Actions</span></th>
+                <th className="w-10 px-2 py-3" aria-label="Actions" />
               </tr>
             </thead>
             <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
@@ -1132,7 +1132,7 @@ const Budgets: React.FC<{ embedded?: boolean }> = ({ embedded = false }) => {
                     <th className="px-4 py-3 text-right text-xs font-medium text-ever-dim uppercase tracking-wider">Monthly Expected</th>
                     <th className="px-4 py-3 text-right text-xs font-medium text-ever-dim uppercase tracking-wider" title="Average actual spend per month over the comparison window">Actual / mo</th>
                     <th className="px-4 py-3 text-left text-xs font-medium text-ever-dim uppercase tracking-wider">Dates</th>
-                    <th className="w-10 px-2 py-3"><span className="sr-only">Actions</span></th>
+                    <th className="w-10 px-2 py-3" aria-label="Actions" />
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-ever-line">

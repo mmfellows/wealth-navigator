@@ -158,7 +158,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
   const currentNavItems = activeSection === 'investing' ? investingNavItems : personalFinanceNavItems;
 
   return (
-    <div className={`theme-evergreen ${activeSection === 'personal-finance' ? 'theme-pf' : ''} flex flex-col h-screen bg-ever-bg font-grotesk text-ever-ink`}>
+    <div className={`theme-evergreen ${activeSection === 'personal-finance' ? 'theme-pf' : ''} relative flex flex-col h-screen overflow-hidden bg-ever-bg font-grotesk text-ever-ink`}>
       {/* Top Navigation */}
       <div className="bg-ever-side border-b border-ever-line">
         <div className="px-4 md:px-6 py-3">

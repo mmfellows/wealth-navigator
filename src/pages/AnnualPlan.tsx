@@ -5,10 +5,11 @@ import {
   ComposedChart, BarChart, LineChart, Bar, Line, XAxis, YAxis, CartesianGrid, Tooltip,
   ResponsiveContainer, ReferenceLine,
 } from 'recharts';
-import { CalendarDays, Lock, Plane, Plus, Trash2, ChevronDown, ChevronRight, ArrowUpRight } from 'lucide-react';
+import { CalendarDays, Lock, Plane, Plus, Trash2, ChevronDown, ChevronRight } from 'lucide-react';
 import { authedFetch } from '../services/authRedirect';
 import { PlannedCosts } from '../components/PlannedCosts';
 import { PlanGaps } from '../components/PlanGaps';
+import Budgets from './Budgets';
 import { Card, Button, StatCard, toast } from '../components/ui';
 import { cn } from '../lib/cn';
 
@@ -190,6 +191,7 @@ const AnnualPlan: React.FC = () => {
   const thisYear = new Date().getFullYear();
   const [searchParams, setSearchParams] = useSearchParams();
   const year = Number(searchParams.get('year')) || thisYear;
+  const tab: 'overview' | 'budget' = searchParams.get('tab') === 'budget' ? 'budget' : 'overview';
   const [showTable, setShowTable] = useState(false);
 
   const { data: plan, isLoading, error } = useQuery<PlanView>({
@@ -256,7 +258,17 @@ const AnnualPlan: React.FC = () => {
   }, [plan]);
 
   const colorOf = (c: string) => CATEGORY_COLORS[c] || OTHER_COLOR;
-  const setYear = (y: number) => setSearchParams(y === thisYear ? {} : { year: String(y) });
+  // Year and tab both live in the URL, so a view can be linked to or reloaded.
+  const go = (y: number, t: 'overview' | 'budget') => {
+    const next: Record<string, string> = {};
+    if (y !== thisYear) next.year = String(y);
+    if (t === 'budget') next.tab = 'budget';
+    setSearchParams(next);
+    // Lines may have been edited on the other tab; the overview must reflect them.
+    if (t === 'overview') ['year-plan', 'plan-gaps', 'envelopes', 'budgetItems'].forEach(k => queryClient.invalidateQueries({ queryKey: [k] }));
+  };
+  const setYear = (y: number) => go(y, tab);
+  const setTab = (t: 'overview' | 'budget') => go(year, t);
 
   const header = (
     <div className="flex flex-wrap items-start justify-between gap-3">
@@ -289,7 +301,6 @@ const AnnualPlan: React.FC = () => {
   const t = plan.totals;
   const draft = plan.status === 'draft';
   const live = plan.status === 'live';
-  const budgetHref = year === thisYear ? '/budgets' : `/budgets?year=${year}`;
   const busyMonths = plan.months.filter(m => m.trips.length > 0 || m.special.length > 0);
   const travelLine = plan.lines_by_category.length > 0 && plan.trips.some(tr => tr.budget);
 
@@ -332,9 +343,6 @@ const AnnualPlan: React.FC = () => {
           {plan.status === 'past' && <><strong>Past year.</strong> Shown with the budget that applied then.</>}
         </span>
         <span className="flex gap-2">
-          <Link to={budgetHref} className="inline-flex items-center gap-1.5 rounded-[11px] bg-ever-lime px-4 py-2 text-sm font-semibold text-ever-lime-ink hover:brightness-95">
-            Edit {year} budget lines <ArrowUpRight className="h-4 w-4" />
-          </Link>
           {draft && (
             <Button variant="ghost" className="text-ever-neg" disabled={discard.isPending} onClick={() => { if (window.confirm(`Discard the ${year} draft? Its budget lines and planned income are deleted. Trips and special expenses are kept.`)) discard.mutate(); }}>
               Discard draft
@@ -343,6 +351,33 @@ const AnnualPlan: React.FC = () => {
         </span>
       </div>
 
+      {/* Tabs: the year as a picture, or the lines that make it up */}
+      {plan.status !== 'past' && (
+        <div role="tablist" aria-label={`${year} plan views`} className="flex gap-1 border-b border-ever-line">
+          {([['overview', 'Overview'], ['budget', `Budget lines (${plan.line_count})`]] as const).map(([id, label]) => (
+            <button
+              key={id}
+              role="tab"
+              id={`plan-tab-${id}`}
+              aria-selected={tab === id}
+              aria-controls="plan-tabpanel"
+              onClick={() => setTab(id)}
+              className={cn(
+                '-mb-px border-b-2 px-4 py-2.5 text-sm transition focus:outline-none focus-visible:ring-1 focus-visible:ring-ever-lime',
+                tab === id ? 'border-ever-lime font-semibold text-ever-ink' : 'border-transparent text-ever-dim hover:text-ever-ink',
+              )}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+      )}
+
+      {tab === 'budget' && plan.status !== 'past' ? (
+        <div id="plan-tabpanel" role="tabpanel" aria-labelledby="plan-tab-budget">
+          <Budgets embedded key={year} />
+        </div>
+      ) : (<>
       {/* Headline numbers */}
       <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
         <StatCard label="Planned spending" value={usd(t.budget)} dot="var(--ever-violet)" sub={`${usd(t.budget / 12)} a month on average`} />
@@ -527,7 +562,9 @@ const AnnualPlan: React.FC = () => {
         <Card>
           <div className="mb-3 flex items-baseline justify-between gap-3">
             <h2 className="text-lg font-semibold text-ever-ink">Monthly budgets</h2>
-            <Link to={budgetHref} className="font-mono text-[10.5px] text-ever-lime hover:underline">Edit {plan.line_count} lines</Link>
+            {plan.status !== 'past' && (
+              <button onClick={() => setTab('budget')} className="font-mono text-[10.5px] text-ever-lime hover:underline">Edit {plan.line_count} lines</button>
+            )}
           </div>
           {plan.lines_by_category.map(c => (
             <div key={c.category} className="flex items-center justify-between gap-3 border-t border-ever-line py-2 text-sm first:border-t-0">
@@ -559,6 +596,7 @@ const AnnualPlan: React.FC = () => {
       </div>
 
       {plan.status !== 'past' && <PlannedCosts />}
+      </>)}
     </div>
   );
 };

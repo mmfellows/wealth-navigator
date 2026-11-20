@@ -220,7 +220,9 @@ const SortableCategoryGroup: React.FC<{
   );
 };
 
-const Budgets: React.FC = () => {
+// `embedded` is the Year Plan page's "Budget lines" tab: same table and
+// tools, without this page's own title and year banner.
+const Budgets: React.FC<{ embedded?: boolean }> = ({ embedded = false }) => {
   const [BUDGET_CATEGORIES, setBudgetCategories] = useState<Record<string, string[]>>({});
   const [categoryColors, setCategoryColors] = useState<Record<string, string>>({});
 
@@ -370,7 +372,9 @@ const Budgets: React.FC = () => {
       const priceChanged = amount !== editingItem.amount || form.frequency !== editingItem.frequency;
       const updatedHistory = [...editingItem.priceHistory];
 
-      if (priceChanged) {
+      // Editing a draft for a future year is planning, not a price change:
+      // no history entry, and the line still starts on January 1.
+      if (priceChanged && !isOtherYear) {
         updatedHistory.push({
           amount: editingItem.amount,
           frequency: editingItem.frequency,
@@ -384,7 +388,7 @@ const Budgets: React.FC = () => {
         amount,
         endDate: form.endDate || null,
         monthlyExpectedSpend,
-        startDate: priceChanged ? today : form.startDate,
+        startDate: priceChanged && !isOtherYear ? today : form.startDate,
         priceHistory: updatedHistory,
       };
 
@@ -573,7 +577,10 @@ const Budgets: React.FC = () => {
 
   const formatDate = (dateString: string | null) => {
     if (!dateString) return 'Indefinite';
-    return new Date(dateString).toLocaleDateString();
+    // 'YYYY-MM-DD' parsed as a local date; new Date(string) would read it as
+    // UTC and show the previous day in US time zones.
+    const [y, m, d] = dateString.slice(0, 10).split('-').map(Number);
+    return (y && m && d ? new Date(y, m - 1, d) : new Date(dateString)).toLocaleDateString();
   };
 
   const getCategoryColor = (category: string) => {
@@ -583,7 +590,7 @@ const Budgets: React.FC = () => {
   const renderItemRow = (item: BudgetItem, isArchived: boolean) => (
     <React.Fragment key={item.id}>
       <tr className={`group hover:bg-white/5 ${isArchived ? 'opacity-60' : ''}`}>
-        <td className="px-6 py-3 whitespace-nowrap pl-20">
+        <td className="px-4 py-3 whitespace-nowrap pl-20">
           <div className="flex items-center">
             <div className="text-sm font-medium text-ever-ink">{item.itemName}</div>
             {item.priceHistory.length > 0 && (
@@ -597,7 +604,7 @@ const Budgets: React.FC = () => {
             )}
           </div>
         </td>
-        <td className="px-6 py-3 whitespace-nowrap">
+        <td className="px-4 py-3 whitespace-nowrap">
           <span className={cn(
             'inline-flex px-2 py-1 text-xs font-medium rounded-full',
             everPill(item.frequency === 'monthly' ? 'bg-green-100' : 'bg-orange-100')
@@ -605,13 +612,13 @@ const Budgets: React.FC = () => {
             {item.frequency}
           </span>
         </td>
-        <td className="px-6 py-3 whitespace-nowrap text-right text-sm font-medium text-ever-ink tabular-nums">
+        <td className="px-4 py-3 whitespace-nowrap text-right text-sm font-medium text-ever-ink tabular-nums">
           ${item.amount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
         </td>
-        <td className="px-6 py-3 whitespace-nowrap text-right text-sm font-semibold text-ever-lime tabular-nums">
+        <td className="px-4 py-3 whitespace-nowrap text-right text-sm font-semibold text-ever-lime tabular-nums">
           ${item.monthlyExpectedSpend.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
         </td>
-        <td className="px-6 py-3 whitespace-nowrap text-right text-sm tabular-nums">
+        <td className="px-4 py-3 whitespace-nowrap text-right text-sm tabular-nums">
           {(() => {
             const rec = isArchived ? undefined : recs?.items[item.id];
             if (!rec) return <span className="text-ever-faint">—</span>;
@@ -640,10 +647,10 @@ const Budgets: React.FC = () => {
             );
           })()}
         </td>
-        <td className="px-6 py-3 whitespace-nowrap text-sm text-ever-dim">
+        <td className="px-4 py-3 whitespace-nowrap text-sm text-ever-dim">
           {formatDate(item.startDate)} — {formatDate(item.endDate)}
         </td>
-        <td className="px-6 py-3 whitespace-nowrap text-right text-sm font-medium">
+        <td className="w-10 px-2 py-3 whitespace-nowrap text-right text-sm font-medium">
           <div className="flex items-center justify-end">
             <RowMenu
               label={`Actions for ${item.itemName}`}
@@ -666,7 +673,7 @@ const Budgets: React.FC = () => {
         const gap = Math.abs(rec.actual_monthly - rec.budget_monthly);
         return (
           <tr>
-            <td colSpan={7} className="bg-white/5 px-6 py-3 pl-20">
+            <td colSpan={7} className="bg-white/5 px-4 py-3 pl-20">
               <p className="text-sm text-ever-ink">
                 {shared
                   ? <>The {rec.group_size} lines in <strong>{item.secondaryCategory}</strong> without a matching merchant are budgeted at {usd0(rec.budget_monthly)}/mo together; actual spending there has averaged <strong>{usd0(rec.actual_monthly)}/mo</strong></>
@@ -688,7 +695,7 @@ const Budgets: React.FC = () => {
       })()}
       {expandedHistory === item.id && item.priceHistory.length > 0 && (
         <tr>
-          <td colSpan={7} className="px-6 py-3 bg-white/5 pl-20">
+          <td colSpan={7} className="px-4 py-3 bg-white/5 pl-20">
             <div className="text-xs text-ever-dim font-medium mb-2">Price History</div>
             <div className="space-y-1">
               {item.priceHistory.map((entry, idx) => (
@@ -716,15 +723,17 @@ const Budgets: React.FC = () => {
 
   return (
     <div className="space-y-6">
-      <div className="flex justify-between items-center">
-        <h1 className="text-2xl font-extrabold tracking-tight text-ever-ink md:text-[26px]">{isOtherYear ? `${viewYear} budget` : 'Budgets'}</h1>
-        <Button onClick={openAdd}>
+      <div className="flex justify-between items-center gap-3">
+        {embedded
+          ? <p className="text-sm text-ever-dim">Every budget line for {viewYear}. The "Actual / mo" column is what you've really been spending; the icon beside it opens the choice to update a line or keep it.</p>
+          : <h1 className="text-2xl font-extrabold tracking-tight text-ever-ink md:text-[26px]">{isOtherYear ? `${viewYear} budget` : 'Budgets'}</h1>}
+        <Button onClick={openAdd} className="flex-none whitespace-nowrap">
           <PlusCircle className="h-4 w-4" />
           Add Budget Item
         </Button>
       </div>
 
-      {isOtherYear ? (
+      {embedded ? null : isOtherYear ? (
         <div className="flex flex-wrap items-center justify-between gap-3 rounded-ever border border-ever-violet/40 bg-ever-violet/10 p-4 text-sm text-ever-ink">
           <span>
             {loaded && budgetItems.length === 0
@@ -732,7 +741,7 @@ const Budgets: React.FC = () => {
               : <>You're editing the <strong>{viewYear}</strong> plan. Changes here don't touch this year's budget. The "Actual / mo" column shows what you've really been spending, to set each line against.</>}
           </span>
           <span className="flex gap-3">
-            <Link to={`/year-plan?year=${viewYear}`} className="font-semibold text-ever-lime hover:underline">See the {viewYear} plan</Link>
+            <Link to={`/year-plan?year=${viewYear}&tab=budget`} className="font-semibold text-ever-lime hover:underline">Open in the {viewYear} plan</Link>
             <Link to="/budgets" className="text-ever-dim hover:text-ever-ink hover:underline">Back to {thisYear}</Link>
           </span>
         </div>
@@ -917,13 +926,13 @@ const Budgets: React.FC = () => {
           <table className="min-w-full divide-y divide-ever-line">
             <thead className="bg-white/5">
               <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-ever-dim uppercase tracking-wider">Item</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-ever-dim uppercase tracking-wider">Frequency</th>
-                <th className="px-6 py-3 text-right text-xs font-medium text-ever-dim uppercase tracking-wider">Amount</th>
-                <th className="px-6 py-3 text-right text-xs font-medium text-ever-dim uppercase tracking-wider">Monthly Expected</th>
-                <th className="px-6 py-3 text-right text-xs font-medium text-ever-dim uppercase tracking-wider" title="Average actual spend per month over the comparison window">Actual / mo</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-ever-dim uppercase tracking-wider">Dates</th>
-                <th className="px-6 py-3 text-right text-xs font-medium text-ever-dim uppercase tracking-wider">Actions</th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-ever-dim uppercase tracking-wider">Item</th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-ever-dim uppercase tracking-wider">Frequency</th>
+                <th className="px-4 py-3 text-right text-xs font-medium text-ever-dim uppercase tracking-wider">Amount</th>
+                <th className="px-4 py-3 text-right text-xs font-medium text-ever-dim uppercase tracking-wider">Monthly Expected</th>
+                <th className="px-4 py-3 text-right text-xs font-medium text-ever-dim uppercase tracking-wider" title="Average actual spend per month over the comparison window">Actual / mo</th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-ever-dim uppercase tracking-wider">Dates</th>
+                <th className="w-10 px-2 py-3"><span className="sr-only">Actions</span></th>
               </tr>
             </thead>
             <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
@@ -940,7 +949,7 @@ const Budgets: React.FC = () => {
                             className="bg-white/5 cursor-pointer hover:bg-white/10"
                             onClick={() => toggleCategory(category)}
                           >
-                            <td className="px-6 py-3">
+                            <td className="px-4 py-3">
                               <div className="flex items-center">
                                 <button
                                   {...listeners}
@@ -961,22 +970,22 @@ const Budgets: React.FC = () => {
                                 </span>
                               </div>
                             </td>
-                            <td className="px-6 py-3"></td>
-                            <td className="px-6 py-3"></td>
-                            <td className="px-6 py-3 text-right text-sm font-bold text-ever-ink tabular-nums">
+                            <td className="px-4 py-3"></td>
+                            <td className="px-4 py-3"></td>
+                            <td className="px-4 py-3 text-right text-sm font-bold text-ever-ink tabular-nums">
                               ${totalMonthly.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                             </td>
-                            <td className="px-6 py-3 text-right text-sm font-semibold tabular-nums">
+                            <td className="px-4 py-3 text-right text-sm font-semibold tabular-nums">
                               {(() => {
                                 const actual = actualByCategory[category];
                                 if (actual === undefined) return <span className="text-ever-faint">—</span>;
                                 return <span className={actual > totalMonthly * 1.1 + 10 ? 'text-ever-orange' : 'text-ever-dim'}>{usd0(actual)}</span>;
                               })()}
                             </td>
-                            <td className="px-6 py-3 text-left text-xs text-ever-dim">
+                            <td className="px-4 py-3 text-left text-xs text-ever-dim">
                               {percentage.toFixed(1)}% of budget
                             </td>
-                            <td className="px-6 py-3"></td>
+                            <td className="px-4 py-3"></td>
                           </tr>
                           {/* Item rows grouped by subcategory */}
                           {!isCollapsed && (() => {
@@ -1001,7 +1010,7 @@ const Budgets: React.FC = () => {
                                           className="bg-white/[0.03] cursor-pointer hover:bg-white/5"
                                           onClick={() => toggleSubcategory(subKey)}
                                         >
-                                          <td className="px-6 py-1.5 pl-14" colSpan={3}>
+                                          <td className="px-4 py-1.5 pl-14" colSpan={3}>
                                             <div className="flex items-center">
                                               {isSubCollapsed
                                                 ? <ChevronRight className="h-3 w-3 mr-1.5 text-ever-faint" />
@@ -1013,10 +1022,10 @@ const Budgets: React.FC = () => {
                                               </span>
                                             </div>
                                           </td>
-                                          <td className="px-6 py-1.5 text-right text-xs font-medium text-ever-dim tabular-nums">
+                                          <td className="px-4 py-1.5 text-right text-xs font-medium text-ever-dim tabular-nums">
                                             ${subTotal.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                                           </td>
-                                          <td className="px-6 py-1.5 text-right text-xs font-medium tabular-nums">
+                                          <td className="px-4 py-1.5 text-right text-xs font-medium tabular-nums">
                                             {(() => {
                                               const sr = subRecByKey[subKey];
                                               if (!sr) return <span className="text-ever-faint">—</span>;
@@ -1088,13 +1097,13 @@ const Budgets: React.FC = () => {
               <table className="min-w-full divide-y divide-ever-line">
                 <thead className="bg-white/5">
                   <tr>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-ever-dim uppercase tracking-wider">Item</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-ever-dim uppercase tracking-wider">Frequency</th>
-                    <th className="px-6 py-3 text-right text-xs font-medium text-ever-dim uppercase tracking-wider">Amount</th>
-                    <th className="px-6 py-3 text-right text-xs font-medium text-ever-dim uppercase tracking-wider">Monthly Expected</th>
-                    <th className="px-6 py-3 text-right text-xs font-medium text-ever-dim uppercase tracking-wider" title="Average actual spend per month over the comparison window">Actual / mo</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-ever-dim uppercase tracking-wider">Dates</th>
-                    <th className="px-6 py-3 text-right text-xs font-medium text-ever-dim uppercase tracking-wider">Actions</th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-ever-dim uppercase tracking-wider">Item</th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-ever-dim uppercase tracking-wider">Frequency</th>
+                    <th className="px-4 py-3 text-right text-xs font-medium text-ever-dim uppercase tracking-wider">Amount</th>
+                    <th className="px-4 py-3 text-right text-xs font-medium text-ever-dim uppercase tracking-wider">Monthly Expected</th>
+                    <th className="px-4 py-3 text-right text-xs font-medium text-ever-dim uppercase tracking-wider" title="Average actual spend per month over the comparison window">Actual / mo</th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-ever-dim uppercase tracking-wider">Dates</th>
+                    <th className="w-10 px-2 py-3"><span className="sr-only">Actions</span></th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-ever-line">

@@ -1,3 +1,4 @@
+import { AssistantDock } from './AssistantDock';
 import React, { useEffect, useRef, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import {
@@ -319,6 +320,9 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
           </footer>
         </main>
       </div>
+
+      {/* Claude, reachable from every page */}
+      <AssistantDock />
     </div>
   );
 };

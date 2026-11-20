@@ -68,6 +68,7 @@ app.use('/api/trips', require('./routes/trips'));
 app.use('/api/budget-plans', require('./routes/budgetPlans'));
 app.use('/api/reports', require('./routes/reports'));
 app.use('/api/finance-chat', require('./routes/financeChat'));
+app.use('/api/assistant', require('./routes/assistant'));
 app.use('/api/planning', require('./routes/planning'));
 app.use('/api/quarter-reviews', require('./routes/quarterReviews'));
 app.use('/api/bets', require('./routes/bets'));

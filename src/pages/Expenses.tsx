@@ -123,6 +123,15 @@ const Expenses: React.FC = () => {
   const [includeTransfers, setIncludeTransfers] = useState(false);
   // This page is about money going out; income lives on the dashboard.
   const [includeIncome, setIncludeIncome] = useState(false);
+
+  // The chart groups the current selection by week, month, quarter or year.
+  // Until a grouping is picked by hand it follows the date range: weeks for a
+  // month or quarter, months for anything longer.
+  const [groupChoice, setGroupChoice] = useState<Grouping | null>(null);
+  const grouping: Grouping = groupChoice ?? (['month', 'custom-month', 'quarter'].includes(dateRange) ? 'week' : 'month');
+  // Clicking a bar narrows the list to that bar's dates.
+  const [selectedBucket, setSelectedBucket] = useState<{ key: string; start: string; end: string; title: string } | null>(null);
+  useEffect(() => { setSelectedBucket(null); }, [grouping, dateRange, selectedMonth, selectedYear]);
   const [availableColumns, setAvailableColumns] = useState<string[]>([]);
   const [displayColumns, setDisplayColumns] = useState<string[]>(['amount', 'date', 'merchant', 'description', 'category', 'subcategory', 'statement']);
   const [currentPage, setCurrentPage] = useState(0);
@@ -284,7 +293,13 @@ const Expenses: React.FC = () => {
 
   // API function to fetch expenses
   const fetchExpenses = async (): Promise<ExpensesResponse> => {
-    const { startDate, endDate } = getDateRange(dateRange);
+    let { startDate, endDate } = getDateRange(dateRange);
+    // A selected bar narrows the list and tiles to its dates, within the
+    // range already chosen. The chart keeps the whole range.
+    if (selectedBucket) {
+      if (selectedBucket.start > startDate) startDate = selectedBucket.start;
+      if (selectedBucket.end < endDate) endDate = selectedBucket.end;
+    }
     const params = new URLSearchParams({
       limit: limit.toString(),
       offset: (currentPage * limit).toString(),
@@ -325,9 +340,12 @@ const Expenses: React.FC = () => {
     error,
     refetch
   } = useQuery({
-    queryKey: ['expenses', currentPage, limit, searchTerm, selectedCategory, selectedSubcategory, dateRange, selectedMonth, selectedYear, uncategorizedOnly, includeTransfers, includeIncome],
+    queryKey: ['expenses', currentPage, limit, searchTerm, selectedCategory, selectedSubcategory, dateRange, selectedMonth, selectedYear, uncategorizedOnly, includeTransfers, includeIncome, selectedBucket?.key],
     queryFn: fetchExpenses,
     staleTime: 30000, // 30 seconds
+    // Keep showing the current rows while a new filter loads, instead of
+    // replacing the whole page with a spinner on every change.
+    keepPreviousData: true,
   });
 
   const expenses = useMemo(() => {
@@ -720,14 +738,6 @@ const Expenses: React.FC = () => {
   };
 
   const [showChart, setShowChart] = useState(true);
-  // The chart groups the current selection by week, month, quarter or year.
-  // Until a grouping is picked by hand it follows the date range: weeks for a
-  // month or quarter, months for anything longer.
-  const [groupChoice, setGroupChoice] = useState<Grouping | null>(null);
-  const grouping: Grouping = groupChoice ?? (['month', 'custom-month', 'quarter'].includes(dateRange) ? 'week' : 'month');
-  // Clicking a bar narrows the list to that bar's dates.
-  const [selectedBucket, setSelectedBucket] = useState<{ key: string; start: string; end: string; title: string } | null>(null);
-  useEffect(() => { setSelectedBucket(null); }, [grouping, dateRange, selectedMonth, selectedYear]);
   const [sortColumn, setSortColumn] = useState<string | null>(null);
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
 
@@ -769,7 +779,6 @@ const Expenses: React.FC = () => {
   // Spending only: income (stored negative) and taxes would net it to nonsense.
   const isSpendRow = (e: Expense) =>
     !e.is_transfer && e.category !== 'Income' && e.category !== 'Taxes' && e.category !== 'Credit Card Payment';
-  const totalAmount = filteredExpenses.filter(isSpendRow).reduce((sum, expense) => sum + expense.amount, 0);
 
   // Weekly spending data for chart (uses all expenses, not paginated)
   const chartData = useMemo(() => {
@@ -801,7 +810,7 @@ const Expenses: React.FC = () => {
   useEffect(() => {
     setCurrentPage(0);
     setSelectedIds(new Set());
-  }, [searchTerm, selectedCategory, selectedSubcategory, dateRange, selectedMonth, selectedYear, uncategorizedOnly, includeTransfers, includeIncome]);
+  }, [searchTerm, selectedCategory, selectedSubcategory, dateRange, selectedMonth, selectedYear, uncategorizedOnly, includeTransfers, includeIncome, selectedBucket?.key]);
 
   if (isLoading) {
     return (
@@ -1509,7 +1518,7 @@ const Expenses: React.FC = () => {
         <div className="bg-ever-lime/15 border border-ever-line rounded-lg px-4 py-3 flex items-center justify-between">
           <span className="text-sm text-ever-ink">
             Showing <strong>{selectedBucket.title}</strong>
-            <span className="ml-2 text-ever-dim">({filteredExpenses.length} shown, {money(totalAmount)} spending)</span>
+            <span className="ml-2 text-ever-dim">The totals above and the list below are for this period; the chart still shows the whole range.</span>
           </span>
           <button
             onClick={() => setSelectedBucket(null)}

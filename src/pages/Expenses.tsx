@@ -38,6 +38,64 @@ interface ExpensesResponse {
   };
 }
 
+// ---- chart grouping ----
+type Grouping = 'week' | 'month' | 'quarter' | 'year';
+const GROUPINGS: Array<{ id: Grouping; label: string }> = [
+  { id: 'week', label: 'Weekly' },
+  { id: 'month', label: 'Monthly' },
+  { id: 'quarter', label: 'Quarterly' },
+  { id: 'year', label: 'Yearly' },
+];
+interface Bucket { key: string; start: string; end: string }
+interface ChartBucket extends Bucket { label: string; total: number; count: number }
+
+const p2 = (n: number) => String(n).padStart(2, '0');
+const ymd = (d: Date) => `${d.getFullYear()}-${p2(d.getMonth() + 1)}-${p2(d.getDate())}`;
+// 'YYYY-MM-DD' as a local date (new Date(string) would read it as UTC).
+const localDate = (iso: string) => new Date(Number(iso.slice(0, 4)), Number(iso.slice(5, 7)) - 1, Number(iso.slice(8, 10)));
+const nextDay = (iso: string) => { const d = localDate(iso); d.setDate(d.getDate() + 1); return ymd(d); };
+const MONTH_ABBR = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+
+// The week (Monday to Sunday), month, quarter or year a date falls in.
+function bucketOf(iso: string, grouping: Grouping): Bucket {
+  const d = localDate(iso);
+  const y = d.getFullYear();
+  const m = d.getMonth();
+  if (grouping === 'week') {
+    const day = d.getDay();
+    const monday = new Date(y, m, d.getDate() - (day === 0 ? 6 : day - 1));
+    const sunday = new Date(monday.getFullYear(), monday.getMonth(), monday.getDate() + 6);
+    return { key: ymd(monday), start: ymd(monday), end: ymd(sunday) };
+  }
+  if (grouping === 'month') return { key: `${y}-${p2(m + 1)}`, start: ymd(new Date(y, m, 1)), end: ymd(new Date(y, m + 1, 0)) };
+  if (grouping === 'quarter') {
+    const q = Math.floor(m / 3);
+    return { key: `${y}-Q${q + 1}`, start: ymd(new Date(y, q * 3, 1)), end: ymd(new Date(y, q * 3 + 3, 0)) };
+  }
+  return { key: String(y), start: `${y}-01-01`, end: `${y}-12-31` };
+}
+
+// Short axis label.
+function bucketLabel(b: Bucket, grouping: Grouping, spansYears: boolean): string {
+  const d = localDate(b.start);
+  const yy = String(d.getFullYear()).slice(2);
+  if (grouping === 'week') return `${d.getMonth() + 1}/${d.getDate()}`;
+  if (grouping === 'month') return spansYears ? `${MONTH_ABBR[d.getMonth()]} '${yy}` : MONTH_ABBR[d.getMonth()];
+  if (grouping === 'quarter') return spansYears ? `Q${Math.floor(d.getMonth() / 3) + 1} '${yy}` : `Q${Math.floor(d.getMonth() / 3) + 1}`;
+  return String(d.getFullYear());
+}
+
+// Full name, for the tooltip and the banner.
+function bucketTitle(b: Bucket, grouping: Grouping): string {
+  const s = localDate(b.start);
+  const e = localDate(b.end);
+  const md = (d: Date) => d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+  if (grouping === 'week') return `the week of ${md(s)} – ${md(e)}, ${e.getFullYear()}`;
+  if (grouping === 'month') return s.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+  if (grouping === 'quarter') return `Q${Math.floor(s.getMonth() / 3) + 1} ${s.getFullYear()}`;
+  return String(s.getFullYear());
+}
+
 // Signed dollars with the minus in front of the symbol: -$1,234.56, not $-1,234.56.
 const money = (n: number, digits = 2) =>
   `${n < 0 ? '-' : ''}$${Math.abs(n).toLocaleString(undefined, { minimumFractionDigits: digits, maximumFractionDigits: digits })}`;
@@ -53,7 +111,7 @@ const Expenses: React.FC = () => {
   const [selectedCategory, setSelectedCategory] = useState(() => searchParams.get('category') || 'all');
   const [selectedSubcategory, setSelectedSubcategory] = useState(() => searchParams.get('subcategory') || 'all');
   const [dateRange, setDateRange] = useState<'all' | 'month' | 'quarter' | 'year' | 'custom-month' | 'custom-year'>(
-    urlMonth ? 'custom-month' : urlYear ? 'custom-year' : 'all',
+    urlMonth ? 'custom-month' : urlYear ? 'custom-year' : 'year',
   );
   const [selectedMonth, setSelectedMonth] = useState(() => {
     if (urlMonth) return urlMonth;
@@ -662,7 +720,14 @@ const Expenses: React.FC = () => {
   };
 
   const [showChart, setShowChart] = useState(true);
-  const [selectedWeek, setSelectedWeek] = useState<string | null>(null);
+  // The chart groups the current selection by week, month, quarter or year.
+  // Until a grouping is picked by hand it follows the date range: weeks for a
+  // month or quarter, months for anything longer.
+  const [groupChoice, setGroupChoice] = useState<Grouping | null>(null);
+  const grouping: Grouping = groupChoice ?? (['month', 'custom-month', 'quarter'].includes(dateRange) ? 'week' : 'month');
+  // Clicking a bar narrows the list to that bar's dates.
+  const [selectedBucket, setSelectedBucket] = useState<{ key: string; start: string; end: string; title: string } | null>(null);
+  useEffect(() => { setSelectedBucket(null); }, [grouping, dateRange, selectedMonth, selectedYear]);
   const [sortColumn, setSortColumn] = useState<string | null>(null);
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
 
@@ -682,13 +747,8 @@ const Expenses: React.FC = () => {
   // If a week is selected from the chart, further filter to that week
   const filteredExpenses = useMemo(() => {
     let result = expenses;
-    if (selectedWeek) {
-      const weekStart = new Date(selectedWeek + 'T00:00:00');
-      const weekEnd = new Date(weekStart);
-      weekEnd.setDate(weekEnd.getDate() + 6);
-      const startStr = weekStart.toISOString().split('T')[0];
-      const endStr = weekEnd.toISOString().split('T')[0];
-      result = result.filter(e => e.date >= startStr && e.date <= endStr);
+    if (selectedBucket) {
+      result = result.filter(e => e.date >= selectedBucket.start && e.date <= selectedBucket.end);
     }
     if (sortColumn) {
       result = [...result].sort((a, b) => {
@@ -705,64 +765,37 @@ const Expenses: React.FC = () => {
       });
     }
     return result;
-  }, [expenses, selectedWeek, sortColumn, sortDirection]);
+  }, [expenses, selectedBucket, sortColumn, sortDirection]);
   // Spending only: income (stored negative) and taxes would net it to nonsense.
   const isSpendRow = (e: Expense) =>
     !e.is_transfer && e.category !== 'Income' && e.category !== 'Taxes' && e.category !== 'Credit Card Payment';
   const totalAmount = filteredExpenses.filter(isSpendRow).reduce((sum, expense) => sum + expense.amount, 0);
 
   // Weekly spending data for chart (uses all expenses, not paginated)
-  const weeklyData = useMemo(() => {
-    if (chartExpenses.length === 0) return { weeks: [], weeklyAvg: 0, monthlyBudgetWeekly: 0 };
+  const chartData = useMemo(() => {
+    const spend = chartExpenses.filter(isSpendRow).filter(e => /^\d{4}-\d{2}-\d{2}/.test(e.date || ''));
+    if (spend.length === 0) return { buckets: [] as ChartBucket[], average: 0 };
 
-    // Get Monday of a given date's week
-    const getMonday = (d: Date) => {
-      const day = d.getDay();
-      const diff = d.getDate() - day + (day === 0 ? -6 : 1);
-      return new Date(d.getFullYear(), d.getMonth(), diff);
-    };
+    const dates = spend.map(e => e.date.slice(0, 10)).sort();
+    const first = bucketOf(dates[0], grouping);
+    const last = bucketOf(dates[dates.length - 1], grouping);
+    const spansYears = first.start.slice(0, 4) !== last.start.slice(0, 4);
 
-    // Group expenses by week
-    const weekMap = new Map<string, { total: number; start: Date; count: number }>();
-    for (const exp of chartExpenses) {
-      // The chart is spending: income and tax payments are left out.
-      if (exp.is_transfer || exp.category === 'Income' || exp.category === 'Taxes' || exp.category === 'Credit Card Payment') continue;
-      const date = new Date(exp.date + 'T00:00:00');
-      const monday = getMonday(date);
-      const key = monday.toISOString().split('T')[0];
-      const existing = weekMap.get(key) || { total: 0, start: monday, count: 0 };
-      existing.total += exp.amount;
-      existing.count++;
-      weekMap.set(key, existing);
+    // Every bucket from the first to the last, so a period with no spending
+    // shows as an empty slot instead of silently disappearing.
+    const map = new Map<string, ChartBucket>();
+    for (let b = first; b.key <= last.key; b = bucketOf(nextDay(b.end), grouping)) {
+      map.set(b.key, { ...b, label: bucketLabel(b, grouping, spansYears), total: 0, count: 0 });
+      if (map.size > 400) break;
     }
-
-    // Sort by date
-    const sorted = Array.from(weekMap.entries())
-      .sort(([a], [b]) => a.localeCompare(b))
-      .map(([key, { total, start, count }]) => {
-        const end = new Date(start);
-        end.setDate(end.getDate() + 6);
-        const label = `${start.getMonth() + 1}/${start.getDate()}`;
-        return { key, label, total: Math.round(total * 100) / 100, count, start };
-      });
-
-    // Show last 8 weeks
-    const recent = sorted.slice(-8);
-
-    // Calculate rolling average (4-week)
-    const withAvg = recent.map((week, i) => {
-      const windowStart = Math.max(0, i - 3);
-      const window = recent.slice(windowStart, i + 1);
-      const avg = window.reduce((s, w) => s + w.total, 0) / window.length;
-      return { ...week, avg: Math.round(avg * 100) / 100 };
-    });
-
-    const weeklyAvg = recent.length > 0
-      ? Math.round(recent.reduce((s, w) => s + w.total, 0) / recent.length * 100) / 100
-      : 0;
-
-    return { weeks: withAvg, weeklyAvg };
-  }, [chartExpenses]);
+    for (const e of spend) {
+      const b = map.get(bucketOf(e.date.slice(0, 10), grouping).key);
+      if (b) { b.total += e.amount; b.count += 1; }
+    }
+    const buckets = [...map.values()].map(b => ({ ...b, total: Math.round(b.total * 100) / 100 }));
+    const average = Math.round((buckets.reduce((sum, b) => sum + b.total, 0) / buckets.length) * 100) / 100;
+    return { buckets, average };
+  }, [chartExpenses, grouping]);
 
   // Reset page and selection when filters change
   useEffect(() => {
@@ -1361,35 +1394,54 @@ const Expenses: React.FC = () => {
         </div>
       )}
 
-      {/* Weekly Spending Chart */}
-      {weeklyData.weeks.length > 1 && (
+      {/* Spending chart: follows every filter above, grouped as chosen */}
+      {chartData.buckets.length > 0 && (
         <div className="bg-ever-card rounded-ever border border-ever-line">
-          <div className="px-6 py-4 border-b border-ever-line flex items-center justify-between">
+          <div className="px-6 py-4 border-b border-ever-line flex flex-wrap items-center justify-between gap-3">
             <div className="flex items-center">
               <BarChart3 className="h-5 w-5 text-ever-lime mr-2" />
-              <h2 className="text-lg font-semibold text-ever-ink">Weekly Spending</h2>
-              <span className="ml-3 text-sm text-ever-dim">
-                Avg: {money(weeklyData.weeklyAvg)}/week
-              </span>
+              <h2 className="text-lg font-semibold text-ever-ink">Spending by {grouping}</h2>
+              {chartData.buckets.length > 1 && (
+                <span className="ml-3 text-sm text-ever-dim">
+                  Avg: {money(chartData.average)}/{grouping}
+                </span>
+              )}
             </div>
-            <button
-              onClick={() => setShowChart(!showChart)}
-              className="text-sm text-ever-dim hover:text-ever-ink"
-            >
-              {showChart ? 'Hide' : 'Show'}
-            </button>
+            <div className="flex items-center gap-3">
+              <div className="flex gap-1" role="group" aria-label="Group the chart by">
+                {GROUPINGS.map(g => (
+                  <button
+                    key={g.id}
+                    onClick={() => setGroupChoice(g.id)}
+                    aria-pressed={grouping === g.id}
+                    className={cn(
+                      'rounded-lg border px-3 py-1 text-xs',
+                      grouping === g.id
+                        ? 'border-transparent bg-ever-lime font-semibold text-ever-lime-ink'
+                        : 'border-ever-line text-ever-dim hover:text-ever-ink',
+                    )}
+                  >
+                    {g.label}
+                  </button>
+                ))}
+              </div>
+              <button
+                onClick={() => setShowChart(!showChart)}
+                className="text-sm text-ever-dim hover:text-ever-ink"
+              >
+                {showChart ? 'Hide' : 'Show'}
+              </button>
+            </div>
           </div>
           {showChart && (
             <div className="px-6 py-4">
               <ResponsiveContainer width="100%" height={280}>
                 <BarChart
-                  data={weeklyData.weeks}
-                  margin={{ top: 5, right: 20, left: 10, bottom: 5 }}
+                  data={chartData.buckets}
+                  margin={{ top: 5, right: 28, left: 10, bottom: 5 }}
                   onClick={(state) => {
-                    if (state?.activePayload?.[0]) {
-                      const clickedKey = state.activePayload[0].payload.key;
-                      setSelectedWeek(selectedWeek === clickedKey ? null : clickedKey);
-                    }
+                    const b = state?.activePayload?.[0]?.payload as ChartBucket | undefined;
+                    if (b) setSelectedBucket(selectedBucket?.key === b.key ? null : { key: b.key, start: b.start, end: b.end, title: bucketTitle(b, grouping) });
                   }}
                   style={{ cursor: 'pointer' }}
                 >
@@ -1399,36 +1451,39 @@ const Expenses: React.FC = () => {
                     tick={{ fontSize: 12, fill: '#9db3a7' }}
                     tickLine={false}
                     axisLine={{ stroke: '#313d4d' }}
+                    minTickGap={12}
                   />
                   <YAxis
                     tick={{ fontSize: 12, fill: '#9db3a7' }}
                     tickLine={false}
                     axisLine={false}
-                    tickFormatter={(v) => `${v < 0 ? '-' : ''}$${Math.abs(v) >= 1000 ? `${(Math.abs(v) / 1000).toFixed(1)}k` : Math.abs(v)}`}
+                    tickFormatter={(v) => `${v < 0 ? '-' : ''}$${Math.abs(v) >= 1000 ? `${parseFloat((Math.abs(v) / 1000).toFixed(1))}k` : Math.abs(v)}`}
                   />
                   <Tooltip
-                    formatter={(value: number) => [money(value), value < 0 ? 'Net credit' : 'Spent']}
-                    labelFormatter={(label) => `Week of ${label}`}
+                    formatter={(value: number, _name: string, item: any) => [`${money(value)} · ${item?.payload?.count ?? 0} purchases`, 'Spent']}
+                    labelFormatter={(_label, payload: any) => (payload?.[0]?.payload ? bucketTitle(payload[0].payload, grouping) : '')}
                     contentStyle={{ borderRadius: '10px', border: '1px solid #4a5a70', background: '#0f141c', color: '#ebf2ec', fontSize: '13px' }}
                     labelStyle={{ color: '#9db3a7', marginBottom: 2 }}
                     itemStyle={{ color: '#ffffff', fontWeight: 600, fontVariantNumeric: 'tabular-nums' }}
                     cursor={{ fill: 'rgba(255,255,255,0.04)' }}
                   />
-                  <ReferenceLine
-                    y={weeklyData.weeklyAvg}
-                    stroke="#5f7b70"
-                    strokeDasharray="4 4"
-                    label={{ value: 'Avg', position: 'right', fill: '#5f7b70', fontSize: 11 }}
-                  />
-                  <Bar dataKey="total" name="Spent" radius={[4, 4, 0, 0]} maxBarSize={40}>
-                    {weeklyData.weeks.map((week) => {
-                      const baseColor = week.total > weeklyData.weeklyAvg * 1.25 ? '#eb8f6c' : week.total > weeklyData.weeklyAvg ? '#efb15b' : '#8b6ff0';
-                      const isSelected = selectedWeek === week.key;
+                  {chartData.buckets.length > 1 && (
+                    <ReferenceLine
+                      y={chartData.average}
+                      stroke="#5f7b70"
+                      strokeDasharray="4 4"
+                      label={{ value: 'Avg', position: 'right', fill: '#9db3a7', fontSize: 11 }}
+                    />
+                  )}
+                  <Bar dataKey="total" name="Spent" radius={[4, 4, 0, 0]} maxBarSize={48} isAnimationActive={false}>
+                    {chartData.buckets.map((b) => {
+                      const baseColor = b.total > chartData.average * 1.25 ? '#eb8f6c' : b.total > chartData.average ? '#efb15b' : '#8b6ff0';
+                      const isSelected = selectedBucket?.key === b.key;
                       return (
                         <Cell
-                          key={week.key}
+                          key={b.key}
                           fill={baseColor}
-                          opacity={selectedWeek && !isSelected ? 0.3 : 1}
+                          opacity={selectedBucket && !isSelected ? 0.3 : 1}
                           stroke={isSelected ? '#c9f04e' : 'none'}
                           strokeWidth={isSelected ? 2 : 0}
                         />
@@ -1437,38 +1492,34 @@ const Expenses: React.FC = () => {
                   </Bar>
                 </BarChart>
               </ResponsiveContainer>
-              <div className="flex items-center justify-center gap-6 mt-2 text-xs text-ever-dim">
-                <span className="flex items-center"><span className="w-3 h-3 rounded-sm bg-ever-violet mr-1.5" />Under avg</span>
-                <span className="flex items-center"><span className="w-3 h-3 rounded-sm bg-ever-orange mr-1.5" />Above avg</span>
-                <span className="flex items-center"><span className="w-3 h-3 rounded-sm bg-ever-neg mr-1.5" />25%+ over avg</span>
-              </div>
+              {chartData.buckets.length > 1 && (
+                <div className="flex items-center justify-center gap-6 mt-2 text-xs text-ever-dim">
+                  <span className="flex items-center"><span className="w-3 h-3 rounded-sm bg-ever-violet mr-1.5" />At or under average</span>
+                  <span className="flex items-center"><span className="w-3 h-3 rounded-sm bg-ever-orange mr-1.5" />Above average</span>
+                  <span className="flex items-center"><span className="w-3 h-3 rounded-sm bg-ever-neg mr-1.5" />25%+ over average</span>
+                </div>
+              )}
             </div>
           )}
         </div>
       )}
 
-      {/* Week filter banner */}
-      {selectedWeek && (() => {
-        const weekStart = new Date(selectedWeek + 'T00:00:00');
-        const weekEnd = new Date(weekStart);
-        weekEnd.setDate(weekEnd.getDate() + 6);
-        const fmt = (d: Date) => d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-        return (
-          <div className="bg-ever-lime/15 border border-ever-line rounded-lg px-4 py-3 flex items-center justify-between">
-            <span className="text-sm text-ever-ink">
-              Showing expenses for week of <strong>{fmt(weekStart)} - {fmt(weekEnd)}</strong>
-              <span className="ml-2 text-ever-dim">({filteredExpenses.length} shown, {money(totalAmount)} spending)</span>
-            </span>
-            <button
-              onClick={() => setSelectedWeek(null)}
-              className="text-ever-lime hover:underline text-sm flex items-center"
-            >
-              <X className="h-3.5 w-3.5 mr-1" />
-              Clear
-            </button>
-          </div>
-        );
-      })()}
+      {/* Banner while a bar is selected */}
+      {selectedBucket && (
+        <div className="bg-ever-lime/15 border border-ever-line rounded-lg px-4 py-3 flex items-center justify-between">
+          <span className="text-sm text-ever-ink">
+            Showing <strong>{selectedBucket.title}</strong>
+            <span className="ml-2 text-ever-dim">({filteredExpenses.length} shown, {money(totalAmount)} spending)</span>
+          </span>
+          <button
+            onClick={() => setSelectedBucket(null)}
+            className="text-ever-lime hover:underline text-sm flex items-center"
+          >
+            <X className="h-3.5 w-3.5 mr-1" />
+            Clear
+          </button>
+        </div>
+      )}
 
       {/* Expenses List */}
       <div className="bg-ever-card rounded-ever border border-ever-line">

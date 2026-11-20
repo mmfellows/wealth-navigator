@@ -349,6 +349,19 @@ const Budgets: React.FC<{ embedded?: boolean }> = ({ embedded = false }) => {
     setShowModal(true);
   };
 
+  // "+" on a category or subcategory header: the add form, already pointed
+  // at that place.
+  const openAddIn = (mainCategory: string, secondaryCategory?: string) => {
+    setEditingItem(null);
+    setForm({
+      ...defaultForm,
+      mainCategory,
+      secondaryCategory: secondaryCategory || (BUDGET_CATEGORIES[mainCategory] || [])[0] || '',
+    });
+    setShowModal(true);
+  };
+  const addHereCls = 'ml-2 rounded-md p-1 text-ever-lime opacity-0 transition hover:bg-white/10 focus:opacity-100 focus:outline-none focus-visible:ring-1 focus-visible:ring-ever-lime group-hover:opacity-100 [@media(hover:none)]:opacity-100';
+
   const openEdit = (item: BudgetItem) => {
     setEditingItem(item);
     setForm({
@@ -946,7 +959,7 @@ const Budgets: React.FC<{ embedded?: boolean }> = ({ embedded = false }) => {
                         <>
                           {/* Category header row */}
                           <tr
-                            className="bg-white/5 cursor-pointer hover:bg-white/10"
+                            className="group bg-white/5 cursor-pointer hover:bg-white/10"
                             onClick={() => toggleCategory(category)}
                           >
                             <td className="px-4 py-3">
@@ -968,6 +981,14 @@ const Budgets: React.FC<{ embedded?: boolean }> = ({ embedded = false }) => {
                                 <span className="text-xs text-ever-dim">
                                   {items.length} item{items.length !== 1 ? 's' : ''}
                                 </span>
+                                <button
+                                  onClick={e => { e.stopPropagation(); openAddIn(category); }}
+                                  className={addHereCls}
+                                  title={`Add an item to ${category}`}
+                                  aria-label={`Add an item to ${category}`}
+                                >
+                                  <PlusCircle className="h-4 w-4" />
+                                </button>
                               </div>
                             </td>
                             <td className="px-4 py-3"></td>
@@ -1007,7 +1028,7 @@ const Budgets: React.FC<{ embedded?: boolean }> = ({ embedded = false }) => {
                                     return (
                                       <>
                                         <tr
-                                          className="bg-white/[0.03] cursor-pointer hover:bg-white/5"
+                                          className="group bg-white/[0.03] cursor-pointer hover:bg-white/5"
                                           onClick={() => toggleSubcategory(subKey)}
                                         >
                                           <td className="px-4 py-1.5 pl-14" colSpan={3}>
@@ -1020,6 +1041,14 @@ const Budgets: React.FC<{ embedded?: boolean }> = ({ embedded = false }) => {
                                               <span className="text-xs text-ever-faint ml-2">
                                                 {subItems.length} item{subItems.length !== 1 ? 's' : ''}
                                               </span>
+                                              <button
+                                                onClick={e => { e.stopPropagation(); openAddIn(category, sub); }}
+                                                className={addHereCls}
+                                                title={`Add an item to ${sub}`}
+                                                aria-label={`Add an item to ${sub}`}
+                                              >
+                                                <PlusCircle className="h-3.5 w-3.5" />
+                                              </button>
                                             </div>
                                           </td>
                                           <td className="px-4 py-1.5 text-right text-xs font-medium text-ever-dim tabular-nums">

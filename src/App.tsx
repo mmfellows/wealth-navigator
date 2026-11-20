@@ -25,6 +25,8 @@ import QuarterlyReview from './pages/QuarterlyReview';
 import Accounts from './pages/Accounts';
 import Reports from './pages/Reports';
 import Carrots from './pages/Carrots';
+import Trips from './pages/Trips';
+import AnnualPlan from './pages/AnnualPlan';
 import OAuthCallback from './pages/OAuthCallback';
 import AccountSnapshot from './pages/AccountSnapshot';
 import Bets from './pages/Bets';
@@ -84,6 +86,8 @@ function App() {
                       <Route path="/accounts" element={<Accounts />} />
                       <Route path="/reports" element={<Reports />} />
                       <Route path="/carrots" element={<Carrots />} />
+                      <Route path="/trips" element={<Trips />} />
+                      <Route path="/year-plan" element={<AnnualPlan />} />
                       <Route path="/oauth-callback" element={<OAuthCallback />} />
                       <Route path="/settings" element={<Settings />} />
                       <Route path="/security" element={<Security />} />

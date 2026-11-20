@@ -18,6 +18,8 @@ import {
   PieChart,
   Wallet,
   Carrot,
+  Plane,
+  CalendarDays,
   PanelLeftClose,
   PanelLeftOpen,
   ChevronDown,
@@ -47,7 +49,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
     const path = location.pathname;
 
     // Personal Finance routes
-    if (path.startsWith('/budgets') || path.startsWith('/expenses') || path.startsWith('/accounts') || path.startsWith('/reports') || path.startsWith('/carrots') || path.startsWith('/review') || path.startsWith('/close') || path.startsWith('/pacing') || path.startsWith('/chat') || path.startsWith('/plan') || path.startsWith('/quarterly') || path === '/personal-finance-settings') {
+    if (path.startsWith('/budgets') || path.startsWith('/expenses') || path.startsWith('/accounts') || path.startsWith('/reports') || path.startsWith('/carrots') || path.startsWith('/trips') || path.startsWith('/year-plan') || path.startsWith('/review') || path.startsWith('/close') || path.startsWith('/pacing') || path.startsWith('/chat') || path.startsWith('/plan') || path.startsWith('/quarterly') || path === '/personal-finance-settings') {
       localStorage.setItem('lastActiveSection', 'personal-finance');
       return 'personal-finance';
     }
@@ -142,7 +144,9 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
     { path: '/chat', icon: MessageCircle, label: 'Chat' },
     { path: '/plan', icon: Compass, label: 'Planner' },
     { path: '/budgets', icon: DollarSign, label: 'Budgets' },
+    { path: '/year-plan', icon: CalendarDays, label: 'Year Plan' },
     { path: '/expenses', icon: CreditCard, label: 'Expenses' },
+    { path: '/trips', icon: Plane, label: 'Trips' },
     { path: '/review', icon: Inbox, label: 'Review' },
     { path: '/close', icon: CalendarCheck, label: 'Close' },
     { path: '/quarterly', icon: CalendarRange, label: 'Quarterly' },

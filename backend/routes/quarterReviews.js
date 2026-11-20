@@ -6,7 +6,8 @@ const express = require('express');
 const { db, docToObj } = require('../services/database');
 const { optionalAuth } = require('../middleware/auth');
 const { normalizeMerchant } = require('../services/merchantRules');
-const { getCategoryEnvelopes } = require('../services/budgetEnvelopes');
+const { getCategoryEnvelopes, linesForYear } = require('../services/budgetEnvelopes');
+const { getTripResolver, effectiveCategory } = require('../services/trips');
 
 const router = express.Router();
 
@@ -51,9 +52,10 @@ router.get('/analysis', async (req, res) => {
     const { startDate } = quarterRange(quarters[0]);
     const { endDate } = quarterRange(quarter);
 
-    const [snapshot, envelopes] = await Promise.all([
+    const [snapshot, envelopes, tripOf] = await Promise.all([
       db.collection('expenses').where('date', '>=', startDate).where('date', '<=', endDate).get(),
       getCategoryEnvelopes(),
+      getTripResolver(),
     ]);
 
     const ranges = quarters.map(q => ({ q, ...quarterRange(q) }));
@@ -64,7 +66,9 @@ router.get('/analysis', async (req, res) => {
 
     const categories = {};
     snapshot.docs.forEach(doc => {
-      const e = doc.data();
+      // Same bucketing as the envelopes: trip spending under "Trips & Travel".
+      const raw = doc.data();
+      const e = { ...raw, category: effectiveCategory(raw, tripOf) };
       if (e.is_transfer || e.category === 'Income' || e.category === 'Taxes'
         || e.category === 'Credit Card Payment' || !e.category) return;
       const q = quarterOf(e.date);
@@ -135,8 +139,10 @@ async function applyDecisionToBudget(decision) {
   if (typeof target_monthly !== 'number' || target_monthly < 0) return null;
 
   const snapshot = await db.collection('budget_items').get();
-  const items = snapshot.docs
-    .map(d => ({ id: d.id, ...d.data() }))
+  // Only this year's plan is adjusted; a draft for next year is left alone.
+  const thisYear = linesForYear(snapshot.docs.map(d => ({ id: d.id, ...d.data() })), new Date().getFullYear());
+  const planYear = thisYear.length ? (thisYear[0].plan_year || null) : null;
+  const items = thisYear
     .filter(i => i.mainCategory === category && (i.status === 'active' || !i.status));
 
   const now = new Date().toISOString();
@@ -151,6 +157,7 @@ async function applyDecisionToBudget(decision) {
         frequency: 'monthly',
         amount: target_monthly,
         monthlyExpectedSpend: target_monthly,
+        ...(planYear ? { plan_year: planYear } : {}),
         startDate: now.substring(0, 10),
         endDate: null,
         status: 'active',

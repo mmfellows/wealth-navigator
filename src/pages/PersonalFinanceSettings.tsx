@@ -7,6 +7,7 @@ import { CONSENT_TEXT, logPlaidLinkConsent } from '../lib/consent';
 import { Card, Button, toast } from '../components/ui';
 import { cn } from '../lib/cn';
 import { everPill } from '../lib/categoryColors';
+import { EmailReports } from '../components/EmailReports';
 
 interface SubCategory {
   id: number;
@@ -1010,6 +1011,8 @@ const PersonalFinanceSettings: React.FC = () => {
           </div>
         </div>
       )}
+
+      <EmailReports />
     </div>
   );
 };

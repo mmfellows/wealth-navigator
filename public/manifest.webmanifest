@@ -4,8 +4,8 @@
   "description": "Personal finance and investing dashboard",
   "start_url": "/pacing",
   "display": "standalone",
-  "background_color": "#f3f4f6",
-  "theme_color": "#2563eb",
+  "background_color": "#20423a",
+  "theme_color": "#20423a",
   "icons": [
     {
       "src": "/icon-512.png",

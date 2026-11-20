@@ -1,8 +1,10 @@
 import React, { useState, useMemo } from 'react';
 import { authedFetch } from '../services/authRedirect';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { AlertTriangle, ChevronDown, ChevronRight } from 'lucide-react';
+import { Link } from 'react-router-dom';
+import { AlertTriangle, ChevronDown, ChevronRight, X, ArrowUpRight } from 'lucide-react';
 import { BurnStrip } from '../components/BurnStrip';
+import { ThisMonth } from '../components/ThisMonth';
 import SpendingOverTimeChart, { SpendingPoint } from '../components/charts/SpendingOverTimeChart';
 import { Card, CardHeader, StatCard } from '../components/ui';
 import { cn } from '../lib/cn';
@@ -40,6 +42,11 @@ interface SubcategoryStat {
   total: number;
 }
 
+// Budget bucket for trip spending; mirrors backend/services/trips.js.
+const TRIPS_CATEGORY = 'Trips & Travel';
+const isTravelLine = (item: { mainCategory: string; secondaryCategory: string }) =>
+  item.mainCategory === TRIPS_CATEGORY || item.secondaryCategory === 'Travel & Vacation';
+
 // Evergreen categorical palette for progress-bar fills (violet/teal/lime/orange + neutral).
 const CATEGORY_COLORS: Record<string, string> = {
   'Discretionary': 'bg-violet-500',
@@ -47,6 +54,7 @@ const CATEGORY_COLORS: Record<string, string> = {
   'Home': 'bg-lime-500',
   'Other Spending': 'bg-slate-500',
   'Special Expense': 'bg-orange-500',
+  'Trips & Travel': 'bg-sky-500',
 };
 
 const CATEGORY_TEXT_COLORS: Record<string, string> = {
@@ -55,6 +63,7 @@ const CATEGORY_TEXT_COLORS: Record<string, string> = {
   'Home': 'text-lime-300',
   'Other Spending': 'text-ever-dim',
   'Special Expense': 'text-orange-300',
+  'Trips & Travel': 'text-sky-300',
 };
 
 const Reports: React.FC = () => {
@@ -64,6 +73,8 @@ const Reports: React.FC = () => {
   const [viewMode, setViewMode] = useState<'month' | 'year'>('year');
   const [segmentBy, setSegmentBy] = useState<'category' | 'spend_type'>('spend_type');
   const [expandedCategories, setExpandedCategories] = useState<Set<string>>(new Set());
+  // Subcategory drill-down: which row's transactions are open in the modal.
+  const [drill, setDrill] = useState<{ category: string; subcategory: string } | null>(null);
 
   const toggleCategory = (category: string) => {
     setExpandedCategories(prev => {
@@ -186,14 +197,25 @@ const Reports: React.FC = () => {
 
   // Fetch budget items
   const { data: budgetItems } = useQuery({
-    queryKey: ['budgetItems'],
+    queryKey: ['budgetItems', selectedYear],
     queryFn: async () => {
-      const res = await authedFetch('/api/budgets');
+      // The budget lines that applied in the selected year.
+      const res = await authedFetch(`/api/budgets?year=${selectedYear}`);
       if (!res.ok) throw new Error('Failed to fetch budgets');
       return res.json() as Promise<BudgetItem[]>;
     },
     staleTime: 60000,
   });
+
+  // Where an expense counts: trip spending sits under "Trips & Travel" with
+  // the trip as its subcategory (matching the category totals from the API);
+  // everything else under its own category and subcategory.
+  const bucketOf = (e: any): { cat: string; sub: string } => {
+    if (e.budget_category === TRIPS_CATEGORY) {
+      return { cat: TRIPS_CATEGORY, sub: e.trip?.name || 'Not on a trip yet' };
+    }
+    return { cat: e.category || '(uncategorized)', sub: e.subcategory || '(uncategorized)' };
+  };
 
   // Compute subcategory stats from raw expenses
   const subcategoryStats = useMemo(() => {
@@ -201,8 +223,7 @@ const Reports: React.FC = () => {
     const map: Record<string, SubcategoryStat> = {};
     for (const e of expensesData.expenses) {
       if (e.is_transfer) continue;
-      const sub = e.subcategory || '(uncategorized)';
-      const cat = e.category || '(uncategorized)';
+      const { cat, sub } = bucketOf(e);
       const key = `${cat}::${sub}`;
       if (!map[key]) map[key] = { subcategory: sub, category: cat, count: 0, total: 0 };
       map[key].count++;
@@ -229,7 +250,7 @@ const Reports: React.FC = () => {
     for (const item of budgetItems) {
       if (item.status !== 'active') continue;
       const monthly = item.frequency === 'annual' ? item.amount / 12 : item.amount;
-      const key = item.mainCategory;
+      const key = isTravelLine(item) ? TRIPS_CATEGORY : item.mainCategory;
       map[key] = (map[key] || 0) + monthly * monthCount;
     }
     return map;
@@ -319,6 +340,33 @@ const Reports: React.FC = () => {
     };
   }, [viewMode, selectedYear, monthlyStats, monthlyBudget, now, closedMonths]);
 
+  // Transactions behind the open drill-down row (same rows the total sums).
+  const drillTxns = useMemo(() => {
+    if (!drill || !expensesData?.expenses) return [];
+    return (expensesData.expenses as any[])
+      .filter(e => {
+        if (e.is_transfer) return false;
+        const b = bucketOf(e);
+        return b.cat === drill.category && b.sub === drill.subcategory;
+      })
+      .sort((a, b) => String(b.date).localeCompare(String(a.date)));
+  }, [drill, expensesData]);
+  const drillTotal = drillTxns.reduce((s2, e) => s2 + (e.amount || 0), 0);
+  const drillLink = useMemo(() => {
+    if (!drill) return '/expenses';
+    const params = new URLSearchParams();
+    if (drill.category === TRIPS_CATEGORY) return '/trips';
+    if (drill.category !== '(uncategorized)') params.set('category', drill.category);
+    if (drill.subcategory !== '(uncategorized)') params.set('subcategory', drill.subcategory);
+    if (drill.category === '(uncategorized)' && drill.subcategory === '(uncategorized)') params.set('uncategorized', '1');
+    if (viewMode === 'month') params.set('month', `${selectedYear}-${selectedMonth}`);
+    else params.set('year', selectedYear);
+    return `/expenses?${params}`;
+  }, [drill, viewMode, selectedYear, selectedMonth]);
+  const periodLabel = viewMode === 'month'
+    ? new Date(Number(selectedYear), Number(selectedMonth) - 1, 1).toLocaleString('default', { month: 'long', year: 'numeric' })
+    : selectedYear;
+
   const fmt = (n: number) => '$' + n.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   const fmtShort = (n: number) => '$' + n.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 });
 
@@ -334,10 +382,17 @@ const Reports: React.FC = () => {
 
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div className="flex justify-between items-center gap-3">
-        <h1 className="text-2xl font-extrabold tracking-tight text-ever-ink md:text-[26px]">Spending Dashboard</h1>
-        <div className="flex gap-2 items-center">
+      <h1 className="text-2xl font-extrabold tracking-tight text-ever-ink md:text-[26px]">Spending Dashboard</h1>
+
+      {/* First: the in-progress month — pacing, clean-up, latest transactions */}
+      <ThisMonth />
+
+      {/* Then: the bigger picture, for the period picked here */}
+      <div className="flex flex-wrap justify-between items-center gap-3 border-t border-ever-line pt-6">
+        <h2 className="text-lg font-bold tracking-tight text-ever-ink">
+          {viewMode === 'year' ? `${selectedYear} at a glance` : 'Month at a glance'}
+        </h2>
+        <div className="flex flex-wrap gap-2 items-center">
           <button
             onClick={() => setViewMode('month')}
             className={cn(
@@ -642,13 +697,14 @@ const Reports: React.FC = () => {
             )}
             {(() => {
               const maxVal = Math.max(...monthlyStats.map(m => Math.max(m.income, m.expenses)), 1);
-              return [...monthlyStats].reverse().map(m => {
+              // by_month arrives newest-first; keep it that way.
+              return monthlyStats.map(m => {
                 const net = m.income - m.expenses;
                 return (
                   <div key={m.month} className="mb-4">
                     <div className="flex justify-between text-sm mb-1">
                       <span className="text-ever-dim font-medium">
-                        {new Date(m.month + '-01').toLocaleString('default', { month: 'short', year: 'numeric' })}
+                        {new Date(Number(m.month.slice(0, 4)), Number(m.month.slice(5, 7)) - 1, 1).toLocaleString('default', { month: 'short', year: 'numeric' })}
                       </span>
                       <span className={`text-xs font-medium ${net >= 0 ? 'text-ever-pos' : 'text-ever-neg'}`}>
                         {net >= 0 ? '+' : ''}{fmt(net)}
@@ -714,7 +770,15 @@ const Reports: React.FC = () => {
                   <tr key={budgetKey} className={overBudget ? 'bg-white/5' : 'hover:bg-white/5'}>
                     <td className="px-6 py-2.5 text-sm text-ever-dim">{sub.category}</td>
                     <td className="px-6 py-2.5 text-sm font-medium text-ever-ink">{sub.subcategory}</td>
-                    <td className="px-6 py-2.5 text-sm text-right font-medium text-ever-ink tabular-nums">{fmt(sub.total)}</td>
+                    <td className="px-6 py-2.5 text-sm text-right font-medium tabular-nums">
+                      <button
+                        onClick={() => setDrill({ category: sub.category, subcategory: sub.subcategory })}
+                        className="rounded text-ever-ink underline decoration-ever-faint decoration-dotted underline-offset-4 hover:text-ever-lime hover:decoration-ever-lime focus:outline-none focus-visible:ring-1 focus-visible:ring-ever-lime"
+                        title="Show the transactions behind this number"
+                      >
+                        {fmt(sub.total)}
+                      </button>
+                    </td>
                     <td className="px-6 py-2.5 text-sm text-right text-ever-dim tabular-nums">
                       {budget > 0 ? fmtShort(budget) : '--'}
                     </td>
@@ -743,6 +807,62 @@ const Reports: React.FC = () => {
           </table>
         </div>
       </div>
+
+      {/* Drill-down: the transactions that make up one subcategory total */}
+      {drill && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4"
+          onClick={() => setDrill(null)}
+          onKeyDown={e => { if (e.key === 'Escape') setDrill(null); }}
+          role="dialog"
+          aria-modal="true"
+          aria-label={`${drill.subcategory} transactions`}
+        >
+          <div
+            className="flex max-h-[85vh] w-full max-w-2xl flex-col rounded-ever border border-ever-line bg-ever-card shadow-2xl"
+            onClick={e => e.stopPropagation()}
+          >
+            <div className="flex items-start justify-between gap-3 border-b border-ever-line px-6 py-4">
+              <div className="min-w-0">
+                <div className="font-mono text-[10.5px] uppercase tracking-[0.14em] text-ever-dim">{drill.category} · {periodLabel}</div>
+                <h3 className="mt-1 truncate text-lg font-bold tracking-tight text-ever-ink">{drill.subcategory}</h3>
+                <div className="mt-0.5 text-sm text-ever-dim">
+                  <span className="font-semibold text-ever-ink tabular-nums">{fmt(drillTotal)}</span> across {drillTxns.length} transaction{drillTxns.length === 1 ? '' : 's'}
+                </div>
+              </div>
+              <button autoFocus onClick={() => setDrill(null)} className="p-1 text-ever-faint hover:text-ever-ink" aria-label="Close">
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+            <div className="flex-1 overflow-y-auto px-6">
+              {drillTxns.length === 0 ? (
+                <p className="py-8 text-center text-sm text-ever-faint">No transactions.</p>
+              ) : (
+                drillTxns.map((e: any) => (
+                  <div key={e.id} className="flex items-center gap-3 border-t border-ever-line py-2.5 text-sm first:border-t-0">
+                    <span className="w-[74px] flex-none font-mono text-[11px] text-ever-faint">{e.date}</span>
+                    <span className="min-w-0 flex-1 truncate text-ever-ink" title={e.merchant || e.description || ''}>
+                      {e.merchant || e.description || 'Unknown'}
+                    </span>
+                    <span className={cn('whitespace-nowrap font-semibold tabular-nums', e.amount < 0 ? 'text-ever-pos' : 'text-ever-ink')}>
+                      {e.amount < 0 ? `-${fmt(Math.abs(e.amount))}` : fmt(e.amount)}
+                    </span>
+                  </div>
+                ))
+              )}
+            </div>
+            <div className="border-t border-ever-line px-6 py-3.5">
+              <Link
+                to={drillLink}
+                className="inline-flex items-center gap-1.5 rounded-lg bg-ever-lime px-4 py-2 text-sm font-semibold text-ever-lime-ink hover:opacity-90"
+              >
+                {drill.category === TRIPS_CATEGORY ? 'Open Trips' : 'Open these in Expenses'} <ArrowUpRight className="h-4 w-4" />
+              </Link>
+              <span className="ml-3 text-xs text-ever-faint">to edit or recategorize them</span>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

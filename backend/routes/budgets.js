@@ -1,7 +1,7 @@
 const express = require('express');
 const { db, docToObj } = require('../services/database');
 const { optionalAuth } = require('../middleware/auth');
-const { getCategoryEnvelopes } = require('../services/budgetEnvelopes');
+const { getCategoryEnvelopes, linesForYear } = require('../services/budgetEnvelopes');
 
 const router = express.Router();
 
@@ -19,11 +19,31 @@ router.get('/envelopes', async (req, res) => {
   }
 });
 
+// What the budget would look like if it matched actual spending over the
+// last 6 or 12 complete months (?months=6|12), per subcategory and per line.
+router.get('/recommendations', async (req, res) => {
+  try {
+    const { getBudgetRecommendations } = require('../services/budgetRecommendations');
+    const year = Number(req.query.year) || undefined;
+    res.json(await getBudgetRecommendations(Number(req.query.months) === 6 ? 6 : 12, new Date(), year));
+  } catch (error) {
+    console.error('Error computing budget recommendations:', error);
+    res.status(500).json({ error: 'Failed to compute budget recommendations' });
+  }
+});
+
 // Get all budget items
 router.get('/', async (req, res) => {
   try {
+    // Lines for one plan year (?year=YYYY, default this year). A year with
+    // no plan of its own gets the plan it inherits; ?strict=1 returns only
+    // lines that belong to that exact year.
     const snapshot = await db.collection('budget_items').orderBy('created_at').get();
-    const items = snapshot.docs.map(docToObj);
+    const all = snapshot.docs.map(docToObj);
+    const year = Number(req.query.year) || new Date().getFullYear();
+    const items = req.query.strict === '1'
+      ? all.filter(i => i.plan_year === year)
+      : linesForYear(all, year);
     res.json(items);
   } catch (error) {
     console.error('Error fetching budget items:', error);
@@ -35,6 +55,14 @@ router.get('/', async (req, res) => {
 router.post('/', async (req, res) => {
   try {
     const { itemName, mainCategory, secondaryCategory, frequency, amount, startDate, endDate } = req.body;
+    // A new line joins the plan year it was created under; by default that's
+    // whichever plan is in force this year.
+    let planYear = Number(req.body.plan_year) || null;
+    if (!planYear) {
+      const all = (await db.collection('budget_items').get()).docs.map(d => d.data());
+      const current = linesForYear(all, new Date().getFullYear());
+      planYear = current.length ? (current[0].plan_year || null) : null;
+    }
     if (!itemName || !mainCategory || !secondaryCategory || !frequency) {
       return res.status(400).json({ error: 'itemName, mainCategory, secondaryCategory, and frequency are required' });
     }
@@ -47,6 +75,7 @@ router.post('/', async (req, res) => {
       secondaryCategory,
       frequency,
       amount: Number(amount),
+      ...(planYear ? { plan_year: planYear } : {}),
       startDate: startDate || new Date().toISOString().split('T')[0],
       endDate: endDate || null,
       monthlyExpectedSpend,

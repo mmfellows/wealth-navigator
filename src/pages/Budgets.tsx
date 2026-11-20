@@ -1,11 +1,12 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { authedFetch } from '../services/authRedirect';
-import { PlusCircle, Edit2, Trash2, Target, X, Archive, RotateCcw, ChevronDown, ChevronRight, History, GripVertical } from 'lucide-react';
+import { Link, useSearchParams } from 'react-router-dom';
+import { PlusCircle, Edit2, Trash2, Target, X, Archive, RotateCcw, ChevronDown, ChevronRight, History, GripVertical, MoreHorizontal, AlertTriangle, ArrowDownCircle, Scale } from 'lucide-react';
 import { fetchBudgetCategories, fetchCategoryColors, DEFAULT_CATEGORY_COLOR } from '../constants/budgetCategories';
 import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors, DragEndEvent } from '@dnd-kit/core';
 import { arrayMove, SortableContext, verticalListSortingStrategy, useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { Card, Button, StatCard } from '../components/ui';
+import { Card, Button, StatCard, toast } from '../components/ui';
 import { cn } from '../lib/cn';
 import { everPill, everDot } from '../lib/categoryColors';
 
@@ -91,6 +92,114 @@ const SEED_ITEMS = [
   priceHistory: [] as PriceChange[],
 }));
 
+// Budget-vs-actuals comparison from /api/budgets/recommendations.
+type RecStatus = 'over' | 'under' | 'ok' | 'unbudgeted';
+interface ItemRec {
+  basis: 'merchant' | 'shared';
+  merchants: string[];
+  budget_monthly: number;
+  actual_monthly: number;
+  suggested_monthly: number;
+  status: RecStatus;
+  group_size: number;
+}
+interface SubRec {
+  category: string;
+  subcategory: string;
+  budget_monthly: number;
+  actual_monthly: number;
+  recent_monthly: number;
+  months_with_spend: number;
+  suggested_monthly: number;
+  status: RecStatus;
+  line_count: number;
+}
+interface Recommendations {
+  window: { requested_months: number; months_used: number; start: string; end: string };
+  totals: { budget_monthly: number; actual_monthly: number; suggested_monthly: number };
+  subcategories: SubRec[];
+  items: Record<string, ItemRec>;
+}
+
+const usd0 = (n: number) => `$${Math.round(n).toLocaleString()}`;
+const monthName = (key: string) =>
+  new Date(Number(key.slice(0, 4)), Number(key.slice(5, 7)) - 1, 1).toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
+
+// Row actions behind a "…" button that only appears while the row is hovered
+// (or focused, or on touch screens where there is no hover). The menu is
+// position:fixed so the table's scroll container can't clip it.
+interface RowAction { label: string; icon: React.ReactNode; onClick: () => void; danger?: boolean }
+const RowMenu: React.FC<{ actions: RowAction[]; label: string }> = ({ actions, label }) => {
+  const [pos, setPos] = useState<{ top: number; right: number } | null>(null);
+  const btn = useRef<HTMLButtonElement>(null);
+  const close = useCallback(() => setPos(null), []);
+
+  useEffect(() => {
+    if (!pos) return;
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') { close(); btn.current?.focus(); } };
+    window.addEventListener('mousedown', close);
+    window.addEventListener('scroll', close, true);
+    window.addEventListener('resize', close);
+    window.addEventListener('keydown', onKey);
+    return () => {
+      window.removeEventListener('mousedown', close);
+      window.removeEventListener('scroll', close, true);
+      window.removeEventListener('resize', close);
+      window.removeEventListener('keydown', onKey);
+    };
+  }, [pos, close]);
+
+  return (
+    <>
+      <button
+        ref={btn}
+        onMouseDown={e => e.stopPropagation()}
+        onClick={e => {
+          e.stopPropagation();
+          if (pos) return close();
+          const r = e.currentTarget.getBoundingClientRect();
+          const menuHeight = actions.length * 36 + 8;
+          const top = r.bottom + menuHeight + 8 > window.innerHeight ? r.top - menuHeight - 4 : r.bottom + 4;
+          setPos({ top, right: window.innerWidth - r.right });
+        }}
+        aria-haspopup="menu"
+        aria-expanded={!!pos}
+        aria-label={label}
+        className={cn(
+          'rounded-md p-1 text-ever-dim transition hover:bg-white/10 hover:text-ever-ink focus:opacity-100 focus:outline-none focus-visible:ring-1 focus-visible:ring-ever-lime',
+          'opacity-0 group-hover:opacity-100 [@media(hover:none)]:opacity-100',
+          pos && 'opacity-100 bg-white/10 text-ever-ink',
+        )}
+      >
+        <MoreHorizontal className="h-4 w-4" />
+      </button>
+      {pos && (
+        <div
+          role="menu"
+          onMouseDown={e => e.stopPropagation()}
+          className="fixed z-50 min-w-[150px] rounded-lg border border-ever-line bg-ever-card py-1 text-left shadow-xl"
+          style={{ top: pos.top, right: pos.right }}
+        >
+          {actions.map(a => (
+            <button
+              key={a.label}
+              role="menuitem"
+              onClick={() => { close(); a.onClick(); }}
+              className={cn(
+                'flex h-9 w-full items-center gap-2.5 px-3 text-sm hover:bg-white/5',
+                a.danger ? 'text-ever-neg' : 'text-ever-ink',
+              )}
+            >
+              {a.icon}
+              {a.label}
+            </button>
+          ))}
+        </div>
+      )}
+    </>
+  );
+};
+
 // Sortable category group wrapper — uses a <tbody> so it's valid inside <table>
 const SortableCategoryGroup: React.FC<{
   id: string;
@@ -120,6 +229,13 @@ const Budgets: React.FC = () => {
     fetchCategoryColors().then(setCategoryColors).catch(console.error);
   }, []);
 
+  // Which plan year's lines are on screen (?year=2027 for a draft of next year).
+  const thisYear = new Date().getFullYear();
+  const [searchParams] = useSearchParams();
+  const viewYear = Number(searchParams.get('year')) || thisYear;
+  const isOtherYear = viewYear !== thisYear;
+  const [loaded, setLoaded] = useState(false);
+
   const [budgetItems, setBudgetItems] = useState<BudgetItem[]>([]);
 
   const mapItem = (i: any): BudgetItem => ({
@@ -138,10 +254,14 @@ const Budgets: React.FC = () => {
   });
 
   useEffect(() => {
-    authedFetch('/api/budgets')
+    setLoaded(false);
+    // Another year shows only that year's own lines (never the lines it
+    // would inherit, which belong to the live budget).
+    authedFetch(isOtherYear ? `/api/budgets?year=${viewYear}&strict=1` : '/api/budgets')
       .then(r => r.json())
       .then(async (items: any[]) => {
-        if (items.length > 0) {
+        setLoaded(true);
+        if (items.length > 0 || isOtherYear) {
           setBudgetItems(items.map(mapItem));
         } else {
           authedFetch('/api/budgets/seed', {
@@ -156,7 +276,21 @@ const Budgets: React.FC = () => {
         }
       })
       .catch(console.error);
-  }, []);
+  }, [viewYear, isOtherYear]);
+
+  // Budget vs actual spending (last 6 or 12 complete months).
+  const [recs, setRecs] = useState<Recommendations | null>(null);
+  const [recMonths, setRecMonths] = useState<6 | 12>(12);
+  const [expandedRec, setExpandedRec] = useState<string | null>(null);
+  const [showAllRecs, setShowAllRecs] = useState(false);
+
+  const loadRecs = useCallback(() => {
+    authedFetch(`/api/budgets/recommendations?months=${recMonths}&year=${viewYear}`)
+      .then(r => (r.ok ? r.json() : Promise.reject(new Error('Failed to load recommendations'))))
+      .then(setRecs)
+      .catch(console.error);
+  }, [recMonths, viewYear]);
+  useEffect(() => { loadRecs(); }, [loadRecs]);
 
   const [showModal, setShowModal] = useState(false);
   const [editingItem, setEditingItem] = useState<BudgetItem | null>(null);
@@ -272,7 +406,10 @@ const Budgets: React.FC = () => {
         const res = await authedFetch('/api/budgets', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ ...form, amount, endDate: form.endDate || null }),
+          body: JSON.stringify({
+            ...form, amount, endDate: form.endDate || null,
+            ...(isOtherYear ? { plan_year: viewYear, startDate: `${viewYear}-01-01` } : {}),
+          }),
         });
         if (res.ok) {
           const newItem = await res.json();
@@ -284,6 +421,58 @@ const Budgets: React.FC = () => {
       } catch (err) { console.error('Failed to create budget item:', err); }
     }
     setShowModal(false);
+  };
+
+  // Apply a suggested monthly figure to a line (keeps the old price in history).
+  const applySuggestion = async (item: BudgetItem, monthly: number) => {
+    const today = new Date().toISOString().split('T')[0];
+    const amount = item.frequency === 'annual' ? monthly * 12 : monthly;
+    try {
+      const res = await authedFetch(`/api/budgets/${item.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          amount,
+          monthlyExpectedSpend: monthly,
+          startDate: today,
+          priceHistory: [...item.priceHistory, {
+            amount: item.amount, frequency: item.frequency, effectiveDate: item.startDate, endDate: today,
+          }],
+        }),
+      });
+      if (!res.ok) throw new Error('update failed');
+      const updated = await res.json();
+      setBudgetItems(items => items.map(i => i.id === item.id ? { ...i, ...updated } : i));
+      setExpandedRec(null);
+      toast.success(`${item.itemName} budget set to ${usd0(monthly)}/mo`);
+      loadRecs();
+    } catch (err) {
+      console.error('Failed to apply suggestion:', err);
+      toast.error('Could not update that budget line.');
+    }
+  };
+
+  // Create a line for a subcategory that has spending but no budget.
+  const addSuggested = async (sub: SubRec) => {
+    try {
+      const res = await authedFetch('/api/budgets', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          itemName: sub.subcategory, mainCategory: sub.category, secondaryCategory: sub.subcategory,
+          frequency: 'monthly', amount: sub.suggested_monthly, endDate: null,
+          ...(isOtherYear ? { plan_year: viewYear, startDate: `${viewYear}-01-01` } : {}),
+        }),
+      });
+      if (!res.ok) throw new Error('create failed');
+      const created = await res.json();
+      setBudgetItems(items => [...items, mapItem(created)]);
+      toast.success(`Added ${sub.subcategory} at ${usd0(sub.suggested_monthly)}/mo`);
+      loadRecs();
+    } catch (err) {
+      console.error('Failed to add suggested line:', err);
+      toast.error('Could not add that budget line.');
+    }
   };
 
   const handleArchive = async (id: string) => {
@@ -349,6 +538,23 @@ const Budgets: React.FC = () => {
     return groups.sort((a, b) => b.totalMonthly - a.totalMonthly);
   }, [mainCategories, activeItems, categoryOrder]);
 
+  // Lookups for the actuals column.
+  const subRecByKey = useMemo(() => {
+    const map: Record<string, SubRec> = {};
+    (recs?.subcategories || []).forEach(sr => { map[`${sr.category}::${sr.subcategory}`] = sr; });
+    return map;
+  }, [recs]);
+  const actualByCategory = useMemo(() => {
+    const map: Record<string, number> = {};
+    (recs?.subcategories || []).forEach(sr => { map[sr.category] = (map[sr.category] || 0) + sr.actual_monthly; });
+    return map;
+  }, [recs]);
+  // Subcategories worth a decision, biggest gap first (already sorted by the API).
+  const flaggedSubs = useMemo(
+    () => (recs?.subcategories || []).filter(sr => sr.status !== 'ok'),
+    [recs],
+  );
+
   const handleDragEnd = (event: DragEndEvent) => {
     const { active, over } = event;
     if (over && active.id !== over.id) {
@@ -376,7 +582,7 @@ const Budgets: React.FC = () => {
 
   const renderItemRow = (item: BudgetItem, isArchived: boolean) => (
     <React.Fragment key={item.id}>
-      <tr className={`hover:bg-white/5 ${isArchived ? 'opacity-60' : ''}`}>
+      <tr className={`group hover:bg-white/5 ${isArchived ? 'opacity-60' : ''}`}>
         <td className="px-6 py-3 whitespace-nowrap pl-20">
           <div className="flex items-center">
             <div className="text-sm font-medium text-ever-ink">{item.itemName}</div>
@@ -405,39 +611,84 @@ const Budgets: React.FC = () => {
         <td className="px-6 py-3 whitespace-nowrap text-right text-sm font-semibold text-ever-lime tabular-nums">
           ${item.monthlyExpectedSpend.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
         </td>
+        <td className="px-6 py-3 whitespace-nowrap text-right text-sm tabular-nums">
+          {(() => {
+            const rec = isArchived ? undefined : recs?.items[item.id];
+            if (!rec) return <span className="text-ever-faint">—</span>;
+            const shared = rec.basis === 'shared' && rec.group_size > 1;
+            const off = rec.status === 'over' || rec.status === 'under';
+            const summary = `Averaging ${usd0(rec.actual_monthly)}/mo vs ${usd0(rec.budget_monthly)} budgeted${shared ? ` across ${rec.group_size} lines` : ''}`;
+            return (
+              <span className="inline-flex items-center justify-end gap-1.5">
+                <span className={cn(rec.status === 'over' ? 'text-ever-orange' : 'text-ever-dim')} title={summary}>
+                  {usd0(rec.actual_monthly)}{shared && <span className="ml-1 text-[10px] text-ever-faint">shared</span>}
+                </span>
+                {off ? (
+                  <button
+                    onClick={() => setExpandedRec(expandedRec === item.id ? null : item.id)}
+                    className={cn('rounded p-0.5 hover:bg-white/10 focus:outline-none focus-visible:ring-1 focus-visible:ring-ever-lime', rec.status === 'over' ? 'text-ever-orange' : 'text-ever-teal')}
+                    title={`${summary}. Click for options.`}
+                    aria-label={`${item.itemName}: ${rec.status === 'over' ? 'spending above budget' : 'budget above spending'}. Show options.`}
+                    aria-expanded={expandedRec === item.id}
+                  >
+                    {rec.status === 'over' ? <AlertTriangle className="h-4 w-4" /> : <ArrowDownCircle className="h-4 w-4" />}
+                  </button>
+                ) : (
+                  <span className="inline-block w-5" aria-hidden="true" />
+                )}
+              </span>
+            );
+          })()}
+        </td>
         <td className="px-6 py-3 whitespace-nowrap text-sm text-ever-dim">
           {formatDate(item.startDate)} — {formatDate(item.endDate)}
         </td>
         <td className="px-6 py-3 whitespace-nowrap text-right text-sm font-medium">
-          <div className="flex items-center justify-end space-x-2">
-            {isArchived ? (
-              <>
-                <button onClick={() => handleRestore(item.id)} className="text-ever-pos hover:text-ever-ink" title="Restore">
-                  <RotateCcw className="h-4 w-4" />
-                </button>
-                <button onClick={() => handleDelete(item.id)} className="text-ever-neg hover:text-ever-ink" title="Delete permanently">
-                  <Trash2 className="h-4 w-4" />
-                </button>
-              </>
-            ) : (
-              <>
-                <button onClick={() => openEdit(item)} className="text-ever-lime hover:text-ever-ink" title="Edit">
-                  <Edit2 className="h-4 w-4" />
-                </button>
-                <button onClick={() => handleArchive(item.id)} className="text-ever-orange hover:text-ever-ink" title="Archive">
-                  <Archive className="h-4 w-4" />
-                </button>
-                <button onClick={() => handleDelete(item.id)} className="text-ever-neg hover:text-ever-ink" title="Delete permanently">
-                  <Trash2 className="h-4 w-4" />
-                </button>
-              </>
-            )}
+          <div className="flex items-center justify-end">
+            <RowMenu
+              label={`Actions for ${item.itemName}`}
+              actions={isArchived ? [
+                { label: 'Restore', icon: <RotateCcw className="h-4 w-4 text-ever-pos" />, onClick: () => handleRestore(item.id) },
+                { label: 'Delete', icon: <Trash2 className="h-4 w-4" />, onClick: () => handleDelete(item.id), danger: true },
+              ] : [
+                { label: 'Edit', icon: <Edit2 className="h-4 w-4 text-ever-lime" />, onClick: () => openEdit(item) },
+                { label: 'Archive', icon: <Archive className="h-4 w-4 text-ever-orange" />, onClick: () => handleArchive(item.id) },
+                { label: 'Delete', icon: <Trash2 className="h-4 w-4" />, onClick: () => handleDelete(item.id), danger: true },
+              ]}
+            />
           </div>
         </td>
       </tr>
+      {!isArchived && expandedRec === item.id && recs?.items[item.id] && (() => {
+        const rec = recs.items[item.id];
+        const shared = rec.basis === 'shared' && rec.group_size > 1;
+        const over = rec.status === 'over';
+        const gap = Math.abs(rec.actual_monthly - rec.budget_monthly);
+        return (
+          <tr>
+            <td colSpan={7} className="bg-white/5 px-6 py-3 pl-20">
+              <p className="text-sm text-ever-ink">
+                {shared
+                  ? <>The {rec.group_size} lines in <strong>{item.secondaryCategory}</strong> without a matching merchant are budgeted at {usd0(rec.budget_monthly)}/mo together; actual spending there has averaged <strong>{usd0(rec.actual_monthly)}/mo</strong></>
+                  : <>Budgeted at {usd0(rec.budget_monthly)}/mo; actual spending has averaged <strong>{usd0(rec.actual_monthly)}/mo</strong>{rec.merchants.length > 0 && <> ({rec.merchants.slice(0, 3).join(', ')})</>}</>}
+                {' '}over the last {recs.window.months_used} months — <span className={over ? 'text-ever-orange' : 'text-ever-teal'}>{usd0(gap)}/mo {over ? 'over' : 'under'}</span>.
+              </p>
+              <div className="mt-2.5 flex flex-wrap items-center gap-2">
+                <Button onClick={() => applySuggestion(item, rec.suggested_monthly)}>
+                  {over ? 'Raise' : 'Lower'} this line to {usd0(rec.suggested_monthly)}/mo
+                </Button>
+                <Button variant="ghost" onClick={() => setExpandedRec(null)}>
+                  {over ? 'Keep the budget — I\'ll cut back' : 'Keep the budget as is'}
+                </Button>
+                {shared && <span className="text-xs text-ever-faint">Raising or lowering this one line makes the group match actuals.</span>}
+              </div>
+            </td>
+          </tr>
+        );
+      })()}
       {expandedHistory === item.id && item.priceHistory.length > 0 && (
         <tr>
-          <td colSpan={6} className="px-6 py-3 bg-white/5 pl-20">
+          <td colSpan={7} className="px-6 py-3 bg-white/5 pl-20">
             <div className="text-xs text-ever-dim font-medium mb-2">Price History</div>
             <div className="space-y-1">
               {item.priceHistory.map((entry, idx) => (
@@ -466,12 +717,31 @@ const Budgets: React.FC = () => {
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
-        <h1 className="text-2xl font-extrabold tracking-tight text-ever-ink md:text-[26px]">Budgets</h1>
+        <h1 className="text-2xl font-extrabold tracking-tight text-ever-ink md:text-[26px]">{isOtherYear ? `${viewYear} budget` : 'Budgets'}</h1>
         <Button onClick={openAdd}>
           <PlusCircle className="h-4 w-4" />
           Add Budget Item
         </Button>
       </div>
+
+      {isOtherYear ? (
+        <div className="flex flex-wrap items-center justify-between gap-3 rounded-ever border border-ever-violet/40 bg-ever-violet/10 p-4 text-sm text-ever-ink">
+          <span>
+            {loaded && budgetItems.length === 0
+              ? <>There is no {viewYear} plan yet. Start it from the Year Plan page and this year's lines are copied here as a first draft.</>
+              : <>You're editing the <strong>{viewYear}</strong> plan. Changes here don't touch this year's budget. The "Actual / mo" column shows what you've really been spending, to set each line against.</>}
+          </span>
+          <span className="flex gap-3">
+            <Link to={`/year-plan?year=${viewYear}`} className="font-semibold text-ever-lime hover:underline">See the {viewYear} plan</Link>
+            <Link to="/budgets" className="text-ever-dim hover:text-ever-ink hover:underline">Back to {thisYear}</Link>
+          </span>
+        </div>
+      ) : (
+        <div className="text-sm text-ever-dim">
+          This is the live {thisYear} budget.{' '}
+          <Link to={`/year-plan?year=${thisYear + 1}`} className="text-ever-lime hover:underline">Plan {thisYear + 1}</Link>
+        </div>
+      )}
 
       {/* Summary Cards */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
@@ -496,6 +766,127 @@ const Budgets: React.FC = () => {
           dot="var(--ever-orange)"
         />
       </div>
+
+      {/* Budget vs actual spending: where the plan and reality disagree */}
+      <Card>
+        <div className="mb-3 flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <h2 className="flex items-center gap-2 text-lg font-semibold text-ever-ink">
+              <Scale className="h-4 w-4 text-ever-lime" /> Budget vs. what you actually spend
+            </h2>
+            <p className="mt-0.5 text-xs text-ever-dim">
+              {recs
+                ? `Monthly averages from ${monthName(recs.window.start)} to ${monthName(recs.window.end)} (${recs.window.months_used} complete month${recs.window.months_used === 1 ? '' : 's'}${recs.window.months_used < recs.window.requested_months ? ' — all the history there is' : ''}). Use it to set next year's budget: update a line to match, or keep it as the target to spend down to.`
+                : 'Loading your spending history…'}
+            </p>
+          </div>
+          <div className="flex gap-1">
+            {([6, 12] as const).map(n => (
+              <button
+                key={n}
+                onClick={() => setRecMonths(n)}
+                className={cn(
+                  'rounded-lg px-3 py-1 font-mono text-[10.5px] tracking-wide transition',
+                  recMonths === n ? 'bg-ever-lime font-bold text-ever-lime-ink' : 'border border-ever-line text-ever-dim hover:text-ever-ink',
+                )}
+              >
+                {n} MO
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {recs && (
+          <>
+            <div className="mb-4 grid grid-cols-3 gap-4">
+              <div>
+                <div className="font-mono text-[10.5px] uppercase tracking-[0.14em] text-ever-dim">Budgeted / mo</div>
+                <div className="mt-1 text-xl font-extrabold tabular-nums text-ever-ink">{usd0(recs.totals.budget_monthly)}</div>
+              </div>
+              <div>
+                <div className="font-mono text-[10.5px] uppercase tracking-[0.14em] text-ever-dim">Actual avg / mo</div>
+                <div className="mt-1 text-xl font-extrabold tabular-nums text-ever-ink">{usd0(recs.totals.actual_monthly)}</div>
+              </div>
+              <div>
+                <div className="font-mono text-[10.5px] uppercase tracking-[0.14em] text-ever-dim">Gap</div>
+                {(() => {
+                  const gap = recs.totals.actual_monthly - recs.totals.budget_monthly;
+                  return (
+                    <div className={cn('mt-1 text-xl font-extrabold tabular-nums', gap > 0 ? 'text-ever-orange' : 'text-ever-pos')}>
+                      {usd0(Math.abs(gap))} <span className="text-xs font-semibold">{gap > 0 ? 'over budget' : 'under budget'}</span>
+                    </div>
+                  );
+                })()}
+              </div>
+            </div>
+
+            {flaggedSubs.length === 0 ? (
+              <p className="text-sm text-ever-pos">Every budgeted subcategory is within 10% of what you actually spend.</p>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="min-w-full text-sm">
+                  <thead>
+                    <tr className="border-b border-ever-line text-left text-xs uppercase tracking-wider text-ever-dim">
+                      <th className="py-2 pr-4 font-medium">Subcategory</th>
+                      <th className="px-4 py-2 text-right font-medium">Budget</th>
+                      <th className="px-4 py-2 text-right font-medium">Actual avg</th>
+                      <th className="px-4 py-2 text-right font-medium">Last 3 mo</th>
+                      <th className="px-4 py-2 text-right font-medium">Suggested</th>
+                      <th className="py-2 pl-4 font-medium">What it means</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {(showAllRecs ? flaggedSubs : flaggedSubs.slice(0, 8)).map(sr => {
+                      const gap = sr.actual_monthly - sr.budget_monthly;
+                      return (
+                        <tr key={`${sr.category}::${sr.subcategory}`} className="border-b border-ever-line/60 last:border-0">
+                          <td className="py-2 pr-4">
+                            <span className="flex items-center gap-2">
+                              {sr.status === 'under'
+                                ? <ArrowDownCircle className="h-4 w-4 flex-none text-ever-teal" />
+                                : <AlertTriangle className="h-4 w-4 flex-none text-ever-orange" />}
+                              <span>
+                                <span className="font-medium text-ever-ink">{sr.subcategory}</span>
+                                <span className="ml-2 text-xs text-ever-faint">{sr.category}</span>
+                              </span>
+                            </span>
+                          </td>
+                          <td className="px-4 py-2 text-right tabular-nums text-ever-dim">{sr.line_count > 0 ? usd0(sr.budget_monthly) : '—'}</td>
+                          <td className="px-4 py-2 text-right font-semibold tabular-nums text-ever-ink">{usd0(sr.actual_monthly)}</td>
+                          <td className="px-4 py-2 text-right tabular-nums text-ever-dim">{usd0(sr.recent_monthly)}</td>
+                          <td className="px-4 py-2 text-right font-semibold tabular-nums text-ever-lime">{usd0(sr.suggested_monthly)}</td>
+                          <td className="py-2 pl-4 text-xs text-ever-dim">
+                            {sr.status === 'unbudgeted' ? (
+                              <span className="flex items-center gap-2">
+                                Spending with no budget line.
+                                <button onClick={() => addSuggested(sr)} className="whitespace-nowrap rounded-md border border-ever-line px-2 py-1 font-medium text-ever-lime hover:bg-white/5">
+                                  Add at {usd0(sr.suggested_monthly)}
+                                </button>
+                              </span>
+                            ) : sr.status === 'over' ? (
+                              <>Spending {usd0(gap)}/mo more than planned. Raise the budget or cut back.</>
+                            ) : (
+                              <>{usd0(-gap)}/mo of budget you don't use. Room to lower it.</>
+                            )}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+                {flaggedSubs.length > 8 && (
+                  <button onClick={() => setShowAllRecs(v => !v)} className="mt-2 text-xs font-medium text-ever-lime hover:underline">
+                    {showAllRecs ? 'Show fewer' : `Show all ${flaggedSubs.length}`}
+                  </button>
+                )}
+                <p className="mt-3 text-xs text-ever-faint">
+                  To act on a row, find its lines in the table below: the <AlertTriangle className="inline h-3.5 w-3.5 text-ever-orange" /> / <ArrowDownCircle className="inline h-3.5 w-3.5 text-ever-teal" /> icon next to a line opens the update-or-keep choice.
+                </p>
+              </div>
+            )}
+          </>
+        )}
+      </Card>
 
       {/* Active Budget Items Table - Grouped by Category */}
       <div className="bg-ever-card rounded-ever border border-ever-line">
@@ -530,6 +921,7 @@ const Budgets: React.FC = () => {
                 <th className="px-6 py-3 text-left text-xs font-medium text-ever-dim uppercase tracking-wider">Frequency</th>
                 <th className="px-6 py-3 text-right text-xs font-medium text-ever-dim uppercase tracking-wider">Amount</th>
                 <th className="px-6 py-3 text-right text-xs font-medium text-ever-dim uppercase tracking-wider">Monthly Expected</th>
+                <th className="px-6 py-3 text-right text-xs font-medium text-ever-dim uppercase tracking-wider" title="Average actual spend per month over the comparison window">Actual / mo</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-ever-dim uppercase tracking-wider">Dates</th>
                 <th className="px-6 py-3 text-right text-xs font-medium text-ever-dim uppercase tracking-wider">Actions</th>
               </tr>
@@ -574,6 +966,13 @@ const Budgets: React.FC = () => {
                             <td className="px-6 py-3 text-right text-sm font-bold text-ever-ink tabular-nums">
                               ${totalMonthly.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                             </td>
+                            <td className="px-6 py-3 text-right text-sm font-semibold tabular-nums">
+                              {(() => {
+                                const actual = actualByCategory[category];
+                                if (actual === undefined) return <span className="text-ever-faint">—</span>;
+                                return <span className={actual > totalMonthly * 1.1 + 10 ? 'text-ever-orange' : 'text-ever-dim'}>{usd0(actual)}</span>;
+                              })()}
+                            </td>
                             <td className="px-6 py-3 text-left text-xs text-ever-dim">
                               {percentage.toFixed(1)}% of budget
                             </td>
@@ -617,6 +1016,20 @@ const Budgets: React.FC = () => {
                                           <td className="px-6 py-1.5 text-right text-xs font-medium text-ever-dim tabular-nums">
                                             ${subTotal.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                                           </td>
+                                          <td className="px-6 py-1.5 text-right text-xs font-medium tabular-nums">
+                                            {(() => {
+                                              const sr = subRecByKey[subKey];
+                                              if (!sr) return <span className="text-ever-faint">—</span>;
+                                              return (
+                                                <span
+                                                  className={sr.status === 'over' ? 'text-ever-orange' : sr.status === 'under' ? 'text-ever-teal' : 'text-ever-dim'}
+                                                  title={`Averaging ${usd0(sr.actual_monthly)}/mo vs ${usd0(sr.budget_monthly)} budgeted (last 3 months: ${usd0(sr.recent_monthly)}/mo)`}
+                                                >
+                                                  {usd0(sr.actual_monthly)}
+                                                </span>
+                                              );
+                                            })()}
+                                          </td>
                                           <td colSpan={2}></td>
                                         </tr>
                                         {!isSubCollapsed && [...subItems].sort((a, b) => {
@@ -640,6 +1053,7 @@ const Budgets: React.FC = () => {
               <tr>
                 <td colSpan={3} className="px-6 py-4 text-sm font-bold text-ever-ink">Total Monthly Budget</td>
                 <td className="px-6 py-4 text-right text-sm font-bold text-ever-lime tabular-nums">${totalMonthlyBudget.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                <td className="px-6 py-4 text-right text-sm font-bold text-ever-dim tabular-nums">{recs ? usd0(recs.totals.actual_monthly) : '—'}</td>
                 <td colSpan={2}></td>
               </tr>
             </tfoot>
@@ -678,6 +1092,7 @@ const Budgets: React.FC = () => {
                     <th className="px-6 py-3 text-left text-xs font-medium text-ever-dim uppercase tracking-wider">Frequency</th>
                     <th className="px-6 py-3 text-right text-xs font-medium text-ever-dim uppercase tracking-wider">Amount</th>
                     <th className="px-6 py-3 text-right text-xs font-medium text-ever-dim uppercase tracking-wider">Monthly Expected</th>
+                    <th className="px-6 py-3 text-right text-xs font-medium text-ever-dim uppercase tracking-wider" title="Average actual spend per month over the comparison window">Actual / mo</th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-ever-dim uppercase tracking-wider">Dates</th>
                     <th className="px-6 py-3 text-right text-xs font-medium text-ever-dim uppercase tracking-wider">Actions</th>
                   </tr>

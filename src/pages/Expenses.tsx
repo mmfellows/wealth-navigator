@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { authedFetch } from '../services/authRedirect';
 import { useQuery } from '@tanstack/react-query';
+import { useSearchParams } from 'react-router-dom';
 import { CreditCard, Search, PlusCircle, Info, Upload, Download, Eye, X, ArrowLeftRight, FileText, BarChart3 } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine, Cell } from 'recharts';
 import { fetchBudgetCategories } from '../constants/budgetCategories';
@@ -36,17 +37,30 @@ interface ExpensesResponse {
   };
 }
 
+// Signed dollars with the minus in front of the symbol: -$1,234.56, not $-1,234.56.
+const money = (n: number, digits = 2) =>
+  `${n < 0 ? '-' : ''}$${Math.abs(n).toLocaleString(undefined, { minimumFractionDigits: digits, maximumFractionDigits: digits })}`;
+
 const Expenses: React.FC = () => {
+  // Deep links (e.g. from the dashboard's drill-down) can preset the filters:
+  // /expenses?category=Home&subcategory=Utilities&month=2026-10  (or &year=2026)
+  const [searchParams] = useSearchParams();
+  const urlMonth = /^\d{4}-\d{2}$/.test(searchParams.get('month') || '') ? searchParams.get('month')! : null;
+  const urlYear = /^\d{4}$/.test(searchParams.get('year') || '') ? searchParams.get('year')! : null;
+
   const [searchTerm, setSearchTerm] = useState('');
-  const [selectedCategory, setSelectedCategory] = useState('all');
-  const [selectedSubcategory, setSelectedSubcategory] = useState('all');
-  const [dateRange, setDateRange] = useState<'all' | 'month' | 'quarter' | 'year' | 'custom-month' | 'custom-year'>('all');
+  const [selectedCategory, setSelectedCategory] = useState(() => searchParams.get('category') || 'all');
+  const [selectedSubcategory, setSelectedSubcategory] = useState(() => searchParams.get('subcategory') || 'all');
+  const [dateRange, setDateRange] = useState<'all' | 'month' | 'quarter' | 'year' | 'custom-month' | 'custom-year'>(
+    urlMonth ? 'custom-month' : urlYear ? 'custom-year' : 'all',
+  );
   const [selectedMonth, setSelectedMonth] = useState(() => {
+    if (urlMonth) return urlMonth;
     const now = new Date();
     return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
   });
-  const [selectedYear, setSelectedYear] = useState(() => String(new Date().getFullYear()));
-  const [uncategorizedOnly, setUncategorizedOnly] = useState(false);
+  const [selectedYear, setSelectedYear] = useState(() => urlYear || urlMonth?.slice(0, 4) || String(new Date().getFullYear()));
+  const [uncategorizedOnly, setUncategorizedOnly] = useState(() => searchParams.get('uncategorized') === '1');
   const [includeTransfers, setIncludeTransfers] = useState(false);
   const [availableColumns, setAvailableColumns] = useState<string[]>([]);
   const [displayColumns, setDisplayColumns] = useState<string[]>(['amount', 'date', 'merchant', 'description', 'category', 'subcategory', 'statement']);
@@ -947,7 +961,7 @@ const Expenses: React.FC = () => {
               <div className="text-right">
                 <div className="text-sm text-ever-dim">Total {includeTransfers ? '(with transfers)' : 'Spending'}</div>
                 <div className="text-2xl font-bold text-ever-ink tabular-nums">
-                  ${(expensesData?.totalAmount || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  {money(expensesData?.totalAmount || 0)}
                 </div>
               </div>
             </div>
@@ -1220,7 +1234,7 @@ const Expenses: React.FC = () => {
         <StatCard
           label="Total Expenses"
           dot="var(--ever-neg)"
-          value={`$${(expensesData?.totalAmount || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
+          value={money(expensesData?.totalAmount || 0)}
         />
         <StatCard
           label="Transactions"
@@ -1230,9 +1244,9 @@ const Expenses: React.FC = () => {
         <StatCard
           label="Average"
           dot="var(--ever-lime)"
-          value={`$${expensesData?.pagination.total && expensesData?.totalAmount
-            ? ((expensesData.totalAmount / expensesData.pagination.total).toFixed(2))
-            : '0.00'}`}
+          value={`${expensesData?.pagination.total && expensesData?.totalAmount
+            ? money(expensesData.totalAmount / expensesData.pagination.total)
+            : '$0.00'}`}
         />
       </div>
 
@@ -1320,7 +1334,7 @@ const Expenses: React.FC = () => {
               <BarChart3 className="h-5 w-5 text-ever-lime mr-2" />
               <h2 className="text-lg font-semibold text-ever-ink">Weekly Spending</h2>
               <span className="ml-3 text-sm text-ever-dim">
-                Avg: ${weeklyData.weeklyAvg.toLocaleString()}/week
+                Avg: {money(weeklyData.weeklyAvg)}/week
               </span>
             </div>
             <button
@@ -1355,12 +1369,14 @@ const Expenses: React.FC = () => {
                     tick={{ fontSize: 12, fill: '#9db3a7' }}
                     tickLine={false}
                     axisLine={false}
-                    tickFormatter={(v) => `$${v >= 1000 ? `${(v / 1000).toFixed(1)}k` : v}`}
+                    tickFormatter={(v) => `${v < 0 ? '-' : ''}$${Math.abs(v) >= 1000 ? `${(Math.abs(v) / 1000).toFixed(1)}k` : Math.abs(v)}`}
                   />
                   <Tooltip
-                    formatter={(value: number) => [`$${value.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, '']}
+                    formatter={(value: number) => [money(value), value < 0 ? 'Net credit' : 'Spent']}
                     labelFormatter={(label) => `Week of ${label}`}
-                    contentStyle={{ borderRadius: '10px', border: '1px solid #313d4d', background: '#1b2330', color: '#ebf2ec', fontSize: '13px' }}
+                    contentStyle={{ borderRadius: '10px', border: '1px solid #4a5a70', background: '#0f141c', color: '#ebf2ec', fontSize: '13px' }}
+                    labelStyle={{ color: '#9db3a7', marginBottom: 2 }}
+                    itemStyle={{ color: '#ffffff', fontWeight: 600, fontVariantNumeric: 'tabular-nums' }}
                     cursor={{ fill: 'rgba(255,255,255,0.04)' }}
                   />
                   <ReferenceLine
@@ -1406,7 +1422,7 @@ const Expenses: React.FC = () => {
           <div className="bg-ever-lime/15 border border-ever-line rounded-lg px-4 py-3 flex items-center justify-between">
             <span className="text-sm text-ever-ink">
               Showing expenses for week of <strong>{fmt(weekStart)} - {fmt(weekEnd)}</strong>
-              <span className="ml-2 text-ever-dim">({filteredExpenses.length} expenses, ${totalAmount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })})</span>
+              <span className="ml-2 text-ever-dim">({filteredExpenses.length} expenses, {money(totalAmount)})</span>
             </span>
             <button
               onClick={() => setSelectedWeek(null)}
@@ -1481,7 +1497,10 @@ const Expenses: React.FC = () => {
                       key={column}
                       className={cn(
                         'px-6 py-4 whitespace-nowrap text-sm',
-                        column.toLowerCase().includes('amount') ? 'text-right font-medium text-ever-ink tabular-nums' : 'text-ever-ink',
+                        // Amounts: red = money out (debit), green = money in (credit/refund/income).
+                        column.toLowerCase().includes('amount')
+                          ? cn('text-right font-medium tabular-nums', Number((expense as any)[column]) < 0 ? 'text-ever-pos' : 'text-ever-neg')
+                          : 'text-ever-ink',
                       )}
                     >
                       {/* Inline editable category cell */}

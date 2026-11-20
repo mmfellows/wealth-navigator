@@ -1,13 +1,13 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
   <defs>
     <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0" stop-color="#3b82f6"/>
-      <stop offset="1" stop-color="#1e40af"/>
+      <stop offset="0" stop-color="#2c5a4e"/>
+      <stop offset="1" stop-color="#15221d"/>
     </linearGradient>
   </defs>
   <rect width="64" height="64" rx="14" fill="url(#bg)"/>
-  <!-- TrendingUp arrow, matching the app header logo -->
-  <g transform="translate(11,11) scale(1.75)" fill="none" stroke="#ffffff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+  <!-- TrendingUp arrow in Evergreen lime, matching the app header logo -->
+  <g transform="translate(11,11) scale(1.75)" fill="none" stroke="#c9f04e" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
     <polyline points="22 7 13.5 15.5 8.5 10.5 2 17"/>
     <polyline points="16 7 22 7 22 13"/>
   </g>

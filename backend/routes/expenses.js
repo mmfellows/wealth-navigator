@@ -10,6 +10,7 @@ const { optionalAuth } = require('../middleware/auth');
 const { upsertMerchantRule, normalizeMerchant } = require('../services/merchantRules');
 const aiCategorization = require('../services/aiCategorizationService');
 const { detectRecurringCosts } = require('../services/recurringCosts');
+const { getTripResolver, effectiveCategory, TRIPS_CATEGORY } = require('../services/trips');
 
 router.use(optionalAuth);
 
@@ -503,10 +504,27 @@ router.get('/stats/summary', async (req, res) => {
 
     if (startDate) query = query.where('date', '>=', startDate);
     if (endDate) query = query.where('date', '<=', endDate);
-    if (category) query = query.where('category', '==', category);
 
-    const snapshot = await query.get();
-    const allItems = snapshot.docs.map(doc => doc.data()).filter(e => !e.is_transfer);
+    // Category is filtered in memory: combining an equality filter with the
+    // date range would need a composite Firestore index per field.
+    // Trip spending (and untagged Travel & Vacation) counts under its own
+    // "Trips & Travel" bucket here, so everyday categories aren't inflated by
+    // time away — the same bucketing the budget envelopes use.
+    const [snapshot, tripOf] = await Promise.all([query.get(), getTripResolver()]);
+    const tripTotals = {};
+    const allItems = snapshot.docs.map(doc => doc.data())
+      .filter(e => !e.is_transfer)
+      .map(e => {
+        const trip = tripOf(e);
+        const category_effective = effectiveCategory(e, tripOf);
+        if (trip && category_effective === TRIPS_CATEGORY) {
+          const t = (tripTotals[trip.id] = tripTotals[trip.id] || { id: trip.id, name: trip.name, total: 0, count: 0 });
+          t.total += e.amount || 0;
+          t.count += 1;
+        }
+        return category_effective === e.category ? e : { ...e, category: category_effective };
+      })
+      .filter(e => !category || e.category === category);
 
     // Separate income and taxes from expenses. Taxes are a function of
     // income, not lifestyle, and arrive in quarterly lumps — keeping them out
@@ -593,7 +611,8 @@ router.get('/stats/summary', async (req, res) => {
         .map(([subcategory, data]) => ({ subcategory, count: data.count, total: data.total }))
         .sort((a, b) => b.total - a.total),
       by_category: categoryStats,
-      by_month: monthlyStats
+      by_month: monthlyStats,
+      trips: Object.values(tripTotals).sort((a, b) => b.total - a.total)
     });
   } catch (error) {
     console.error('Error fetching expense stats:', error);
@@ -774,15 +793,30 @@ router.get('/', async (req, res) => {
     if (startDate) query = query.where('date', '>=', startDate);
     if (endDate) query = query.where('date', '<=', endDate);
 
-    // These equality filters can be combined with range on 'date'
-    if (category) query = query.where('category', '==', category);
-    if (subcategory) query = query.where('subcategory', '==', subcategory);
-    if (account) query = query.where('account', '==', account);
+    const [snapshot, tripOf] = await Promise.all([query.get(), getTripResolver()]);
 
-    const snapshot = await query.get();
-
-    // In-memory filtering for things Firestore can't handle in a single query
-    let expenses = snapshot.docs.map(docToObj);
+    // Everything else is filtered in memory. Equality filters used to be
+    // pushed into the query, but category/subcategory/account + a date range
+    // needs a composite index per field — without one Firestore rejects the
+    // query and the whole request 500s.
+    // Each row carries the trip it belongs to (if any) and the category it
+    // counts under for budgets. ?tripMode=separate makes the category filter
+    // use that budget category, matching /stats/summary and the envelopes.
+    let expenses = snapshot.docs.map(docToObj).map(e => {
+      const trip = tripOf(e);
+      return {
+        ...e,
+        trip: trip ? { id: trip.id, name: trip.name } : null,
+        budget_category: effectiveCategory(e, tripOf),
+      };
+    });
+    const { tripMode, trip: tripFilter } = req.query;
+    if (tripFilter) expenses = expenses.filter(e => e.trip && e.trip.id === tripFilter);
+    if (category) {
+      expenses = expenses.filter(e => (tripMode === 'separate' ? e.budget_category : e.category) === category);
+    }
+    if (subcategory) expenses = expenses.filter(e => e.subcategory === subcategory);
+    if (account) expenses = expenses.filter(e => e.account === account);
 
     // Exclude transfers
     if (includeTransfers === 'false') {

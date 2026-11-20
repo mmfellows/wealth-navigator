@@ -78,6 +78,46 @@ const handleSyncAll = async (req, res) => {
 router.get('/sync-all', requireCronSecret, handleSyncAll);
 router.post('/sync-all', requireCronSecret, handleSyncAll);
 
+// Emailed spending reports. One daily cron; the service decides what is due
+// on this calendar day (digest on the 8th/22nd, monthly lookback on the 2nd,
+// quarterly on the 3rd of Jan/Apr/Jul/Oct, annual on Jan 4th). Each period's
+// report is sent at most once, so a retried cron run can't double-send.
+// ?type=digest|monthly|quarterly|annual runs one regardless of the date.
+const handleReports = async (req, res) => {
+  try {
+    const { dueReports, sendReport, TYPES } = require('../services/spendingReports');
+    const requested = req.query.type;
+    if (requested && !TYPES.includes(requested)) {
+      return res.status(400).json({ error: `type must be one of ${TYPES.join(', ')}` });
+    }
+    // Same daily tick: keep the frozen copy of this year's plan (taken once,
+    // the first day the plan is live).
+    try {
+      await require('../services/budgetPlans').ensureFrozen(new Date().getFullYear());
+    } catch (err) {
+      console.error('[cron reports] plan freeze failed:', err.message);
+    }
+    const types = requested ? [requested] : dueReports();
+    const results = [];
+    for (const type of types) {
+      try {
+        results.push(await sendReport(type));
+      } catch (err) {
+        console.error(`[cron reports] ${type} failed:`, err.message);
+        results.push({ type, error: err.message });
+      }
+    }
+    const failed = results.some(r => r.error);
+    res.status(failed ? 500 : 200).json({ success: !failed, due: types, results });
+  } catch (error) {
+    console.error('[cron reports] failed:', error);
+    res.status(500).json({ error: error.message || 'reports failed' });
+  }
+};
+
+router.get('/reports', requireCronSecret, handleReports);
+router.post('/reports', requireCronSecret, handleReports);
+
 // Encryption-key rotation. See backend/services/encryption.js for the
 // procedure. Both routes need the cron secret; neither returns a secret value.
 router.get('/encryption-key-status', requireCronSecret, async (req, res) => {

@@ -191,7 +191,7 @@ export function AssistantDock() {
         title="Ask Claude (Cmd/Ctrl+K)"
       >
         <Sparkles className="h-4 w-4" />
-        <span className="hidden sm:inline">Ask Claude</span>
+        <span>Ask</span>
       </button>
 
       {open && (

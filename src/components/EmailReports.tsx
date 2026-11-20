@@ -1,12 +1,21 @@
 import { useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
-import { Mail } from 'lucide-react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { Mail, CheckCircle2, AlertCircle, Loader2 } from 'lucide-react';
 import { authedFetch } from '../services/authRedirect';
 import { Card, toast } from './ui';
 
 type ReportType = 'digest' | 'monthly' | 'quarterly' | 'annual';
 
+interface SendRecord {
+  last_sent_at?: string | null;
+  last_sent_to?: string | null;
+  last_sent_manual?: boolean;
+  last_error?: string | null;
+  last_error_at?: string | null;
+}
+
 interface Status {
+  history?: Partial<Record<ReportType, SendRecord | null>>;
   email_configured: boolean;
   provider: 'gmail' | 'resend' | null;
   gmail_check: { user_is_email: boolean; user_domain: string | null; password_length: number; password_looks_like_app_password: boolean } | null;
@@ -22,8 +31,14 @@ const REPORTS: Array<{ type: ReportType; name: string; what: string }> = [
 ];
 
 // Emailed reports: what goes out when, with a preview and a send-now button.
+const when = (iso: string) =>
+  new Date(iso).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
+
 export function EmailReports() {
+  const queryClient = useQueryClient();
   const [busy, setBusy] = useState<string | null>(null);
+  // Result of a "Send now" click in this visit, shown in place on the row.
+  const [result, setResult] = useState<Partial<Record<ReportType, { ok: boolean; text: string }>>>({});
 
   const { data: status } = useQuery<Status>({
     queryKey: ['report-status'],
@@ -55,15 +70,20 @@ export function EmailReports() {
 
   const send = async (type: ReportType) => {
     setBusy(`send-${type}`);
+    setResult(r => ({ ...r, [type]: undefined }));
     try {
       const res = await authedFetch(`/api/reports/${type}/send`, { method: 'POST' });
       const body = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(body.error || 'Could not send the email.');
-      toast.success(`Sent: ${body.subject}`);
+      const text = `Sent to ${body.to || 'you'} just now. Check your inbox for "${body.subject}".`;
+      setResult(r => ({ ...r, [type]: { ok: true, text } }));
+      toast.success(`Email sent to ${body.to || 'you'}`);
     } catch (e) {
-      toast.error((e as Error).message);
+      setResult(r => ({ ...r, [type]: { ok: false, text: (e as Error).message } }));
+      toast.error('The email did not send. See the reason next to the report.');
     } finally {
       setBusy(null);
+      queryClient.invalidateQueries({ queryKey: ['report-status'] });
     }
   };
 
@@ -103,6 +123,40 @@ export function EmailReports() {
             <button className={linkCls} disabled={busy !== null || !status?.email_configured} onClick={() => send(r.type)}>
               {busy === `send-${r.type}` ? 'Sending…' : 'Send now'}
             </button>
+            {/* Outcome: this visit's click if there was one, otherwise the last recorded attempt. */}
+            {(() => {
+              const now = result[r.type];
+              const h = status?.history?.[r.type];
+              const row = 'flex w-full items-start gap-1.5 text-xs';
+              if (busy === `send-${r.type}`) {
+                return <div className={`${row} text-ever-dim`} role="status"><Loader2 className="mt-px h-3.5 w-3.5 flex-none animate-spin" /> Sending the email…</div>;
+              }
+              if (now) {
+                return (
+                  <div className={`${row} ${now.ok ? 'text-ever-pos' : 'text-ever-neg'}`} role={now.ok ? 'status' : 'alert'}>
+                    {now.ok ? <CheckCircle2 className="mt-px h-3.5 w-3.5 flex-none" /> : <AlertCircle className="mt-px h-3.5 w-3.5 flex-none" />}
+                    <span>{now.ok ? now.text : `Not sent. ${now.text}`}</span>
+                  </div>
+                );
+              }
+              if (h?.last_error && h.last_error_at) {
+                return (
+                  <div className={`${row} text-ever-neg`}>
+                    <AlertCircle className="mt-px h-3.5 w-3.5 flex-none" />
+                    <span>Last attempt failed {when(h.last_error_at)}. {h.last_error}</span>
+                  </div>
+                );
+              }
+              if (h?.last_sent_at) {
+                return (
+                  <div className={`${row} text-ever-dim`}>
+                    <CheckCircle2 className="mt-px h-3.5 w-3.5 flex-none text-ever-pos" />
+                    <span>Last sent {when(h.last_sent_at)} to {h.last_sent_to}{h.last_sent_manual ? ' (sent by hand)' : ' (scheduled)'}</span>
+                  </div>
+                );
+              }
+              return <div className={`${row} text-ever-faint`}>Never sent yet.</div>;
+            })()}
           </div>
         ))}
       </div>

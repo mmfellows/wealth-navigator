@@ -628,13 +628,34 @@ async function sendReport(type, { now = new Date(), force = false } = {}) {
   if (!force && (await ref.get()).exists) {
     return { type, key: report.key, skipped: 'already sent' };
   }
+  // Every attempt, scheduled or manual, leaves a "last sent / last failed"
+  // record so Settings can show whether emails are really going out.
+  const statusRef = db.collection('report_sends').doc(`status_${type}`);
   const to = await recipient();
-  if (!to) throw new Error('No recipient: set REPORT_EMAIL_TO');
-  const id = await deliver({ to, subject: report.subject, html: report.html });
+  let id;
+  try {
+    if (!to) throw new Error('No recipient: set REPORT_EMAIL_TO');
+    id = await deliver({ to, subject: report.subject, html: report.html });
+  } catch (err) {
+    await statusRef.set({
+      type, last_error: err.message, last_error_at: new Date().toISOString(), last_error_manual: force,
+    }, { merge: true }).catch(() => {});
+    throw err;
+  }
+  await statusRef.set({
+    type, last_sent_at: new Date().toISOString(), last_sent_to: to, last_subject: report.subject,
+    last_sent_manual: force, last_error: null, last_error_at: null,
+  }, { merge: true }).catch(() => {});
   if (!force) {
     await ref.set({ type, key: report.key, subject: report.subject, email_id: id || null, sent_at: new Date().toISOString() });
   }
-  return { type, key: report.key, sent: true, subject: report.subject };
+  return { type, key: report.key, sent: true, subject: report.subject, to };
 }
 
-module.exports = { TYPES, dueReports, buildReport, sendReport, mailProvider, gmailCheck };
+// → { digest: { last_sent_at, last_sent_to, last_subject, last_error, ... } | null, ... }
+async function sendHistory() {
+  const docs = await Promise.all(TYPES.map(t => db.collection('report_sends').doc(`status_${t}`).get()));
+  return Object.fromEntries(TYPES.map((t, i) => [t, docs[i].exists ? docs[i].data() : null]));
+}
+
+module.exports = { TYPES, dueReports, buildReport, sendReport, mailProvider, gmailCheck, sendHistory };

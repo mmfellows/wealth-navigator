@@ -3,7 +3,7 @@
 
 const express = require('express');
 const { optionalAuth } = require('../middleware/auth');
-const { buildReport, sendReport, mailProvider, gmailCheck, TYPES } = require('../services/spendingReports');
+const { buildReport, sendReport, mailProvider, gmailCheck, sendHistory, TYPES } = require('../services/spendingReports');
 
 const router = express.Router();
 
@@ -17,8 +17,10 @@ const validType = (req, res) => {
 };
 
 // What's configured, so the settings page can explain a missing setup.
-router.get('/status', (req, res) => {
+router.get('/status', async (req, res) => {
+  const history = await sendHistory().catch(() => ({}));
   res.json({
+    history,
     email_configured: mailProvider() !== null,
     provider: mailProvider(),
     gmail_check: gmailCheck(),

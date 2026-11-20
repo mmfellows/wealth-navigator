@@ -533,8 +533,18 @@ async function buildReport(type, now = new Date()) {
   return { type, key: data.period.key, ...renderPeriod(data) };
 }
 
+// How mail goes out. Gmail (the account's own address, via an app password)
+// is used when configured; otherwise Resend.
+function mailProvider() {
+  if (process.env.GMAIL_USER && process.env.GMAIL_APP_PASSWORD) return 'gmail';
+  if (process.env.RESEND_API_KEY) return 'resend';
+  return null;
+}
+
 async function recipient() {
   if (process.env.REPORT_EMAIL_TO) return process.env.REPORT_EMAIL_TO;
+  // With Gmail the natural default is to send to yourself.
+  if (mailProvider() === 'gmail') return process.env.GMAIL_USER;
   // Single-tenant app: fall back to the (only) registered user's email.
   const snap = await db.collection('users').limit(2).get();
   const emails = snap.docs.map(d => d.data().email).filter(Boolean);
@@ -542,8 +552,31 @@ async function recipient() {
 }
 
 async function deliver({ to, subject, html }) {
+  const provider = mailProvider();
+  if (!provider) throw new Error('Email is not configured: set GMAIL_USER and GMAIL_APP_PASSWORD');
+
+  if (provider === 'gmail') {
+    // Google shows app passwords in groups of four; spaces are not part of it.
+    const pass = process.env.GMAIL_APP_PASSWORD.replace(/\s+/g, '');
+    const transport = require('nodemailer').createTransport({
+      service: 'gmail',
+      auth: { user: process.env.GMAIL_USER, pass },
+    });
+    try {
+      const info = await transport.sendMail({
+        from: process.env.REPORT_EMAIL_FROM || `Wealth Navigator <${process.env.GMAIL_USER}>`,
+        to,
+        subject,
+        html,
+      });
+      return info.messageId;
+    } catch (err) {
+      const hint = err.code === 'EAUTH' ? ' (Gmail rejected the sign-in: check GMAIL_USER and that GMAIL_APP_PASSWORD is a current app password)' : '';
+      throw new Error(`Gmail send failed: ${err.message}${hint}`);
+    }
+  }
+
   const key = process.env.RESEND_API_KEY;
-  if (!key) throw new Error('RESEND_API_KEY is not configured');
   const res = await fetch('https://api.resend.com/emails', {
     method: 'POST',
     headers: { Authorization: `Bearer ${key}`, 'Content-Type': 'application/json' },
@@ -578,4 +611,4 @@ async function sendReport(type, { now = new Date(), force = false } = {}) {
   return { type, key: report.key, sent: true, subject: report.subject };
 }
 
-module.exports = { TYPES, dueReports, buildReport, sendReport };
+module.exports = { TYPES, dueReports, buildReport, sendReport, mailProvider };

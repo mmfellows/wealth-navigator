@@ -8,6 +8,7 @@ type ReportType = 'digest' | 'monthly' | 'quarterly' | 'annual';
 
 interface Status {
   email_configured: boolean;
+  provider: 'gmail' | 'resend' | null;
   recipient: string | null;
   schedule: Record<ReportType, string>;
 }
@@ -73,11 +74,11 @@ export function EmailReports() {
         <Mail className="h-4 w-4 text-ever-lime" /> Email reports
       </h2>
       <p className="mt-1 text-sm text-ever-dim">
-        {status?.recipient ? <>Sent to <span className="text-ever-ink">{status.recipient}</span>.</> : 'Sent to the address in REPORT_EMAIL_TO.'}
+        {status?.recipient ? <>Sent to <span className="text-ever-ink">{status.recipient}</span>{status.provider === 'gmail' ? ' from your Gmail account' : ''}.</> : 'Sent to the address in REPORT_EMAIL_TO.'}
       </p>
       {status && !status.email_configured && (
         <p className="mt-3 rounded-md border border-ever-orange/30 bg-ever-orange/10 p-3 text-sm text-ever-orange">
-          Email sending isn't set up yet, so nothing will go out: the server needs a RESEND_API_KEY. Previews work in the meantime.
+          Email sending isn't set up yet, so nothing will go out: the server needs your Gmail address (GMAIL_USER) and a Gmail app password (GMAIL_APP_PASSWORD). Previews work in the meantime.
         </p>
       )}
       <div className="mt-3">

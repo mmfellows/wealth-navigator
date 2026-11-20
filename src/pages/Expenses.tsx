@@ -48,7 +48,7 @@ const Expenses: React.FC = () => {
   const urlMonth = /^\d{4}-\d{2}$/.test(searchParams.get('month') || '') ? searchParams.get('month')! : null;
   const urlYear = /^\d{4}$/.test(searchParams.get('year') || '') ? searchParams.get('year')! : null;
 
-  const [searchTerm, setSearchTerm] = useState('');
+  const [searchTerm, setSearchTerm] = useState(() => searchParams.get('search') || '');
   const [selectedCategory, setSelectedCategory] = useState(() => searchParams.get('category') || 'all');
   const [selectedSubcategory, setSelectedSubcategory] = useState(() => searchParams.get('subcategory') || 'all');
   const [dateRange, setDateRange] = useState<'all' | 'month' | 'quarter' | 'year' | 'custom-month' | 'custom-year'>(

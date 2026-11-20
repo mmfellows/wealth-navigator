@@ -8,6 +8,7 @@ import {
 import { CalendarDays, Lock, Plane, Plus, Trash2, ChevronDown, ChevronRight, ArrowUpRight } from 'lucide-react';
 import { authedFetch } from '../services/authRedirect';
 import { PlannedCosts } from '../components/PlannedCosts';
+import { PlanGaps } from '../components/PlanGaps';
 import { Card, Button, StatCard, toast } from '../components/ui';
 import { cn } from '../lib/cn';
 
@@ -68,7 +69,12 @@ const GRID = '#313d4d';
 const SERIES = { plan: '#8b6ff0', lastYear: '#c2872c', actual: '#38a790' };
 
 const usd = (n: number) => `${n < 0 ? '-' : ''}$${Math.abs(Math.round(n)).toLocaleString()}`;
-const axisUsd = (n: number) => `${n < 0 ? '-' : ''}$${Math.abs(n) >= 1000 ? `${Math.round(Math.abs(n) / 1000)}k` : Math.abs(n)}`;
+// Axis labels: exact dollars below $10k (so 2,500 isn't shown as "$3k"), then k.
+const axisUsd = (n: number) => {
+  const abs = Math.abs(n);
+  const body = abs >= 10000 ? `${parseFloat((abs / 1000).toFixed(1))}k` : Math.round(abs).toLocaleString();
+  return `${n < 0 ? '-' : ''}$${body}`;
+};
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 const mon = (key: string) => MONTHS[Number(key.slice(5, 7)) - 1];
 const inputCls = 'rounded-lg border border-ever-line bg-ever-bg px-3 py-2 text-sm text-ever-ink placeholder-ever-faint focus:border-ever-lime focus:outline-none';
@@ -355,6 +361,9 @@ const AnnualPlan: React.FC = () => {
         />
       </div>
 
+      {/* The plan checked against real spending */}
+      {plan.status !== 'past' && <PlanGaps year={year} />}
+
       {/* Original plan vs now vs actual */}
       {plan.original && (
         <Card>
@@ -397,7 +406,7 @@ const AnnualPlan: React.FC = () => {
             <ComposedChart data={glance} margin={{ top: 8, right: 12, left: 4, bottom: 0 }}>
               <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={GRID} />
               <XAxis dataKey="label" {...axisProps} axisLine={{ stroke: GRID }} />
-              <YAxis {...axisProps} axisLine={false} tickFormatter={axisUsd} width={52} />
+              <YAxis {...axisProps} axisLine={false} tickFormatter={axisUsd} width={60} />
               <Tooltip content={<ChartTooltip rows={plan.months} />} cursor={{ fill: 'rgba(255,255,255,0.05)' }} />
               {stackKeys.map((c, i) => (
                 <Bar key={c} dataKey={c} name={c} stackId="spend" fill={colorOf(c)} stroke={SURFACE} strokeWidth={2} maxBarSize={44}
@@ -435,7 +444,7 @@ const AnnualPlan: React.FC = () => {
             <BarChart data={compare} margin={{ top: 8, right: 12, left: 4, bottom: 0 }} barGap={2}>
               <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={GRID} />
               <XAxis dataKey="label" {...axisProps} axisLine={{ stroke: GRID }} />
-              <YAxis {...axisProps} axisLine={false} tickFormatter={axisUsd} width={52} />
+              <YAxis {...axisProps} axisLine={false} tickFormatter={axisUsd} width={60} />
               <Tooltip content={<ChartTooltip rows={plan.months} />} cursor={{ fill: 'rgba(255,255,255,0.05)' }} />
               <Bar dataKey="Last year" name={`${year - 1} actual`} fill={SERIES.lastYear} radius={[4, 4, 0, 0]} maxBarSize={18} isAnimationActive={false} />
               <Bar dataKey="Plan" name={`${year} plan`} fill={SERIES.plan} radius={[4, 4, 0, 0]} maxBarSize={18} isAnimationActive={false} />
@@ -460,7 +469,7 @@ const AnnualPlan: React.FC = () => {
               <LineChart data={savings} margin={{ top: 8, right: 12, left: 4, bottom: 0 }}>
                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={GRID} />
                 <XAxis dataKey="label" {...axisProps} axisLine={{ stroke: GRID }} />
-                <YAxis {...axisProps} axisLine={false} tickFormatter={axisUsd} width={52} />
+                <YAxis {...axisProps} axisLine={false} tickFormatter={axisUsd} width={60} />
                 <Tooltip content={<ChartTooltip />} cursor={{ stroke: DIM, strokeWidth: 1 }} />
                 <ReferenceLine y={0} stroke={DIM} />
                 <Line dataKey="Planned" name="Planned savings so far" type="monotone" stroke={SERIES.plan} strokeWidth={2} dot={{ r: 3, fill: SERIES.plan, stroke: SURFACE, strokeWidth: 2 }} isAnimationActive={false} />

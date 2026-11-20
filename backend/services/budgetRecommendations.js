@@ -207,4 +207,4 @@ async function getBudgetRecommendations(windowMonths = 12, now = new Date(), pla
   };
 }
 
-module.exports = { getBudgetRecommendations };
+module.exports = { getBudgetRecommendations, namesMatch, nameTokens: tokens };

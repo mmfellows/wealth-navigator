@@ -27,6 +27,19 @@ router.get('/:year', async (req, res) => {
   }
 });
 
+// What the plan may be missing, judged against the last 12 months of spending.
+router.get('/:year/gaps', async (req, res) => {
+  const year = yearOf(req, res);
+  if (!year) return;
+  try {
+    const { getPlanGaps } = require('../services/planGaps');
+    res.json(await getPlanGaps(year));
+  } catch (error) {
+    console.error('Error building plan gaps:', error);
+    res.status(500).json({ error: 'Failed to check the plan' });
+  }
+});
+
 // Start a future year's plan from the current budget.
 router.post('/:year/start', async (req, res) => {
   const year = yearOf(req, res);

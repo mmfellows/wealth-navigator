@@ -9,6 +9,7 @@ type ReportType = 'digest' | 'monthly' | 'quarterly' | 'annual';
 interface Status {
   email_configured: boolean;
   provider: 'gmail' | 'resend' | null;
+  gmail_check: { user_is_email: boolean; user_domain: string | null; password_length: number; password_looks_like_app_password: boolean } | null;
   recipient: string | null;
   schedule: Record<ReportType, string>;
 }
@@ -79,6 +80,13 @@ export function EmailReports() {
       {status && !status.email_configured && (
         <p className="mt-3 rounded-md border border-ever-orange/30 bg-ever-orange/10 p-3 text-sm text-ever-orange">
           Email sending isn't set up yet, so nothing will go out: the server needs your Gmail address (GMAIL_USER) and a Gmail app password (GMAIL_APP_PASSWORD). Previews work in the meantime.
+        </p>
+      )}
+      {status?.gmail_check && (!status.gmail_check.user_is_email || !status.gmail_check.password_looks_like_app_password) && (
+        <p className="mt-3 rounded-md border border-ever-neg/30 bg-ever-neg/10 p-3 text-sm text-ever-neg">
+          {!status.gmail_check.user_is_email
+            ? 'The saved Gmail address (GMAIL_USER) is not a full email address, so Gmail will reject the sign-in.'
+            : `The saved Gmail app password (GMAIL_APP_PASSWORD) is ${status.gmail_check.password_length} characters. A Google app password is 16 letters, so Gmail will reject this one. It may be your normal password.`}
         </p>
       )}
       <div className="mt-3">

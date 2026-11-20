@@ -3,7 +3,7 @@
 
 const express = require('express');
 const { optionalAuth } = require('../middleware/auth');
-const { buildReport, sendReport, mailProvider, TYPES } = require('../services/spendingReports');
+const { buildReport, sendReport, mailProvider, gmailCheck, TYPES } = require('../services/spendingReports');
 
 const router = express.Router();
 
@@ -21,7 +21,8 @@ router.get('/status', (req, res) => {
   res.json({
     email_configured: mailProvider() !== null,
     provider: mailProvider(),
-    recipient: process.env.REPORT_EMAIL_TO || (mailProvider() === 'gmail' ? process.env.GMAIL_USER : null) || req.user?.email || null,
+    gmail_check: gmailCheck(),
+    recipient: process.env.REPORT_EMAIL_TO || (mailProvider() === 'gmail' ? String(process.env.GMAIL_USER).trim().replace(/^["']|["']$/g, '') : null) || req.user?.email || null,
     schedule: {
       digest: '8th and 22nd of each month',
       monthly: '2nd of each month',

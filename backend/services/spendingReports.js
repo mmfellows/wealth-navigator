@@ -535,6 +535,27 @@ async function buildReport(type, now = new Date()) {
 
 // How mail goes out. Gmail (the account's own address, via an app password)
 // is used when configured; otherwise Resend.
+// Settings pasted into a dashboard often pick up quotes, spaces or a trailing
+// newline; none of those are part of the value.
+const clean = v => String(v || '').trim().replace(/^["']|["']$/g, '').trim();
+const gmailUser = () => clean(process.env.GMAIL_USER);
+// Google shows app passwords in groups of four; the spaces are not part of it.
+const gmailPass = () => clean(process.env.GMAIL_APP_PASSWORD).replace(/\s+/g, '');
+
+// Describes the saved Gmail settings without revealing them, so a rejected
+// sign-in can be diagnosed: a Google app password is exactly 16 letters.
+function gmailCheck() {
+  if (mailProvider() !== 'gmail') return null;
+  const user = gmailUser();
+  const pass = gmailPass();
+  return {
+    user_is_email: /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(user),
+    user_domain: user.includes('@') ? user.split('@').pop().toLowerCase() : null,
+    password_length: pass.length,
+    password_looks_like_app_password: /^[a-z]{16}$/i.test(pass),
+  };
+}
+
 function mailProvider() {
   if (process.env.GMAIL_USER && process.env.GMAIL_APP_PASSWORD) return 'gmail';
   if (process.env.RESEND_API_KEY) return 'resend';
@@ -544,7 +565,7 @@ function mailProvider() {
 async function recipient() {
   if (process.env.REPORT_EMAIL_TO) return process.env.REPORT_EMAIL_TO;
   // With Gmail the natural default is to send to yourself.
-  if (mailProvider() === 'gmail') return process.env.GMAIL_USER;
+  if (mailProvider() === 'gmail') return gmailUser();
   // Single-tenant app: fall back to the (only) registered user's email.
   const snap = await db.collection('users').limit(2).get();
   const emails = snap.docs.map(d => d.data().email).filter(Boolean);
@@ -556,23 +577,28 @@ async function deliver({ to, subject, html }) {
   if (!provider) throw new Error('Email is not configured: set GMAIL_USER and GMAIL_APP_PASSWORD');
 
   if (provider === 'gmail') {
-    // Google shows app passwords in groups of four; spaces are not part of it.
-    const pass = process.env.GMAIL_APP_PASSWORD.replace(/\s+/g, '');
+    const user = gmailUser();
     const transport = require('nodemailer').createTransport({
       service: 'gmail',
-      auth: { user: process.env.GMAIL_USER, pass },
+      auth: { user, pass: gmailPass() },
     });
     try {
       const info = await transport.sendMail({
-        from: process.env.REPORT_EMAIL_FROM || `Wealth Navigator <${process.env.GMAIL_USER}>`,
+        from: process.env.REPORT_EMAIL_FROM || `Wealth Navigator <${user}>`,
         to,
         subject,
         html,
       });
       return info.messageId;
     } catch (err) {
-      const hint = err.code === 'EAUTH' ? ' (Gmail rejected the sign-in: check GMAIL_USER and that GMAIL_APP_PASSWORD is a current app password)' : '';
-      throw new Error(`Gmail send failed: ${err.message}${hint}`);
+      if (err.code === 'EAUTH') {
+        const c = gmailCheck();
+        const why = !c.user_is_email ? 'GMAIL_USER is not a full email address.'
+          : !c.password_looks_like_app_password ? `GMAIL_APP_PASSWORD is ${c.password_length} characters; a Google app password is 16 letters. It may be your normal password, which Gmail does not accept here.`
+            : 'The address and the app password have the right shape, so they most likely belong to different accounts, or the app password was revoked.';
+        throw new Error(`Gmail rejected the sign-in. ${why}`);
+      }
+      throw new Error(`Gmail send failed: ${err.message}`);
     }
   }
 
@@ -611,4 +637,4 @@ async function sendReport(type, { now = new Date(), force = false } = {}) {
   return { type, key: report.key, sent: true, subject: report.subject };
 }
 
-module.exports = { TYPES, dueReports, buildReport, sendReport, mailProvider };
+module.exports = { TYPES, dueReports, buildReport, sendReport, mailProvider, gmailCheck };

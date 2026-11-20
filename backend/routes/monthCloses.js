@@ -21,12 +21,12 @@ function closeDocId(userId, month) {
 router.get('/', async (req, res) => {
   try {
     const { year } = req.query;
-    let query = db.collection('month_closes').where('user_id', '==', req.user.id);
-    if (year) {
-      query = query.where('month', '>=', `${year}-01`).where('month', '<=', `${year}-12`);
-    }
-    const snapshot = await query.get();
-    const closes = snapshot.docs.map(docToObj).sort((a, b) => b.month.localeCompare(a.month));
+    // The year is filtered in memory: user_id + a month range needs a
+    // composite index that isn't deployed, and without it the query fails.
+    const snapshot = await db.collection('month_closes').where('user_id', '==', req.user.id).get();
+    const closes = snapshot.docs.map(docToObj)
+      .filter(c => !year || String(c.month).startsWith(`${year}-`))
+      .sort((a, b) => b.month.localeCompare(a.month));
     res.json(closes);
   } catch (error) {
     console.error('Error fetching month closes:', error);

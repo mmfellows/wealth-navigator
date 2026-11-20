@@ -29,6 +29,7 @@ interface Expense {
 interface ExpensesResponse {
   expenses: Expense[];
   totalAmount: number;
+  totals?: { spending: number; spending_count: number; income: number; income_count: number; taxes: number; taxes_count: number; transfers: number };
   pagination: {
     total: number;
     limit: number;
@@ -701,7 +702,10 @@ const Expenses: React.FC = () => {
     }
     return result;
   }, [expenses, selectedWeek, sortColumn, sortDirection]);
-  const totalAmount = filteredExpenses.reduce((sum, expense) => sum + expense.amount, 0);
+  // Spending only: income (stored negative) and taxes would net it to nonsense.
+  const isSpendRow = (e: Expense) =>
+    !e.is_transfer && e.category !== 'Income' && e.category !== 'Taxes' && e.category !== 'Credit Card Payment';
+  const totalAmount = filteredExpenses.filter(isSpendRow).reduce((sum, expense) => sum + expense.amount, 0);
 
   // Weekly spending data for chart (uses all expenses, not paginated)
   const weeklyData = useMemo(() => {
@@ -717,7 +721,8 @@ const Expenses: React.FC = () => {
     // Group expenses by week
     const weekMap = new Map<string, { total: number; start: Date; count: number }>();
     for (const exp of chartExpenses) {
-      if (exp.is_transfer) continue;
+      // The chart is spending: income and tax payments are left out.
+      if (exp.is_transfer || exp.category === 'Income' || exp.category === 'Taxes' || exp.category === 'Credit Card Payment') continue;
       const date = new Date(exp.date + 'T00:00:00');
       const monday = getMonday(date);
       const key = monday.toISOString().split('T')[0];
@@ -959,9 +964,9 @@ const Expenses: React.FC = () => {
             </div>
             <div className="flex items-center gap-4">
               <div className="text-right">
-                <div className="text-sm text-ever-dim">Total {includeTransfers ? '(with transfers)' : 'Spending'}</div>
+                <div className="text-sm text-ever-dim">Total Spending</div>
                 <div className="text-2xl font-bold text-ever-ink tabular-nums">
-                  {money(expensesData?.totalAmount || 0)}
+                  {money(expensesData?.totals?.spending ?? 0)}
                 </div>
               </div>
             </div>
@@ -1230,25 +1235,40 @@ const Expenses: React.FC = () => {
       )}
 
       {/* Expense Summary Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <StatCard
-          label="Total Expenses"
-          dot="var(--ever-neg)"
-          value={money(expensesData?.totalAmount || 0)}
-        />
-        <StatCard
-          label="Transactions"
-          dot="var(--ever-violet)"
-          value={expensesData?.pagination.total || 0}
-        />
-        <StatCard
-          label="Average"
-          dot="var(--ever-lime)"
-          value={`${expensesData?.pagination.total && expensesData?.totalAmount
-            ? money(expensesData.totalAmount / expensesData.pagination.total)
-            : '$0.00'}`}
-        />
-      </div>
+      {/* Spending, income and taxes are shown apart: added together they net
+          out to a number that is none of the three. */}
+      {(() => {
+        const t = expensesData?.totals;
+        const spending = t?.spending ?? 0;
+        return (
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
+            <StatCard
+              label="Spending"
+              dot="var(--ever-neg)"
+              value={money(spending)}
+              sub={t && t.spending_count > 0 ? `${t.spending_count} purchases · ${money(spending / t.spending_count)} average` : 'excludes income, taxes and transfers'}
+            />
+            <StatCard
+              label="Income"
+              dot="var(--ever-pos)"
+              value={<span className="text-ever-pos">{money(t?.income ?? 0)}</span>}
+              sub={t ? `${t.income_count} deposit${t.income_count === 1 ? '' : 's'} and refunds` : undefined}
+            />
+            <StatCard
+              label="Taxes paid"
+              dot="var(--ever-orange)"
+              value={money(t?.taxes ?? 0)}
+              sub={t ? `${t.taxes_count} payment${t.taxes_count === 1 ? '' : 's'}, not counted as spending` : undefined}
+            />
+            <StatCard
+              label="Transactions"
+              dot="var(--ever-violet)"
+              value={expensesData?.pagination.total || 0}
+              sub="everything listed below"
+            />
+          </div>
+        );
+      })()}
 
       {/* Bulk Action Bar */}
       {selectedIds.size > 0 && (
@@ -1422,7 +1442,7 @@ const Expenses: React.FC = () => {
           <div className="bg-ever-lime/15 border border-ever-line rounded-lg px-4 py-3 flex items-center justify-between">
             <span className="text-sm text-ever-ink">
               Showing expenses for week of <strong>{fmt(weekStart)} - {fmt(weekEnd)}</strong>
-              <span className="ml-2 text-ever-dim">({filteredExpenses.length} expenses, {money(totalAmount)})</span>
+              <span className="ml-2 text-ever-dim">({filteredExpenses.length} shown, {money(totalAmount)} spending)</span>
             </span>
             <button
               onClick={() => setSelectedWeek(null)}

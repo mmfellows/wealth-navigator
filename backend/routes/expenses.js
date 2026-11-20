@@ -851,6 +851,19 @@ router.get('/', async (req, res) => {
     const total = expenses.length;
     const totalAmount = expenses.reduce((sum, e) => sum + (e.amount || 0), 0);
 
+    // totalAmount nets everything together (income is stored negative), so on
+    // its own it reads as "spending" while actually being spending + taxes -
+    // income. These split it the way the dashboard does.
+    const totals = { spending: 0, spending_count: 0, income: 0, income_count: 0, taxes: 0, taxes_count: 0, transfers: 0 };
+    expenses.forEach(e => {
+      const amount = e.amount || 0;
+      if (e.is_transfer || e.is_credit_card_payment || e.category === 'Credit Card Payment') { totals.transfers += amount; return; }
+      if (e.category === 'Income') { totals.income += -amount; totals.income_count += 1; return; }
+      if (e.category === 'Taxes') { totals.taxes += amount; totals.taxes_count += 1; return; }
+      totals.spending += amount;
+      totals.spending_count += 1;
+    });
+
     // Paginate
     const parsedLimit = parseInt(limit);
     const parsedOffset = parseInt(offset);
@@ -859,6 +872,7 @@ router.get('/', async (req, res) => {
     res.json({
       expenses: paginatedExpenses,
       totalAmount,
+      totals,
       pagination: {
         total,
         limit: parsedLimit,

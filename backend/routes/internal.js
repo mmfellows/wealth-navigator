@@ -85,7 +85,7 @@ router.post('/sync-all', requireCronSecret, handleSyncAll);
 // ?type=digest|monthly|quarterly|annual runs one regardless of the date.
 const handleReports = async (req, res) => {
   try {
-    const { dueReports, sendReport, TYPES } = require('../services/spendingReports');
+    const { dueReports, sendReport, loadSettings, TYPES } = require('../services/spendingReports');
     const requested = req.query.type;
     if (requested && !TYPES.includes(requested)) {
       return res.status(400).json({ error: `type must be one of ${TYPES.join(', ')}` });
@@ -97,7 +97,7 @@ const handleReports = async (req, res) => {
     } catch (err) {
       console.error('[cron reports] plan freeze failed:', err.message);
     }
-    const types = requested ? [requested] : dueReports();
+    const types = requested ? [requested] : dueReports(new Date(), await loadSettings());
     const results = [];
     for (const type of types) {
       try {

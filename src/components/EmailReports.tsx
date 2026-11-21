@@ -21,6 +21,9 @@ interface Status {
   gmail_check: { user_is_email: boolean; user_domain: string | null; password_length: number; password_looks_like_app_password: boolean } | null;
   recipient: string | null;
   schedule: Record<ReportType, string>;
+  settings?: { digest: string; monthly: boolean; quarterly: boolean; annual: boolean };
+  digest_frequencies?: Record<string, string>;
+  next?: Record<ReportType, string | null>;
 }
 
 const REPORTS: Array<{ type: ReportType; name: string; what: string }> = [
@@ -87,6 +90,31 @@ export function EmailReports() {
     }
   };
 
+  // Change how often a report is sent. Saved straight away.
+  const saveSetting = async (patch: Record<string, string | boolean>, label: string) => {
+    setBusy('settings');
+    try {
+      const res = await authedFetch('/api/reports/settings', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(patch),
+      });
+      if (!res.ok) throw new Error((await res.json().catch(() => null))?.error || 'That change did not save.');
+      toast.success(label);
+    } catch (e) {
+      toast.error((e as Error).message);
+    } finally {
+      setBusy(null);
+      queryClient.invalidateQueries({ queryKey: ['report-status'] });
+    }
+  };
+
+  // "Mon, Nov 23" from 'YYYY-MM-DD', as a local date.
+  const dayLabel = (iso: string) =>
+    new Date(Number(iso.slice(0, 4)), Number(iso.slice(5, 7)) - 1, Number(iso.slice(8, 10)))
+      .toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+  const selectCls = 'rounded-lg border border-ever-line bg-ever-bg px-2 py-1.5 text-xs text-ever-ink focus:border-ever-lime focus:outline-none disabled:opacity-50';
+
   const linkCls = 'font-mono text-[10.5px] text-ever-lime hover:underline disabled:opacity-50 disabled:no-underline';
 
   return (
@@ -116,7 +144,33 @@ export function EmailReports() {
               <div className="text-sm font-medium text-ever-ink">{r.name}</div>
               <div className="text-xs text-ever-dim">{r.what}</div>
             </div>
-            <div className="font-mono text-[10.5px] text-ever-faint">{status?.schedule[r.type] || ''}</div>
+            <div className="flex flex-col items-start gap-0.5 sm:items-end">
+              {status?.settings && (r.type === 'digest' ? (
+                <select
+                  className={selectCls}
+                  value={status.settings.digest}
+                  disabled={busy !== null}
+                  onChange={e => saveSetting({ digest: e.target.value }, `Check-in: ${status.digest_frequencies?.[e.target.value] ?? e.target.value}`)}
+                  aria-label="How often the spending check-in is sent"
+                >
+                  {Object.entries(status.digest_frequencies || {}).map(([id, label]) => <option key={id} value={id}>{label}</option>)}
+                </select>
+              ) : (
+                <select
+                  className={selectCls}
+                  value={status.settings[r.type] ? 'on' : 'off'}
+                  disabled={busy !== null}
+                  onChange={e => saveSetting({ [r.type]: e.target.value === 'on' }, `${r.name} ${e.target.value === 'on' ? 'turned on' : 'turned off'}`)}
+                  aria-label={`${r.name}: on or off`}
+                >
+                  <option value="on">{status.schedule[r.type]}</option>
+                  <option value="off">Off</option>
+                </select>
+              ))}
+              <span className="font-mono text-[10.5px] text-ever-faint">
+                {status?.next?.[r.type] ? `Next: ${dayLabel(status.next[r.type] as string)}` : status?.settings ? 'Not scheduled' : ''}
+              </span>
+            </div>
             <button className={linkCls} disabled={busy !== null} onClick={() => preview(r.type)}>
               {busy === `preview-${r.type}` ? 'Building…' : 'Preview'}
             </button>

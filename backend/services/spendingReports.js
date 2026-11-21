@@ -18,6 +18,82 @@ const { detectRecurringCosts } = require('./recurringCosts');
 const { makeTripResolver, effectiveCategory } = require('./trips');
 
 const DIGEST_DAYS = [8, 22];
+
+// ---------- schedule settings ----------
+//
+// How often the check-in goes out, and which lookbacks are on. The defaults
+// are the original fixed schedule; everything else is opt-in from Settings.
+const DIGEST_FREQUENCIES = {
+  twice_monthly: 'Twice a month (8th and 22nd)',
+  weekly: 'Every week (Mondays)',
+  biweekly: 'Every two weeks (Mondays)',
+  monthly: 'Once a month (the 15th)',
+  off: 'Off',
+};
+const DEFAULT_SETTINGS = { digest: 'twice_monthly', monthly: true, quarterly: true, annual: true };
+const settingsRef = () => db.collection('report_settings').doc('default');
+// Every-two-weeks counts from this Monday.
+const BIWEEKLY_ANCHOR = Date.UTC(2026, 10, 23);
+const DAY_MS = 86400000;
+
+async function loadSettings() {
+  const doc = await settingsRef().get();
+  const saved = doc.exists ? doc.data() : {};
+  return {
+    digest: saved.digest in DIGEST_FREQUENCIES ? saved.digest : DEFAULT_SETTINGS.digest,
+    monthly: saved.monthly !== false,
+    quarterly: saved.quarterly !== false,
+    annual: saved.annual !== false,
+  };
+}
+
+async function saveSettings(input) {
+  const current = await loadSettings();
+  const next = { ...current };
+  if ('digest' in input) {
+    if (!(input.digest in DIGEST_FREQUENCIES)) return { error: `digest must be one of ${Object.keys(DIGEST_FREQUENCIES).join(', ')}` };
+    next.digest = input.digest;
+  }
+  for (const k of ['monthly', 'quarterly', 'annual']) {
+    if (k in input) next[k] = Boolean(input[k]);
+  }
+  await settingsRef().set({ ...next, updated_at: new Date().toISOString() });
+  return { settings: next };
+}
+
+const utcDay = d => Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate());
+
+// Is the check-in due on this calendar day at this frequency?
+function digestDue(now, frequency) {
+  const day = now.getUTCDate();
+  const monday = now.getUTCDay() === 1;
+  if (frequency === 'off') return false;
+  if (frequency === 'weekly') return monday;
+  if (frequency === 'biweekly') {
+    const weeks = Math.round((utcDay(now) - BIWEEKLY_ANCHOR) / (7 * DAY_MS));
+    return monday && ((weeks % 2) + 2) % 2 === 0;
+  }
+  if (frequency === 'monthly') return day === 15;
+  return DIGEST_DAYS.includes(day);
+}
+
+// The check-in lists transactions since the previous one would have gone out.
+function digestSince(now, frequency) {
+  const iso = t => new Date(t).toISOString().slice(0, 10);
+  if (frequency === 'weekly') return iso(utcDay(now) - 7 * DAY_MS);
+  if (frequency === 'biweekly') return iso(utcDay(now) - 14 * DAY_MS);
+  const y = now.getUTCFullYear();
+  const m = now.getUTCMonth() + 1;
+  const day = now.getUTCDate();
+  const month = `${y}-${String(m).padStart(2, '0')}`;
+  const prev = new Date(Date.UTC(y, m - 2, 1));
+  const prevMonth = `${prev.getUTCFullYear()}-${String(prev.getUTCMonth() + 1).padStart(2, '0')}`;
+  if (frequency === 'monthly') return day > 15 ? `${month}-15` : `${prevMonth}-15`;
+  // twice a month (and "off", for a manual send): the most recent 8th/22nd before today
+  if (day > 22) return `${month}-22`;
+  if (day > 8) return `${month}-08`;
+  return `${prevMonth}-22`;
+}
 const MONTH_NAMES = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
 
 const pad = n => String(n).padStart(2, '0');
@@ -128,7 +204,7 @@ async function reviewQueueCount() {
 
 // ---------- digest ----------
 
-async function buildDigestData(now = new Date()) {
+async function buildDigestData(now = new Date(), frequency = DEFAULT_SETTINGS.digest) {
   const y = now.getUTCFullYear();
   const m = now.getUTCMonth() + 1;
   const day = now.getUTCDate();
@@ -137,12 +213,9 @@ async function buildDigestData(now = new Date()) {
   const elapsed = day / daysInMonth;
   const today = `${month}-${pad(day)}`;
 
-  // Transactions since the previous digest date (the most recent 8th/22nd
-  // strictly before today).
-  let since;
-  if (day > 22) since = `${month}-22`;
-  else if (day > 8) since = `${month}-08`;
-  else { const [py, pm] = addMonths(y, m, -1); since = `${ym(py, pm)}-22`; }
+  // Transactions since the previous check-in, which depends on how often
+  // they are sent.
+  const since = digestSince(now, frequency);
 
   const loadStart = since < `${month}-01` ? since : `${month}-01`;
   const [rawExpenses, sources, toCategorize, recurring] = await Promise.all([
@@ -511,22 +584,37 @@ function renderPeriod(d) {
 const TYPES = ['digest', 'monthly', 'quarterly', 'annual'];
 
 // Which reports are due on this calendar day.
-function dueReports(now = new Date()) {
+function dueReports(now = new Date(), settings = DEFAULT_SETTINGS) {
   const day = now.getUTCDate();
   const m = now.getUTCMonth() + 1;
   const due = [];
-  if (DIGEST_DAYS.includes(day)) due.push('digest');
-  if (day === 2) due.push('monthly');
-  if (day === 3 && [1, 4, 7, 10].includes(m)) due.push('quarterly');
-  if (day === 4 && m === 1) due.push('annual');
+  if (digestDue(now, settings.digest)) due.push('digest');
+  if (settings.monthly && day === 2) due.push('monthly');
+  if (settings.quarterly && day === 3 && [1, 4, 7, 10].includes(m)) due.push('quarterly');
+  if (settings.annual && day === 4 && m === 1) due.push('annual');
   return due;
+}
+
+// The next calendar day each report will go out under these settings
+// ('YYYY-MM-DD', or null if it is switched off). The daily job runs at
+// 17:00 UTC, so today only counts before then.
+function nextSends(settings, now = new Date()) {
+  const out = { digest: null, monthly: null, quarterly: null, annual: null };
+  const startOffset = now.getUTCHours() >= 17 ? 1 : 0;
+  for (let i = startOffset; i <= 400; i++) {
+    const d = new Date(utcDay(now) + i * DAY_MS);
+    dueReports(d, settings).forEach(type => { if (!out[type]) out[type] = d.toISOString().slice(0, 10); });
+    if (TYPES.every(t => out[t] || (t === 'digest' ? settings.digest === 'off' : !settings[t]))) break;
+  }
+  return out;
 }
 
 // → { type, key, subject, html }. `key` identifies the period, so a report
 // is only ever emailed once per period (see sendReport).
 async function buildReport(type, now = new Date()) {
   if (type === 'digest') {
-    const data = await buildDigestData(now);
+    const { digest: frequency } = await loadSettings();
+    const data = await buildDigestData(now, frequency);
     return { type, key: data.today, ...renderDigest(data) };
   }
   const data = await buildPeriodData(type, now);
@@ -658,4 +746,7 @@ async function sendHistory() {
   return Object.fromEntries(TYPES.map((t, i) => [t, docs[i].exists ? docs[i].data() : null]));
 }
 
-module.exports = { TYPES, dueReports, buildReport, sendReport, mailProvider, gmailCheck, sendHistory };
+module.exports = {
+  TYPES, dueReports, buildReport, sendReport, mailProvider, gmailCheck, sendHistory,
+  DIGEST_FREQUENCIES, loadSettings, saveSettings, nextSends,
+};

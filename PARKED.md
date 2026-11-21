@@ -9,7 +9,7 @@
 - Data work in production Firestore: removed 141 duplicate Chase-PDF rows, created 11 trips for 2025–26, recategorized Wix, reset start dates on 2027 draft lines. Backups are in `backend/backups/` (gitignored).
 
 ## Where things stand
-- Deployed: `f3bb792` on Vercel production (auto-deploy from `main`) — verified by build status Ready, new endpoints answering 401 (auth required) on the live site, and local screenshots against real data for Year Plan, Budgets tab, Expenses and the Ask panel.
+- Deployed: `050ecff` on Vercel production (adds email frequency settings on top of `f3bb792`) (auto-deploy from `main`) — verified by build status Ready, new endpoints answering 401 (auth required) on the live site, and local screenshots against real data for Year Plan, Budgets tab, Expenses and the Ask panel.
 - Uncommitted: nothing.
 - Blocked on: nothing.
 
@@ -26,6 +26,7 @@
 - Tax payments still show on the Expenses page in their own tile; user was offered to hide them, no answer yet.
 - Colour classes with opacity on theme variables (e.g. `border-ever-orange/30`) do not render a tint; banners using them show a plain border. Cosmetic.
 - `firestore.indexes.json` indexes are not deployed to Firebase; two queries were moved to in-memory filtering to avoid them. Other composite-index queries may fail the same way.
+- **Capital One sync errors (logged 2026-11-21, no action wanted yet).** Each sync reports two failed requests for Capital One, holdings and investment transactions, both "status code 400". The linked Capital One account is a savings account, so these requests probably don't apply and no data is missing; confirm, then stop requesting them for that account or hide the failure.
 - Pre-existing log noise: express-rate-limit warns about `X-Forwarded-For` because `trust proxy` is not set.
 - Vercel CLI is old (56.x vs 66.x).
 
